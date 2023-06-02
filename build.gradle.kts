@@ -25,6 +25,10 @@
 
 import org.ajoberstar.grgit.Grgit
 
+dependencies {
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
+}
 buildscript {
     repositories {
         mavenLocal()

@@ -44,6 +44,8 @@ apply<BootstrapPlugin>()
 description = "RuneLite Client"
 
 dependencies {
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
     annotationProcessor(group = "org.projectlombok", name = "lombok", version = ProjectVersions.lombokVersion)
     annotationProcessor(group = "org.pf4j", name = "pf4j", version = "3.6.0")
 

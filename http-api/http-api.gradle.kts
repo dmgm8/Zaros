@@ -28,6 +28,8 @@ import org.apache.tools.ant.filters.ReplaceTokens
 description = "Web API"
 
 dependencies {
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
     annotationProcessor(group = "org.projectlombok", name = "lombok", version = ProjectVersions.lombokVersion)
 
     compileOnly(group = "org.projectlombok", name = "lombok", version = ProjectVersions.lombokVersion)

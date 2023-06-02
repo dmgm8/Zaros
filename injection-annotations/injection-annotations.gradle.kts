@@ -24,3 +24,7 @@
  */
 description = "Injection/Mapping annotations"
 version = "1.1"
+dependencies {
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
+}

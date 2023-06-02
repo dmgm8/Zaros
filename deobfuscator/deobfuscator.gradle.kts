@@ -36,6 +36,8 @@ configurations {
 }
 
 dependencies {
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
     deobjars(group = "net.runelite.rs", name = "vanilla", version = ProjectVersions.rsversion.toString())
     deobjars(project(":runescape-client"))
 

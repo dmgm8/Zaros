@@ -49,6 +49,8 @@ configurations {
 }
 
 dependencies {
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
     vanillaDep(group = "net.runelite.rs", name = "vanilla", version = ProjectVersions.rsversion.toString())
     rsapiDep(project(":runescape-api"))
     rsclientDep(project(":runescape-client"))

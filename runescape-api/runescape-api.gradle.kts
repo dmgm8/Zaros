@@ -29,4 +29,6 @@ description = "RuneScape API"
 dependencies {
     api(project(":runelite-api"))
     api(project(":injection-annotations"))
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
+    implementation("net.java.dev.jna:jna-platform-jpms:5.10.0")
 }
