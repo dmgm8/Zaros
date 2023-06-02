@@ -34,7 +34,7 @@ public class RuneLiteAPI {
         GsonBuilder gsonBuilder = new GsonBuilder();
         gsonBuilder.registerTypeAdapter(Instant.class, new InstantTypeAdapter()).registerTypeAdapter(Color.class, new ColorTypeAdapter());
         boolean assertionsEnabled = false;
-        if (!$assertionsDisabled) {
+        if (true) {
             assertionsEnabled = true;
             if (false) {
                 throw new AssertionError();

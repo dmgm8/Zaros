@@ -1,39 +1,3 @@
-/*
- * Decompiled with CFR 0.150.
- * 
- * Could not load the following classes:
- *  ch.qos.logback.classic.Level
- *  ch.qos.logback.classic.Logger
- *  com.google.common.annotations.VisibleForTesting
- *  com.google.common.base.MoreObjects
- *  com.google.inject.Guice
- *  com.google.inject.Inject
- *  com.google.inject.Injector
- *  com.google.inject.Module
- *  io.sentry.Sentry
- *  io.sentry.protocol.User
- *  javax.annotation.Nullable
- *  javax.inject.Provider
- *  javax.inject.Singleton
- *  joptsimple.ArgumentAcceptingOptionSpec
- *  joptsimple.OptionParser
- *  joptsimple.OptionSet
- *  joptsimple.OptionSpec
- *  joptsimple.ValueConversionException
- *  joptsimple.ValueConverter
- *  joptsimple.util.EnumConverter
- *  net.runelite.api.Client
- *  net.runelite.api.Constants
- *  net.runelite.http.api.RuneLiteAPI
- *  okhttp3.Cache
- *  okhttp3.OkHttpClient
- *  okhttp3.OkHttpClient$Builder
- *  okhttp3.Request
- *  okhttp3.Response
- *  org.apache.commons.lang3.SystemUtils
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package net.runelite.client;
 
 import ch.qos.logback.classic.Level;
@@ -48,7 +12,6 @@ import io.sentry.protocol.User;
 import java.applet.Applet;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.nio.file.FileVisitOption;
@@ -75,19 +38,11 @@ import javax.swing.SwingUtilities;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import joptsimple.OptionSpec;
 import joptsimple.ValueConversionException;
 import joptsimple.ValueConverter;
 import joptsimple.util.EnumConverter;
 import net.runelite.api.Client;
 import net.runelite.api.Constants;
-import net.runelite.client.ClassPreloader;
-import net.runelite.client.ClientSessionManager;
-import net.runelite.client.RuneLiteModule;
-import net.runelite.client.RuneLiteProperties;
-import net.runelite.client.RuntimeConfig;
-import net.runelite.client.RuntimeConfigLoader;
-import net.runelite.client.TelemetryClient;
 import net.runelite.client.account.SessionManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.discord.DiscordService;
@@ -176,22 +131,21 @@ public class RuneLite {
         parser.accepts("insecure-skip-tls-verification", "Disables TLS verification");
         parser.accepts("vanilla", "Disables all plugins and custom UI");
         parser.accepts("local-config", "Enables loading the applet params from resources");
-        ArgumentAcceptingOptionSpec sessionfile = parser.accepts("sessionfile", "Use a specified session file").withRequiredArg().withValuesConvertedBy((ValueConverter)new ConfigFileConverter()).defaultsTo((Object)DEFAULT_SESSION_FILE, (Object[])new File[0]);
-        ArgumentAcceptingOptionSpec configfile = parser.accepts("config", "Use a specified config file").withRequiredArg().withValuesConvertedBy((ValueConverter)new ConfigFileConverter()).defaultsTo((Object)DEFAULT_CONFIG_FILE, (Object[])new File[0]);
-        ArgumentAcceptingOptionSpec updateMode = parser.accepts("rs", "Select client type").withRequiredArg().ofType(ClientUpdateCheckMode.class).defaultsTo((Object)ClientUpdateCheckMode.RUNELITE, (Object[])new ClientUpdateCheckMode[0]).withValuesConvertedBy((ValueConverter)new EnumConverter<ClientUpdateCheckMode>(ClientUpdateCheckMode.class){
-
+        ArgumentAcceptingOptionSpec<File> sessionfile = parser.accepts("sessionfile", "Use a specified session file").withRequiredArg().withValuesConvertedBy(new ConfigFileConverter()).defaultsTo(DEFAULT_SESSION_FILE);
+        ArgumentAcceptingOptionSpec<File> configfile = parser.accepts("config", "Use a specified config file").withRequiredArg().withValuesConvertedBy(new ConfigFileConverter()).defaultsTo(DEFAULT_CONFIG_FILE);
+        ArgumentAcceptingOptionSpec<ClientUpdateCheckMode> updateMode = parser.accepts("rs", "Select client type").withRequiredArg().ofType(ClientUpdateCheckMode.class).defaultsTo(ClientUpdateCheckMode.RUNELITE).withValuesConvertedBy(new EnumConverter<>(ClientUpdateCheckMode.class) {
             public ClientUpdateCheckMode convert(String v) {
-                return (ClientUpdateCheckMode)super.convert(v.toUpperCase());
+                return super.convert(v.toUpperCase());
             }
         });
         parser.accepts("help", "Show this text").forHelp();
         OptionSet options = parser.parse(args);
         if (options.has("help")) {
-            parser.printHelpOn((OutputStream)System.out);
+            parser.printHelpOn(System.out);
             System.exit(0);
         }
         if (options.has("debug")) {
-            ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger((String)"ROOT");
+            ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger("ROOT");
             logger.setLevel(Level.DEBUG);
         }
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
@@ -202,62 +156,52 @@ public class RuneLite {
         });
         boolean localAppletConfig = options.has("local-config");
         RuneLiteAPI.CLIENT = okHttpClient = RuneLite.buildHttpClient(options.has("insecure-skip-tls-verification"));
-        Sentry.init(sentryOptions -> sentryOptions.setDsn("https://18a94ce3f2fe42eb9000315fe2f72142@o480827.ingest.sentry.io/5528487"), (boolean)true);
+        Sentry.init(sentryOptions -> sentryOptions.setDsn("https://18a94ce3f2fe42eb9000315fe2f72142@o480827.ingest.sentry.io/5528487"), true);
         try {
-            Sentry.setExtra((String)"os_arch", (String)SystemUtils.OS_ARCH);
-            Sentry.setExtra((String)"java_vendor", (String)System.getProperty("java.vendor"));
-            Sentry.setExtra((String)"java_version", (String)System.getProperty("java.version"));
+            Sentry.setExtra("os_arch", SystemUtils.OS_ARCH);
+            Sentry.setExtra("java_vendor", System.getProperty("java.vendor"));
+            Sentry.setExtra("java_version", System.getProperty("java.version"));
         }
         catch (Exception e) {
-            Sentry.setExtra((String)"os_arch", (String)"Unknown");
-            Sentry.setExtra((String)"java_vendor", (String)"Unknown");
-            Sentry.setExtra((String)"java_version", (String)"1.6");
+            Sentry.setExtra("os_arch", "Unknown");
+            Sentry.setExtra("java_vendor", "Unknown");
+            Sentry.setExtra("java_version", "1.6");
         }
         User defaultUser = new User();
         defaultUser.setIpAddress("{{auto}}");
-        Sentry.setUser((User)defaultUser);
+        Sentry.setUser(defaultUser);
         SplashScreen.init();
         SplashScreen.stage(0.0, "Retrieving client", "");
         try {
             boolean developerMode;
             RuntimeConfigLoader runtimeConfigLoader = new RuntimeConfigLoader(okHttpClient);
-            ClientLoader clientLoader = new ClientLoader(okHttpClient, (ClientUpdateCheckMode)((Object)options.valueOf((OptionSpec)updateMode)), localAppletConfig);
+            ClientLoader clientLoader = new ClientLoader(okHttpClient, options.valueOf(updateMode), localAppletConfig);
             new Thread(() -> {
                 clientLoader.get();
                 ClassPreloader.preload();
             }, "Preloader").start();
             boolean bl = developerMode = options.has("developer-mode") && RuneLiteProperties.getLauncherVersion() == null;
             if (developerMode) {
-                boolean assertions = false;
-                if (!$assertionsDisabled) {
-                    assertions = true;
-                    if (!true) {
-                        throw new AssertionError();
-                    }
-                }
-                if (!assertions) {
-                    SwingUtilities.invokeLater(() -> new FatalErrorDialog("Developers should enable assertions; Add `-ea` to your JVM arguments`").addHelpButtons().addBuildingGuide().open());
                     return;
                 }
-            }
             PROFILES_DIR.mkdirs();
-            log.info("RuneLite {} (launcher version {}) starting up, args: {}", new Object[]{RuneLiteProperties.getVersion(), MoreObjects.firstNonNull((Object)RuneLiteProperties.getLauncherVersion(), (Object)"unknown"), args.length == 0 ? "none" : String.join((CharSequence)" ", args)});
+            log.info("RuneLite {} (launcher version {}) starting up, args: {}", RuneLiteProperties.getVersion(), MoreObjects.firstNonNull(RuneLiteProperties.getLauncherVersion(), "unknown"), args.length == 0 ? "none" : String.join(" ", args));
             RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
-            log.info("Java VM arguments: {}", (Object)String.join((CharSequence)" ", runtime.getInputArguments()));
+            log.info("Java VM arguments: {}", String.join(" ", runtime.getInputArguments()));
             long start = System.currentTimeMillis();
-            injector = Guice.createInjector((Module[])new Module[]{new RuneLiteModule(okHttpClient, clientLoader, runtimeConfigLoader, developerMode, options.has("safe-mode"), true, options.has("vanilla"), (File)options.valueOf((OptionSpec)sessionfile), (File)options.valueOf((OptionSpec)configfile))});
-            RuneLite runelite = (RuneLite)injector.getInstance(RuneLite.class);
-            if (!options.has("vanilla")) {
-                runelite.start();
-            } else {
+            injector = Guice.createInjector(new RuneLiteModule(okHttpClient, clientLoader, runtimeConfigLoader, developerMode, options.has("safe-mode"), true, options.has("vanilla"), options.valueOf(sessionfile), options.valueOf(configfile)));
+            RuneLite runelite = injector.getInstance(RuneLite.class);
+            if (options.has("vanilla")) {
                 runelite.startVanilla();
+            } else {
+                runelite.start();
             }
             long end = System.currentTimeMillis();
             long uptime = runtime.getUptime();
-            log.info("Client initialization took {}ms. Uptime: {}ms", (Object)(end - start), (Object)uptime);
+            log.info("Client initialization took {}ms. Uptime: {}ms", end - start, uptime);
         }
         catch (Exception e) {
-            log.error("Failure during startup", (Throwable)e);
+            log.error("Failure during startup", e);
             SwingUtilities.invokeLater(() -> new FatalErrorDialog("RuneLite has encountered an unexpected error during startup.").addHelpButtons().open());
         }
         finally {
@@ -269,7 +213,7 @@ public class RuneLite {
         boolean isOutdated;
         boolean bl = isOutdated = this.client == null;
         if (!isOutdated) {
-            injector.injectMembers((Object)this.client);
+            injector.injectMembers(this.client);
         }
         this.setupSystemProps();
         if (this.applet != null) {
@@ -307,8 +251,8 @@ public class RuneLite {
         this.eventBus.register(this.discordService);
         if (!isOutdated) {
             WidgetOverlay.createOverlays(this.overlayManager, this.client).forEach(this.overlayManager::add);
-            this.overlayManager.add((Overlay)this.worldMapOverlay.get());
-            this.overlayManager.add((Overlay)this.tooltipOverlay.get());
+            this.overlayManager.add(this.worldMapOverlay.get());
+            this.overlayManager.add(this.tooltipOverlay.get());
         }
         this.pluginManager.startPlugins();
         SplashScreen.stop();
@@ -321,7 +265,7 @@ public class RuneLite {
     }
 
     private void startVanilla() throws Exception {
-        injector.injectMembers((Object)this.client);
+        injector.injectMembers(this.client);
         SplashScreen.stage(0.75, null, "Starting core interface");
         this.clientUI.init();
         SplashScreen.stop();
@@ -377,21 +321,21 @@ public class RuneLite {
             okHttpClientBuilder.sslSocketFactory(sc.getSocketFactory(), trustManager);
         }
         catch (KeyManagementException | NoSuchAlgorithmException ex) {
-            log.warn("unable to setup insecure trust manager", (Throwable)ex);
+            log.warn("unable to setup insecure trust manager", ex);
         }
     }
 
     private static void copyJagexCache() {
         Path from = Paths.get(System.getProperty("user.home"), "jagexcache");
         Path to = Paths.get(System.getProperty("user.home"), ".zaros", "jagexcache");
-        if (Files.exists(to, new LinkOption[0]) || !Files.exists(from, new LinkOption[0])) {
+        if (Files.exists(to) || !Files.exists(from)) {
             return;
         }
-        log.info("Copying jagexcache from {} to {}", (Object)from, (Object)to);
-        try (Stream<Path> stream = Files.walk(from, new FileVisitOption[0]);){
+        log.info("Copying jagexcache from {} to {}", from, to);
+        try (Stream<Path> stream = Files.walk(from)){
             stream.forEach(source -> {
                 try {
-                    Files.copy(source, to.resolve(from.relativize((Path)source)), StandardCopyOption.COPY_ATTRIBUTES);
+                    Files.copy(source, to.resolve(from.relativize(source)), StandardCopyOption.COPY_ATTRIBUTES);
                 }
                 catch (IOException e) {
                     throw new RuntimeException(e);
@@ -399,7 +343,7 @@ public class RuneLite {
             });
         }
         catch (Exception e) {
-            log.warn("unable to copy jagexcache", (Throwable)e);
+            log.warn("unable to copy jagexcache", e);
         }
     }
 
@@ -410,7 +354,7 @@ public class RuneLite {
         for (Map.Entry<String, String> entry : this.runtimeConfig.getSysProps().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
-            log.debug("Setting property {}={}", (Object)key, (Object)value);
+            log.debug("Setting property {}={}", key, value);
             System.setProperty(key, value);
         }
     }
@@ -425,7 +369,7 @@ public class RuneLite {
         }
 
         public File convert(String fileName) {
-            File file = Paths.get(fileName, new String[0]).isAbsolute() || fileName.startsWith("./") || fileName.startsWith(".\\") ? new File(fileName) : new File(RUNELITE_DIR, fileName);
+            File file = Paths.get(fileName).isAbsolute() || fileName.startsWith("./") || fileName.startsWith(".\\") ? new File(fileName) : new File(RUNELITE_DIR, fileName);
             if (!(!file.exists() || file.isFile() && file.canWrite())) {
                 throw new ValueConversionException(String.format("File %s is not accessible", file.getAbsolutePath()));
             }
@@ -441,4 +385,3 @@ public class RuneLite {
         }
     }
 }
-

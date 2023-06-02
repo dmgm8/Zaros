@@ -80,7 +80,7 @@ extends Plugin {
         if (session.getUsername() == null) {
             return;
         }
-        log.debug("Session opened as {}", (Object)session.getUsername());
+        log.debug("Session opened as {}", session.getUsername());
         this.addAndRemoveButtons();
     }
 }
