@@ -1,26 +1,16 @@
 /*
- * Copyright (c) 2019 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Inject
+ *  com.google.inject.Provides
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.Player
+ *  net.runelite.api.coords.LocalPoint
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.BeforeRender
+ *  net.runelite.api.events.GameStateChanged
  */
 package net.runelite.client.plugins.skybox;
 
@@ -30,7 +20,6 @@ import java.awt.Color;
 import java.io.IOException;
 import java.io.InputStream;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
 import net.runelite.api.coords.LocalPoint;
@@ -41,119 +30,81 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.skybox.Skybox;
+import net.runelite.client.plugins.skybox.SkyboxPluginConfig;
 
-@PluginDescriptor(
-	name = "Skybox",
-	description = "Draws an oldschool styled skybox",
-	enabledByDefault = false,
-	tags = {"sky"}
-)
-public class SkyboxPlugin extends Plugin
-{
-	@Inject
-	private Client client;
+@PluginDescriptor(name="Skybox", description="Draws an oldschool styled skybox", enabledByDefault=false, tags={"sky"})
+public class SkyboxPlugin
+extends Plugin {
+    @Inject
+    private Client client;
+    @Inject
+    private SkyboxPluginConfig config;
+    private Skybox skybox;
 
-	@Inject
-	private SkyboxPluginConfig config;
+    @Override
+    public void startUp() throws IOException {
+        try (InputStream in = SkyboxPlugin.class.getResourceAsStream("skybox.txt");){
+            this.skybox = new Skybox(in, "skybox.txt");
+        }
+    }
 
-	private Skybox skybox;
+    @Override
+    public void shutDown() {
+        this.client.setSkyboxColor(0);
+        this.skybox = null;
+    }
 
-	@Override
-	public void startUp() throws IOException
-	{
-		try (InputStream in = SkyboxPlugin.class.getResourceAsStream("skybox.txt"))
-		{
-			skybox = new Skybox(in, "skybox.txt");
-		}
-	}
+    @Provides
+    SkyboxPluginConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(SkyboxPluginConfig.class);
+    }
 
-	@Override
-	public void shutDown()
-	{
-		client.setSkyboxColor(0);
-		skybox = null;
-	}
+    private int mapChunk(int cx, int cy, int plane) {
+        int[][] instanceTemplateChunks = this.client.getInstanceTemplateChunks()[plane];
+        if ((cx -= this.client.getBaseX() / 8) < 0 || cx >= instanceTemplateChunks.length || (cy -= this.client.getBaseY() / 8) < 0 || cy >= instanceTemplateChunks[cx].length) {
+            return -1;
+        }
+        return instanceTemplateChunks[cx][cy];
+    }
 
-	@Provides
-	SkyboxPluginConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(SkyboxPluginConfig.class);
-	}
+    @Subscribe
+    public void onBeforeRender(BeforeRender r) {
+        int py;
+        int px;
+        Color overrideColor;
+        if (this.skybox == null || this.client.getGameState() != GameState.LOGGED_IN) {
+            return;
+        }
+        Player player = this.client.getLocalPlayer();
+        if (player == null) {
+            return;
+        }
+        Color color = overrideColor = WorldPoint.getMirrorPoint((WorldPoint)player.getWorldLocation(), (boolean)true).getY() < 4160 ? this.config.customOverworldColor() : this.config.customOtherColor();
+        if (overrideColor != null) {
+            this.client.setSkyboxColor(overrideColor.getRGB());
+            return;
+        }
+        if (this.client.getOculusOrbState() == 1) {
+            px = this.client.getOculusOrbFocalPointX();
+            py = this.client.getOculusOrbFocalPointY();
+        } else {
+            LocalPoint p = player.getLocalLocation();
+            px = p.getX();
+            py = p.getY();
+        }
+        int spx = -(this.client.getCameraX() - px >> 1);
+        int spy = -(this.client.getCameraY() - py >> 1);
+        int baseX = this.client.getBaseX();
+        int baseY = this.client.getBaseY();
+        this.client.setSkyboxColor(this.skybox.getColorForPoint((float)baseX + (float)(px + spx) / 128.0f, (float)baseY + (float)(py + spy) / 128.0f, baseX + px / 128, baseY + py / 128, this.client.getPlane(), this.client.getTextureProvider().getBrightness(), this.client.isInInstancedRegion() ? (arg_0, arg_1, arg_2) -> this.mapChunk(arg_0, arg_1, arg_2) : null));
+    }
 
-	private int mapChunk(int cx, int cy, int plane)
-	{
-		cx -= client.getBaseX() / 8;
-		cy -= client.getBaseY() / 8;
-
-		int[][] instanceTemplateChunks = client.getInstanceTemplateChunks()[plane];
-		// Blending can access this out of bounds, so do a range check
-		if (cx < 0 || cx >= instanceTemplateChunks.length || cy < 0 || cy >= instanceTemplateChunks[cx].length)
-		{
-			return -1;
-		}
-
-		return instanceTemplateChunks[cx][cy];
-	}
-
-	@Subscribe
-	public void onBeforeRender(BeforeRender r)
-	{
-		if (skybox == null || client.getGameState() != GameState.LOGGED_IN)
-		{
-			return;
-		}
-
-		Player player = client.getLocalPlayer();
-		if (player == null)
-		{
-			return;
-		}
-
-		Color overrideColor = WorldPoint.getMirrorPoint(player.getWorldLocation(), true).getY() < Constants.OVERWORLD_MAX_Y
-			? config.customOverworldColor() : config.customOtherColor();
-		if (overrideColor != null)
-		{
-			client.setSkyboxColor(overrideColor.getRGB());
-			return;
-		}
-
-		int px, py;
-		if (client.getOculusOrbState() == 1)
-		{
-			px = client.getOculusOrbFocalPointX();
-			py = client.getOculusOrbFocalPointY();
-		}
-		else
-		{
-			LocalPoint p = player.getLocalLocation();
-			px = p.getX();
-			py = p.getY();
-		}
-
-		// Inverse of camera location / 2
-		int spx = -((client.getCameraX() - px) >> 1);
-		int spy = -((client.getCameraY() - py) >> 1);
-
-		int baseX = client.getBaseX();
-		int baseY = client.getBaseY();
-
-		client.setSkyboxColor(skybox.getColorForPoint(
-			baseX + ((px + spx) / 128.f),
-			baseY + ((py + spy) / 128.f),
-			baseX + (px / 128),
-			baseY + (py / 128),
-			client.getPlane(),
-			client.getTextureProvider().getBrightness(),
-			client.isInInstancedRegion() ? this::mapChunk : null
-		));
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN)
-		{
-			client.setSkyboxColor(0);
-		}
-	}
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged gameStateChanged) {
+        if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN) {
+            this.client.setSkyboxColor(0);
+        }
+    }
 }
+

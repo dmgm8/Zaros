@@ -1,26 +1,21 @@
 /*
- * Copyright (c) 2018, Woox <https://github.com/wooxsolo>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Splitter
+ *  com.google.common.base.Strings
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.NPC
+ *  net.runelite.api.NPCComposition
+ *  net.runelite.api.coords.LocalPoint
+ *  net.runelite.api.coords.WorldArea
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.NpcSpawned
+ *  net.runelite.api.geometry.Geometry
  */
 package net.runelite.client.plugins.npcunaggroarea;
 
@@ -29,25 +24,21 @@ import com.google.common.base.Strings;
 import com.google.inject.Provides;
 import java.awt.Polygon;
 import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.GeneralPath;
-import java.awt.image.BufferedImage;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import javax.inject.Inject;
-import lombok.Getter;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
-import net.runelite.api.ItemID;
 import net.runelite.api.NPC;
 import net.runelite.api.NPCComposition;
-import net.runelite.api.Perspective;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.NpcSpawned;
@@ -55,451 +46,332 @@ import net.runelite.api.geometry.Geometry;
 import net.runelite.client.Notifier;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.npcunaggroarea.AggressionTimer;
+import net.runelite.client.plugins.npcunaggroarea.NpcAggroAreaConfig;
+import net.runelite.client.plugins.npcunaggroarea.NpcAggroAreaNotWorkingOverlay;
+import net.runelite.client.plugins.npcunaggroarea.NpcAggroAreaOverlay;
 import net.runelite.client.plugins.slayer.SlayerPlugin;
 import net.runelite.client.plugins.slayer.SlayerPluginService;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
+import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.WildcardMatcher;
 
-@PluginDescriptor(
-	name = "NPC Aggression Timer",
-	description = "Highlights the unaggressive area of NPCs nearby and timer until it becomes active",
-	tags = {"highlight", "lines", "unaggro", "aggro", "aggressive", "npcs", "area", "slayer"},
-	enabledByDefault = false
-)
-@PluginDependency(SlayerPlugin.class)
-public class NpcAggroAreaPlugin extends Plugin
-{
-	/*
-	How it works: The game remembers 2 tiles. When the player goes >10 steps
-	away from both tiles, the oldest one is moved to under the player and the
-	NPC aggression timer resets.
-	So to first figure out where the 2 tiles are, we wait until the player teleports
-	a long enough distance. At that point it's very likely that the player
-	moved out of the radius of both tiles, which resets one of them. The other
-	should reset shortly after as the player starts moving around.
-	*/
-
-	private static final int SAFE_AREA_RADIUS = 10;
-	private static final int UNKNOWN_AREA_RADIUS = SAFE_AREA_RADIUS * 2;
-	private static final Duration AGGRESSIVE_TIME_DURATION = Duration.ofSeconds(600);
-	private static final Splitter NAME_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
-	private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
-	private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
-
-	@Inject
-	private Client client;
-
-	@Inject
-	private NpcAggroAreaConfig config;
-
-	@Inject
-	private NpcAggroAreaOverlay overlay;
-
-	@Inject
-	private NpcAggroAreaNotWorkingOverlay notWorkingOverlay;
-
-	@Inject
-	private OverlayManager overlayManager;
-
-	@Inject
-	private ItemManager itemManager;
-
-	@Inject
-	private InfoBoxManager infoBoxManager;
-
-	@Inject
-	private ConfigManager configManager;
-
-	@Inject
-	private Notifier notifier;
-
-	@Inject
-	private SlayerPluginService slayerPluginService;
-
-	@Getter
-	private final WorldPoint[] safeCenters = new WorldPoint[2];
-
-	@Getter
-	private final GeneralPath[] linesToDisplay = new GeneralPath[Constants.MAX_Z];
-
-	@Getter
-	private boolean active;
-
-	@Getter
-	private Instant endTime;
-
-	private WorldPoint lastPlayerLocation;
-	private WorldPoint previousUnknownCenter;
-	private boolean loggingIn;
-	private boolean notifyOnce;
-
-	private List<String> npcNamePatterns;
-
-	@Provides
-	NpcAggroAreaConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(NpcAggroAreaConfig.class);
-	}
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		overlayManager.add(overlay);
-		overlayManager.add(notWorkingOverlay);
-		npcNamePatterns = NAME_SPLITTER.splitToList(config.npcNamePatterns());
-		recheckActive();
-	}
-
-	@Override
-	protected void shutDown() throws Exception
-	{
-		removeTimer();
-		overlayManager.remove(overlay);
-		overlayManager.remove(notWorkingOverlay);
-		Arrays.fill(safeCenters, null);
-		lastPlayerLocation = null;
-		endTime = null;
-		loggingIn = false;
-		npcNamePatterns = null;
-		active = false;
-
-		Arrays.fill(linesToDisplay, null);
-	}
-
-	private Area generateSafeArea()
-	{
-		final Area area = new Area();
-
-		for (WorldPoint wp : safeCenters)
-		{
-			if (wp == null)
-			{
-				continue;
-			}
-
-			Polygon poly = new Polygon();
-			poly.addPoint(wp.getX() - SAFE_AREA_RADIUS, wp.getY() - SAFE_AREA_RADIUS);
-			poly.addPoint(wp.getX() - SAFE_AREA_RADIUS, wp.getY() + SAFE_AREA_RADIUS + 1);
-			poly.addPoint(wp.getX() + SAFE_AREA_RADIUS + 1, wp.getY() + SAFE_AREA_RADIUS + 1);
-			poly.addPoint(wp.getX() + SAFE_AREA_RADIUS + 1, wp.getY() - SAFE_AREA_RADIUS);
-			area.add(new Area(poly));
-		}
-
-		return area;
-	}
-
-	private void transformWorldToLocal(float[] coords)
-	{
-		final LocalPoint lp = LocalPoint.fromWorld(client, (int)coords[0], (int)coords[1]);
-		coords[0] = lp.getX() - Perspective.LOCAL_TILE_SIZE / 2f;
-		coords[1] = lp.getY() - Perspective.LOCAL_TILE_SIZE / 2f;
-	}
-
-	private void calculateLinesToDisplay()
-	{
-		if (!active || !config.showAreaLines())
-		{
-			Arrays.fill(linesToDisplay, null);
-			return;
-		}
-
-		Rectangle sceneRect = new Rectangle(
-			client.getBaseX() + 1, client.getBaseY() + 1,
-			Constants.SCENE_SIZE - 2, Constants.SCENE_SIZE - 2);
-
-		for (int i = 0; i < linesToDisplay.length; i++)
-		{
-			GeneralPath lines = new GeneralPath(generateSafeArea());
-			lines = Geometry.clipPath(lines, sceneRect);
-			lines = Geometry.splitIntoSegments(lines, 1);
-			lines = Geometry.transformPath(lines, this::transformWorldToLocal);
-			linesToDisplay[i] = lines;
-		}
-	}
-
-	private void removeTimer()
-	{
-		infoBoxManager.removeIf(t -> t instanceof AggressionTimer);
-		endTime = null;
-		notifyOnce = false;
-	}
-
-	private void createTimer(Duration duration)
-	{
-		removeTimer();
-		endTime = Instant.now().plus(duration);
-		notifyOnce = true;
-
-		if (duration.isNegative())
-		{
-			return;
-		}
-
-		BufferedImage image = itemManager.getImage(ItemID.ENSOULED_DEMON_HEAD);
-		infoBoxManager.addInfoBox(new AggressionTimer(duration, image, this));
-	}
-
-	private void resetTimer()
-	{
-		createTimer(AGGRESSIVE_TIME_DURATION);
-	}
-
-	private static boolean isInWilderness(WorldPoint location)
-	{
-		return location.isInArea2D(WILDERNESS_ABOVE_GROUND, WILDERNESS_UNDERGROUND);
-	}
-
-	private boolean isNpcMatch(NPC npc)
-	{
-		NPCComposition composition = npc.getTransformedComposition();
-		if (composition == null)
-		{
-			return false;
-		}
-
-		if (Strings.isNullOrEmpty(composition.getName()))
-		{
-			return false;
-		}
-
-		// Most NPCs stop aggroing when the player has more than double
-		// its combat level.
-		int playerLvl = client.getLocalPlayer().getCombatLevel();
-		int npcLvl = composition.getCombatLevel();
-		String npcName = composition.getName().toLowerCase();
-		if (npcLvl > 0 && playerLvl > npcLvl * 2 && !isInWilderness(npc.getWorldLocation()))
-		{
-			return false;
-		}
-
-		if (config.showOnSlayerTask())
-		{
-			List<NPC> targets = slayerPluginService.getTargets();
-			if (targets.contains(npc))
-			{
-				return true;
-			}
-		}
-
-		for (String pattern : npcNamePatterns)
-		{
-			if (WildcardMatcher.matches(pattern, npcName))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	private void checkAreaNpcs(final NPC... npcs)
-	{
-		for (NPC npc : npcs)
-		{
-			if (npc == null)
-			{
-				continue;
-			}
-
-			if (isNpcMatch(npc))
-			{
-				active = true;
-				break;
-			}
-		}
-
-		calculateLinesToDisplay();
-	}
-
-	private void recheckActive()
-	{
-		active = config.alwaysActive();
-		checkAreaNpcs(client.getCachedNPCs());
-	}
-
-	@Subscribe
-	public void onNpcSpawned(NpcSpawned event)
-	{
-		if (config.alwaysActive())
-		{
-			return;
-		}
-
-		checkAreaNpcs(event.getNpc());
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick event)
-	{
-		WorldPoint newLocation = client.getLocalPlayer().getWorldLocation();
-
-		if (active && notifyOnce && Instant.now().isAfter(endTime))
-		{
-			if (config.notifyExpire())
-			{
-				notifier.notify("NPC aggression has expired!");
-			}
-
-			notifyOnce = false;
-		}
-
-		if (lastPlayerLocation != null)
-		{
-			if (safeCenters[1] == null && newLocation.distanceTo2D(lastPlayerLocation) > SAFE_AREA_RADIUS * 4)
-			{
-				safeCenters[0] = null;
-				safeCenters[1] = newLocation;
-				resetTimer();
-				calculateLinesToDisplay();
-
-				// We don't know where the previous area was, so if the player e.g.
-				// entered a dungeon and then goes back out, he/she may enter the previous
-				// area which is unknown and would make the plugin inaccurate
-				previousUnknownCenter = lastPlayerLocation;
-			}
-		}
-
-		if (safeCenters[0] == null && previousUnknownCenter != null &&
-			previousUnknownCenter.distanceTo2D(newLocation) <= UNKNOWN_AREA_RADIUS)
-		{
-			// Player went back to their previous unknown area before the 2nd
-			// center point was found, which means we don't know where it is again.
-			safeCenters[1] = null;
-			removeTimer();
-			calculateLinesToDisplay();
-		}
-
-		if (safeCenters[1] != null)
-		{
-			if (Arrays.stream(safeCenters).noneMatch(
-				x -> x != null && x.distanceTo2D(newLocation) <= SAFE_AREA_RADIUS))
-			{
-				safeCenters[0] = safeCenters[1];
-				safeCenters[1] = newLocation;
-				resetTimer();
-				calculateLinesToDisplay();
-				previousUnknownCenter = null;
-			}
-		}
-
-		lastPlayerLocation = newLocation;
-	}
-
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		String key = event.getKey();
-		switch (key)
-		{
-			case "npcUnaggroAlwaysActive":
-			case "showOnSlayerTask":
-				recheckActive();
-				break;
-			case "npcUnaggroCollisionDetection":
-			case "npcUnaggroShowAreaLines":
-				calculateLinesToDisplay();
-				break;
-			case "npcUnaggroNames":
-				npcNamePatterns = NAME_SPLITTER.splitToList(config.npcNamePatterns());
-				recheckActive();
-				break;
-		}
-	}
-
-	boolean shouldDisplayTimer()
-	{
-		return active && config.showTimer();
-	}
-
-	private void loadConfig()
-	{
-		safeCenters[0] = configManager.getConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_CENTER1, WorldPoint.class);
-		safeCenters[1] = configManager.getConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_CENTER2, WorldPoint.class);
-		lastPlayerLocation = configManager.getConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_LOCATION, WorldPoint.class);
-
-		Duration timeLeft = configManager.getConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_DURATION, Duration.class);
-		if (timeLeft != null)
-		{
-			createTimer(timeLeft);
-		}
-	}
-
-	private void resetConfig()
-	{
-		configManager.unsetConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_CENTER1);
-		configManager.unsetConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_CENTER2);
-		configManager.unsetConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_LOCATION);
-		configManager.unsetConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_DURATION);
-	}
-
-	private void saveConfig()
-	{
-		if (safeCenters[0] == null || safeCenters[1] == null || lastPlayerLocation == null || endTime == null)
-		{
-			resetConfig();
-		}
-		else
-		{
-			configManager.setConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_CENTER1, safeCenters[0]);
-			configManager.setConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_CENTER2, safeCenters[1]);
-			configManager.setConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_LOCATION, lastPlayerLocation);
-			configManager.setConfiguration(NpcAggroAreaConfig.CONFIG_GROUP, NpcAggroAreaConfig.CONFIG_DURATION, Duration.between(Instant.now(), endTime));
-		}
-	}
-
-	private void onLogin()
-	{
-		loadConfig();
-		resetConfig();
-
-		WorldPoint newLocation = client.getLocalPlayer().getWorldLocation();
-		assert newLocation != null;
-
-		// If the player isn't at the location he/she logged out at,
-		// the safe unaggro area probably changed, and should be disposed.
-		if (lastPlayerLocation == null || newLocation.distanceTo(lastPlayerLocation) != 0)
-		{
-			safeCenters[0] = null;
-			safeCenters[1] = null;
-			lastPlayerLocation = newLocation;
-		}
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		switch (event.getGameState())
-		{
-			case LOGGED_IN:
-				if (loggingIn)
-				{
-					loggingIn = false;
-					onLogin();
-				}
-
-				recheckActive();
-				break;
-
-			case LOGGING_IN:
-				loggingIn = true;
-				break;
-
-			case LOGIN_SCREEN:
-				if (lastPlayerLocation != null)
-				{
-					saveConfig();
-				}
-
-				safeCenters[0] = null;
-				safeCenters[1] = null;
-				lastPlayerLocation = null;
-				endTime = null;
-				break;
-		}
-	}
+@PluginDescriptor(name="NPC Aggression Timer", description="Highlights the unaggressive area of NPCs nearby and timer until it becomes active", tags={"highlight", "lines", "unaggro", "aggro", "aggressive", "npcs", "area", "slayer"}, enabledByDefault=false)
+@PluginDependency(value=SlayerPlugin.class)
+public class NpcAggroAreaPlugin
+extends Plugin {
+    private static final int SAFE_AREA_RADIUS = 10;
+    private static final int UNKNOWN_AREA_RADIUS = 20;
+    private static final Duration AGGRESSIVE_TIME_DURATION = Duration.ofSeconds(600L);
+    private static final Splitter NAME_SPLITTER = Splitter.on((char)',').omitEmptyStrings().trimResults();
+    private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
+    private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
+    @Inject
+    private Client client;
+    @Inject
+    private NpcAggroAreaConfig config;
+    @Inject
+    private NpcAggroAreaOverlay overlay;
+    @Inject
+    private NpcAggroAreaNotWorkingOverlay notWorkingOverlay;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private ItemManager itemManager;
+    @Inject
+    private InfoBoxManager infoBoxManager;
+    @Inject
+    private ConfigManager configManager;
+    @Inject
+    private Notifier notifier;
+    @Inject
+    private SlayerPluginService slayerPluginService;
+    private final WorldPoint[] safeCenters = new WorldPoint[2];
+    private final GeneralPath[] linesToDisplay = new GeneralPath[4];
+    private boolean active;
+    private Instant endTime;
+    private WorldPoint lastPlayerLocation;
+    private WorldPoint previousUnknownCenter;
+    private boolean loggingIn;
+    private boolean notifyOnce;
+    private List<String> npcNamePatterns;
+
+    @Provides
+    NpcAggroAreaConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(NpcAggroAreaConfig.class);
+    }
+
+    @Override
+    protected void startUp() throws Exception {
+        this.overlayManager.add(this.overlay);
+        this.overlayManager.add(this.notWorkingOverlay);
+        this.npcNamePatterns = NAME_SPLITTER.splitToList((CharSequence)this.config.npcNamePatterns());
+        this.recheckActive();
+    }
+
+    @Override
+    protected void shutDown() throws Exception {
+        this.removeTimer();
+        this.overlayManager.remove(this.overlay);
+        this.overlayManager.remove(this.notWorkingOverlay);
+        Arrays.fill((Object[])this.safeCenters, null);
+        this.lastPlayerLocation = null;
+        this.endTime = null;
+        this.loggingIn = false;
+        this.npcNamePatterns = null;
+        this.active = false;
+        Arrays.fill(this.linesToDisplay, null);
+    }
+
+    private Area generateSafeArea() {
+        Area area = new Area();
+        for (WorldPoint wp : this.safeCenters) {
+            if (wp == null) continue;
+            Polygon poly = new Polygon();
+            poly.addPoint(wp.getX() - 10, wp.getY() - 10);
+            poly.addPoint(wp.getX() - 10, wp.getY() + 10 + 1);
+            poly.addPoint(wp.getX() + 10 + 1, wp.getY() + 10 + 1);
+            poly.addPoint(wp.getX() + 10 + 1, wp.getY() - 10);
+            area.add(new Area(poly));
+        }
+        return area;
+    }
+
+    private void transformWorldToLocal(float[] coords) {
+        LocalPoint lp = LocalPoint.fromWorld((Client)this.client, (int)((int)coords[0]), (int)((int)coords[1]));
+        coords[0] = (float)lp.getX() - 64.0f;
+        coords[1] = (float)lp.getY() - 64.0f;
+    }
+
+    private void calculateLinesToDisplay() {
+        if (!this.active || !this.config.showAreaLines()) {
+            Arrays.fill(this.linesToDisplay, null);
+            return;
+        }
+        Rectangle sceneRect = new Rectangle(this.client.getBaseX() + 1, this.client.getBaseY() + 1, 102, 102);
+        for (int i = 0; i < this.linesToDisplay.length; ++i) {
+            GeneralPath lines = new GeneralPath(this.generateSafeArea());
+            lines = Geometry.clipPath((GeneralPath)lines, (Shape)sceneRect);
+            lines = Geometry.splitIntoSegments((GeneralPath)lines, (float)1.0f);
+            this.linesToDisplay[i] = lines = Geometry.transformPath((GeneralPath)lines, this::transformWorldToLocal);
+        }
+    }
+
+    private void removeTimer() {
+        this.infoBoxManager.removeIf(t -> t instanceof AggressionTimer);
+        this.endTime = null;
+        this.notifyOnce = false;
+    }
+
+    private void createTimer(Duration duration) {
+        this.removeTimer();
+        this.endTime = Instant.now().plus(duration);
+        this.notifyOnce = true;
+        if (duration.isNegative()) {
+            return;
+        }
+        AsyncBufferedImage image = this.itemManager.getImage(13501);
+        this.infoBoxManager.addInfoBox(new AggressionTimer(duration, image, this));
+    }
+
+    private void resetTimer() {
+        this.createTimer(AGGRESSIVE_TIME_DURATION);
+    }
+
+    private static boolean isInWilderness(WorldPoint location) {
+        return location.isInArea2D(new WorldArea[]{WILDERNESS_ABOVE_GROUND, WILDERNESS_UNDERGROUND});
+    }
+
+    private boolean isNpcMatch(NPC npc) {
+        List<NPC> targets;
+        NPCComposition composition = npc.getTransformedComposition();
+        if (composition == null) {
+            return false;
+        }
+        if (Strings.isNullOrEmpty((String)composition.getName())) {
+            return false;
+        }
+        int playerLvl = this.client.getLocalPlayer().getCombatLevel();
+        int npcLvl = composition.getCombatLevel();
+        String npcName = composition.getName().toLowerCase();
+        if (npcLvl > 0 && playerLvl > npcLvl * 2 && !NpcAggroAreaPlugin.isInWilderness(npc.getWorldLocation())) {
+            return false;
+        }
+        if (this.config.showOnSlayerTask() && (targets = this.slayerPluginService.getTargets()).contains((Object)npc)) {
+            return true;
+        }
+        for (String pattern : this.npcNamePatterns) {
+            if (!WildcardMatcher.matches(pattern, npcName)) continue;
+            return true;
+        }
+        return false;
+    }
+
+    private void checkAreaNpcs(NPC ... npcs) {
+        for (NPC npc : npcs) {
+            if (npc == null || !this.isNpcMatch(npc)) continue;
+            this.active = true;
+            break;
+        }
+        this.calculateLinesToDisplay();
+    }
+
+    private void recheckActive() {
+        this.active = this.config.alwaysActive();
+        this.checkAreaNpcs(this.client.getCachedNPCs());
+    }
+
+    @Subscribe
+    public void onNpcSpawned(NpcSpawned event) {
+        if (this.config.alwaysActive()) {
+            return;
+        }
+        this.checkAreaNpcs(event.getNpc());
+    }
+
+    @Subscribe
+    public void onGameTick(GameTick event) {
+        WorldPoint newLocation = this.client.getLocalPlayer().getWorldLocation();
+        if (this.active && this.notifyOnce && Instant.now().isAfter(this.endTime)) {
+            if (this.config.notifyExpire()) {
+                this.notifier.notify("NPC aggression has expired!");
+            }
+            this.notifyOnce = false;
+        }
+        if (this.lastPlayerLocation != null && this.safeCenters[1] == null && newLocation.distanceTo2D(this.lastPlayerLocation) > 40) {
+            this.safeCenters[0] = null;
+            this.safeCenters[1] = newLocation;
+            this.resetTimer();
+            this.calculateLinesToDisplay();
+            this.previousUnknownCenter = this.lastPlayerLocation;
+        }
+        if (this.safeCenters[0] == null && this.previousUnknownCenter != null && this.previousUnknownCenter.distanceTo2D(newLocation) <= 20) {
+            this.safeCenters[1] = null;
+            this.removeTimer();
+            this.calculateLinesToDisplay();
+        }
+        if (this.safeCenters[1] != null && Arrays.stream(this.safeCenters).noneMatch(x -> x != null && x.distanceTo2D(newLocation) <= 10)) {
+            this.safeCenters[0] = this.safeCenters[1];
+            this.safeCenters[1] = newLocation;
+            this.resetTimer();
+            this.calculateLinesToDisplay();
+            this.previousUnknownCenter = null;
+        }
+        this.lastPlayerLocation = newLocation;
+    }
+
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        String key;
+        switch (key = event.getKey()) {
+            case "npcUnaggroAlwaysActive": 
+            case "showOnSlayerTask": {
+                this.recheckActive();
+                break;
+            }
+            case "npcUnaggroCollisionDetection": 
+            case "npcUnaggroShowAreaLines": {
+                this.calculateLinesToDisplay();
+                break;
+            }
+            case "npcUnaggroNames": {
+                this.npcNamePatterns = NAME_SPLITTER.splitToList((CharSequence)this.config.npcNamePatterns());
+                this.recheckActive();
+            }
+        }
+    }
+
+    boolean shouldDisplayTimer() {
+        return this.active && this.config.showTimer();
+    }
+
+    private void loadConfig() {
+        this.safeCenters[0] = (WorldPoint)this.configManager.getConfiguration("npcUnaggroArea", "center1", (Type)((Object)WorldPoint.class));
+        this.safeCenters[1] = (WorldPoint)this.configManager.getConfiguration("npcUnaggroArea", "center2", (Type)((Object)WorldPoint.class));
+        this.lastPlayerLocation = (WorldPoint)this.configManager.getConfiguration("npcUnaggroArea", "location", (Type)((Object)WorldPoint.class));
+        Duration timeLeft = (Duration)this.configManager.getConfiguration("npcUnaggroArea", "duration", (Type)((Object)Duration.class));
+        if (timeLeft != null) {
+            this.createTimer(timeLeft);
+        }
+    }
+
+    private void resetConfig() {
+        this.configManager.unsetConfiguration("npcUnaggroArea", "center1");
+        this.configManager.unsetConfiguration("npcUnaggroArea", "center2");
+        this.configManager.unsetConfiguration("npcUnaggroArea", "location");
+        this.configManager.unsetConfiguration("npcUnaggroArea", "duration");
+    }
+
+    private void saveConfig() {
+        if (this.safeCenters[0] == null || this.safeCenters[1] == null || this.lastPlayerLocation == null || this.endTime == null) {
+            this.resetConfig();
+        } else {
+            this.configManager.setConfiguration("npcUnaggroArea", "center1", this.safeCenters[0]);
+            this.configManager.setConfiguration("npcUnaggroArea", "center2", this.safeCenters[1]);
+            this.configManager.setConfiguration("npcUnaggroArea", "location", this.lastPlayerLocation);
+            this.configManager.setConfiguration("npcUnaggroArea", "duration", Duration.between(Instant.now(), this.endTime));
+        }
+    }
+
+    private void onLogin() {
+        this.loadConfig();
+        this.resetConfig();
+        WorldPoint newLocation = this.client.getLocalPlayer().getWorldLocation();
+        assert (newLocation != null);
+        if (this.lastPlayerLocation == null || newLocation.distanceTo(this.lastPlayerLocation) != 0) {
+            this.safeCenters[0] = null;
+            this.safeCenters[1] = null;
+            this.lastPlayerLocation = newLocation;
+        }
+    }
+
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        switch (event.getGameState()) {
+            case LOGGED_IN: {
+                if (this.loggingIn) {
+                    this.loggingIn = false;
+                    this.onLogin();
+                }
+                this.recheckActive();
+                break;
+            }
+            case LOGGING_IN: {
+                this.loggingIn = true;
+                break;
+            }
+            case LOGIN_SCREEN: {
+                if (this.lastPlayerLocation != null) {
+                    this.saveConfig();
+                }
+                this.safeCenters[0] = null;
+                this.safeCenters[1] = null;
+                this.lastPlayerLocation = null;
+                this.endTime = null;
+            }
+        }
+    }
+
+    public WorldPoint[] getSafeCenters() {
+        return this.safeCenters;
+    }
+
+    public GeneralPath[] getLinesToDisplay() {
+        return this.linesToDisplay;
+    }
+
+    public boolean isActive() {
+        return this.active;
+    }
+
+    public Instant getEndTime() {
+        return this.endTime;
+    }
 }
+

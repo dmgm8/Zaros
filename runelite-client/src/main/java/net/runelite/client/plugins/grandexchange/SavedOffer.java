@@ -1,39 +1,119 @@
 /*
- * Copyright (c) 2019, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.GrandExchangeOfferState
  */
 package net.runelite.client.plugins.grandexchange;
 
-import lombok.Data;
 import net.runelite.api.GrandExchangeOfferState;
 
-@Data
-class SavedOffer
-{
-	private int itemId;
-	private int quantitySold;
-	private int totalQuantity;
-	private int price;
-	private int spent;
-	private GrandExchangeOfferState state;
+class SavedOffer {
+    private int itemId;
+    private int quantitySold;
+    private int totalQuantity;
+    private int price;
+    private int spent;
+    private GrandExchangeOfferState state;
+
+    public int getItemId() {
+        return this.itemId;
+    }
+
+    public int getQuantitySold() {
+        return this.quantitySold;
+    }
+
+    public int getTotalQuantity() {
+        return this.totalQuantity;
+    }
+
+    public int getPrice() {
+        return this.price;
+    }
+
+    public int getSpent() {
+        return this.spent;
+    }
+
+    public GrandExchangeOfferState getState() {
+        return this.state;
+    }
+
+    public void setItemId(int itemId) {
+        this.itemId = itemId;
+    }
+
+    public void setQuantitySold(int quantitySold) {
+        this.quantitySold = quantitySold;
+    }
+
+    public void setTotalQuantity(int totalQuantity) {
+        this.totalQuantity = totalQuantity;
+    }
+
+    public void setPrice(int price) {
+        this.price = price;
+    }
+
+    public void setSpent(int spent) {
+        this.spent = spent;
+    }
+
+    public void setState(GrandExchangeOfferState state) {
+        this.state = state;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof SavedOffer)) {
+            return false;
+        }
+        SavedOffer other = (SavedOffer)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getItemId() != other.getItemId()) {
+            return false;
+        }
+        if (this.getQuantitySold() != other.getQuantitySold()) {
+            return false;
+        }
+        if (this.getTotalQuantity() != other.getTotalQuantity()) {
+            return false;
+        }
+        if (this.getPrice() != other.getPrice()) {
+            return false;
+        }
+        if (this.getSpent() != other.getSpent()) {
+            return false;
+        }
+        GrandExchangeOfferState this$state = this.getState();
+        GrandExchangeOfferState other$state = other.getState();
+        return !(this$state == null ? other$state != null : !this$state.equals((Object)other$state));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof SavedOffer;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getItemId();
+        result = result * 59 + this.getQuantitySold();
+        result = result * 59 + this.getTotalQuantity();
+        result = result * 59 + this.getPrice();
+        result = result * 59 + this.getSpent();
+        GrandExchangeOfferState $state = this.getState();
+        result = result * 59 + ($state == null ? 43 : $state.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "SavedOffer(itemId=" + this.getItemId() + ", quantitySold=" + this.getQuantitySold() + ", totalQuantity=" + this.getTotalQuantity() + ", price=" + this.getPrice() + ", spent=" + this.getSpent() + ", state=" + (Object)this.getState() + ")";
+    }
 }
+

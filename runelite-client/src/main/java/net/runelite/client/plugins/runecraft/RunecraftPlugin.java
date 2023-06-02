@@ -1,26 +1,21 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ImmutableList
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.DecorativeObject
+ *  net.runelite.api.GameState
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.Item
+ *  net.runelite.api.NPC
+ *  net.runelite.api.events.ChatMessage
+ *  net.runelite.api.events.DecorativeObjectDespawned
+ *  net.runelite.api.events.DecorativeObjectSpawned
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.ItemContainerChanged
  */
 package net.runelite.client.plugins.runecraft;
 
@@ -33,16 +28,12 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.inject.Inject;
-import lombok.AccessLevel;
-import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.DecorativeObject;
 import net.runelite.api.GameState;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
-import net.runelite.api.ItemID;
 import net.runelite.api.NPC;
-import net.runelite.api.NpcID;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.DecorativeObjectDespawned;
 import net.runelite.api.events.DecorativeObjectSpawned;
@@ -55,140 +46,105 @@ import net.runelite.client.game.npcoverlay.HighlightedNpc;
 import net.runelite.client.game.npcoverlay.NpcOverlayService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.runecraft.AbyssMinimapOverlay;
+import net.runelite.client.plugins.runecraft.AbyssOverlay;
+import net.runelite.client.plugins.runecraft.AbyssRifts;
+import net.runelite.client.plugins.runecraft.RunecraftConfig;
 import net.runelite.client.ui.overlay.OverlayManager;
 
-@PluginDescriptor(
-	name = "Runecraft",
-	description = "Show minimap icons and clickboxes for abyssal rifts",
-	tags = {"abyssal", "minimap", "overlay", "rifts", "rc", "runecrafting"}
-)
-public class RunecraftPlugin extends Plugin
-{
-	private static final String POUCH_DECAYED_NOTIFICATION_MESSAGE = "Your rune pouch has decayed.";
-	private static final String POUCH_DECAYED_MESSAGE = "Your pouch has decayed through use.";
-	private static final List<Integer> DEGRADED_POUCHES = ImmutableList.of(
-		ItemID.MEDIUM_POUCH_5511,
-		ItemID.LARGE_POUCH_5513,
-		ItemID.GIANT_POUCH_5515,
-		ItemID.COLOSSAL_POUCH_26786
-	);
+@PluginDescriptor(name="Runecraft", description="Show minimap icons and clickboxes for abyssal rifts", tags={"abyssal", "minimap", "overlay", "rifts", "rc", "runecrafting"})
+public class RunecraftPlugin
+extends Plugin {
+    private static final String POUCH_DECAYED_NOTIFICATION_MESSAGE = "Your rune pouch has decayed.";
+    private static final String POUCH_DECAYED_MESSAGE = "Your pouch has decayed through use.";
+    private static final List<Integer> DEGRADED_POUCHES = ImmutableList.of((Object)5511, (Object)5513, (Object)5515, (Object)26786);
+    private final Set<DecorativeObject> abyssObjects = new HashSet<DecorativeObject>();
+    private boolean degradedPouchInInventory;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private AbyssOverlay abyssOverlay;
+    @Inject
+    private AbyssMinimapOverlay abyssMinimapOverlay;
+    @Inject
+    private RunecraftConfig config;
+    @Inject
+    private Notifier notifier;
+    @Inject
+    private NpcOverlayService npcOverlayService;
+    private final Function<NPC, HighlightedNpc> highlightDarkMage = this::highlightDarkMage;
 
-	@Getter(AccessLevel.PACKAGE)
-	private final Set<DecorativeObject> abyssObjects = new HashSet<>();
+    @Provides
+    RunecraftConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(RunecraftConfig.class);
+    }
 
-	private boolean degradedPouchInInventory;
+    @Override
+    protected void startUp() throws Exception {
+        this.npcOverlayService.registerHighlighter(this.highlightDarkMage);
+        this.overlayManager.add(this.abyssOverlay);
+        this.overlayManager.add(this.abyssMinimapOverlay);
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Override
+    protected void shutDown() throws Exception {
+        this.npcOverlayService.unregisterHighlighter(this.highlightDarkMage);
+        this.overlayManager.remove(this.abyssOverlay);
+        this.overlayManager.remove(this.abyssMinimapOverlay);
+        this.abyssObjects.clear();
+        this.degradedPouchInInventory = false;
+    }
 
-	@Inject
-	private AbyssOverlay abyssOverlay;
+    @Subscribe
+    public void onChatMessage(ChatMessage event) {
+        if (event.getType() != ChatMessageType.GAMEMESSAGE) {
+            return;
+        }
+        if (this.config.degradingNotification() && event.getMessage().contains(POUCH_DECAYED_MESSAGE)) {
+            this.notifier.notify(POUCH_DECAYED_NOTIFICATION_MESSAGE);
+        }
+    }
 
-	@Inject
-	private AbyssMinimapOverlay abyssMinimapOverlay;
+    @Subscribe
+    public void onDecorativeObjectSpawned(DecorativeObjectSpawned event) {
+        DecorativeObject decorativeObject = event.getDecorativeObject();
+        if (AbyssRifts.getRift(decorativeObject.getId()) != null) {
+            this.abyssObjects.add(decorativeObject);
+        }
+    }
 
-	@Inject
-	private RunecraftConfig config;
+    @Subscribe
+    public void onDecorativeObjectDespawned(DecorativeObjectDespawned event) {
+        DecorativeObject decorativeObject = event.getDecorativeObject();
+        this.abyssObjects.remove((Object)decorativeObject);
+    }
 
-	@Inject
-	private Notifier notifier;
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        GameState gameState = event.getGameState();
+        if (gameState == GameState.LOADING) {
+            this.abyssObjects.clear();
+        }
+    }
 
-	@Inject
-	private NpcOverlayService npcOverlayService;
+    @Subscribe
+    public void onItemContainerChanged(ItemContainerChanged event) {
+        if (event.getContainerId() != InventoryID.INVENTORY.getId()) {
+            return;
+        }
+        Item[] items = event.getItemContainer().getItems();
+        this.degradedPouchInInventory = Stream.of(items).anyMatch(i -> DEGRADED_POUCHES.contains(i.getId()));
+    }
 
-	private final Function<NPC, HighlightedNpc> highlightDarkMage = this::highlightDarkMage;
+    private HighlightedNpc highlightDarkMage(NPC npc) {
+        if (npc.getId() == 2583) {
+            return HighlightedNpc.builder().npc(npc).tile(true).highlightColor(Color.GREEN).render(n -> this.config.hightlightDarkMage() && this.degradedPouchInInventory).build();
+        }
+        return null;
+    }
 
-	@Provides
-	RunecraftConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(RunecraftConfig.class);
-	}
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		npcOverlayService.registerHighlighter(highlightDarkMage);
-		overlayManager.add(abyssOverlay);
-		overlayManager.add(abyssMinimapOverlay);
-	}
-
-	@Override
-	protected void shutDown() throws Exception
-	{
-		npcOverlayService.unregisterHighlighter(highlightDarkMage);
-		overlayManager.remove(abyssOverlay);
-		overlayManager.remove(abyssMinimapOverlay);
-		abyssObjects.clear();
-		degradedPouchInInventory = false;
-	}
-
-	@Subscribe
-	public void onChatMessage(ChatMessage event)
-	{
-		if (event.getType() != ChatMessageType.GAMEMESSAGE)
-		{
-			return;
-		}
-
-		if (config.degradingNotification())
-		{
-			if (event.getMessage().contains(POUCH_DECAYED_MESSAGE))
-			{
-				notifier.notify(POUCH_DECAYED_NOTIFICATION_MESSAGE);
-			}
-		}
-	}
-
-	@Subscribe
-	public void onDecorativeObjectSpawned(DecorativeObjectSpawned event)
-	{
-		DecorativeObject decorativeObject = event.getDecorativeObject();
-		if (AbyssRifts.getRift(decorativeObject.getId()) != null)
-		{
-			abyssObjects.add(decorativeObject);
-		}
-	}
-
-	@Subscribe
-	public void onDecorativeObjectDespawned(DecorativeObjectDespawned event)
-	{
-		DecorativeObject decorativeObject = event.getDecorativeObject();
-		abyssObjects.remove(decorativeObject);
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		GameState gameState = event.getGameState();
-		if (gameState == GameState.LOADING)
-		{
-			abyssObjects.clear();
-		}
-	}
-
-	@Subscribe
-	public void onItemContainerChanged(ItemContainerChanged event)
-	{
-		if (event.getContainerId() != InventoryID.INVENTORY.getId())
-		{
-			return;
-		}
-
-		final Item[] items = event.getItemContainer().getItems();
-		degradedPouchInInventory = Stream.of(items).anyMatch(i -> DEGRADED_POUCHES.contains(i.getId()));
-	}
-
-	private HighlightedNpc highlightDarkMage(NPC npc)
-	{
-		if (npc.getId() == NpcID.DARK_MAGE)
-		{
-			return HighlightedNpc.builder()
-				.npc(npc)
-				.tile(true)
-				.highlightColor(Color.GREEN)
-				.render(n -> config.hightlightDarkMage() && degradedPouchInInventory)
-				.build();
-		}
-		return null;
-	}
+    Set<DecorativeObject> getAbyssObjects() {
+        return this.abyssObjects;
+    }
 }
+

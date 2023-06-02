@@ -1,132 +1,202 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.ui.overlay;
 
 import java.awt.Rectangle;
 import java.util.Arrays;
 import java.util.Collection;
-import lombok.AllArgsConstructor;
-import lombok.Value;
-import static net.runelite.client.ui.overlay.OverlayPosition.ABOVE_CHATBOX_RIGHT;
-import static net.runelite.client.ui.overlay.OverlayPosition.BOTTOM_LEFT;
-import static net.runelite.client.ui.overlay.OverlayPosition.BOTTOM_RIGHT;
-import static net.runelite.client.ui.overlay.OverlayPosition.CANVAS_TOP_RIGHT;
-import static net.runelite.client.ui.overlay.OverlayPosition.TOP_CENTER;
-import static net.runelite.client.ui.overlay.OverlayPosition.TOP_LEFT;
-import static net.runelite.client.ui.overlay.OverlayPosition.TOP_RIGHT;
+import net.runelite.client.ui.overlay.OverlayPosition;
 
-@AllArgsConstructor
-@Value
-class OverlayBounds
-{
-	private final Rectangle topLeft, topCenter, topRight, bottomLeft, bottomRight, aboveChatboxRight, canvasTopRight;
+final class OverlayBounds {
+    private final Rectangle topLeft;
+    private final Rectangle topCenter;
+    private final Rectangle topRight;
+    private final Rectangle bottomLeft;
+    private final Rectangle bottomRight;
+    private final Rectangle aboveChatboxRight;
+    private final Rectangle canvasTopRight;
 
-	OverlayBounds(OverlayBounds other)
-	{
-		topLeft = new Rectangle(other.topLeft);
-		topCenter = new Rectangle(other.topCenter);
-		topRight = new Rectangle(other.topRight);
-		bottomLeft = new Rectangle(other.bottomLeft);
-		bottomRight = new Rectangle(other.bottomRight);
-		aboveChatboxRight = new Rectangle(other.aboveChatboxRight);
-		canvasTopRight = new Rectangle(other.canvasTopRight);
-	}
+    OverlayBounds(OverlayBounds other) {
+        this.topLeft = new Rectangle(other.topLeft);
+        this.topCenter = new Rectangle(other.topCenter);
+        this.topRight = new Rectangle(other.topRight);
+        this.bottomLeft = new Rectangle(other.bottomLeft);
+        this.bottomRight = new Rectangle(other.bottomRight);
+        this.aboveChatboxRight = new Rectangle(other.aboveChatboxRight);
+        this.canvasTopRight = new Rectangle(other.canvasTopRight);
+    }
 
-	OverlayBounds translated(final int x, final int y)
-	{
-		final OverlayBounds translated = new OverlayBounds(this);
-		translated.getTopRight().translate(x, 0);
-		translated.getTopCenter().translate(x / 2, 0);
-		translated.getBottomLeft().translate(0, y);
-		translated.getBottomRight().translate(x, y);
-		translated.getAboveChatboxRight().translate(x, y);
-		translated.getCanvasTopRight().translate(x, 0);
-		return translated;
-	}
+    OverlayBounds translated(int x, int y) {
+        OverlayBounds translated = new OverlayBounds(this);
+        translated.getTopRight().translate(x, 0);
+        translated.getTopCenter().translate(x / 2, 0);
+        translated.getBottomLeft().translate(0, y);
+        translated.getBottomRight().translate(x, y);
+        translated.getAboveChatboxRight().translate(x, y);
+        translated.getCanvasTopRight().translate(x, 0);
+        return translated;
+    }
 
-	Rectangle forPosition(OverlayPosition overlayPosition)
-	{
-		switch (overlayPosition)
-		{
-			case TOP_LEFT:
-				return topLeft;
-			case TOP_CENTER:
-				return topCenter;
-			case TOP_RIGHT:
-				return topRight;
-			case BOTTOM_LEFT:
-				return bottomLeft;
-			case BOTTOM_RIGHT:
-				return bottomRight;
-			case ABOVE_CHATBOX_RIGHT:
-				return aboveChatboxRight;
-			case CANVAS_TOP_RIGHT:
-				return canvasTopRight;
-			default:
-				throw new IllegalArgumentException();
-		}
-	}
+    Rectangle forPosition(OverlayPosition overlayPosition) {
+        switch (overlayPosition) {
+            case TOP_LEFT: {
+                return this.topLeft;
+            }
+            case TOP_CENTER: {
+                return this.topCenter;
+            }
+            case TOP_RIGHT: {
+                return this.topRight;
+            }
+            case BOTTOM_LEFT: {
+                return this.bottomLeft;
+            }
+            case BOTTOM_RIGHT: {
+                return this.bottomRight;
+            }
+            case ABOVE_CHATBOX_RIGHT: {
+                return this.aboveChatboxRight;
+            }
+            case CANVAS_TOP_RIGHT: {
+                return this.canvasTopRight;
+            }
+        }
+        throw new IllegalArgumentException();
+    }
 
-	OverlayPosition fromBounds(Rectangle bounds)
-	{
-		if (bounds == topLeft)
-		{
-			return TOP_LEFT;
-		}
-		else if (bounds == topCenter)
-		{
-			return TOP_CENTER;
-		}
-		else if (bounds == topRight)
-		{
-			return TOP_RIGHT;
-		}
-		else if (bounds == bottomLeft)
-		{
-			return BOTTOM_LEFT;
-		}
-		else if (bounds == bottomRight)
-		{
-			return BOTTOM_RIGHT;
-		}
-		else if (bounds == aboveChatboxRight)
-		{
-			return ABOVE_CHATBOX_RIGHT;
-		}
-		else if (bounds == canvasTopRight)
-		{
-			return CANVAS_TOP_RIGHT;
-		}
-		else
-		{
-			throw new IllegalArgumentException();
-		}
-	}
+    OverlayPosition fromBounds(Rectangle bounds) {
+        if (bounds == this.topLeft) {
+            return OverlayPosition.TOP_LEFT;
+        }
+        if (bounds == this.topCenter) {
+            return OverlayPosition.TOP_CENTER;
+        }
+        if (bounds == this.topRight) {
+            return OverlayPosition.TOP_RIGHT;
+        }
+        if (bounds == this.bottomLeft) {
+            return OverlayPosition.BOTTOM_LEFT;
+        }
+        if (bounds == this.bottomRight) {
+            return OverlayPosition.BOTTOM_RIGHT;
+        }
+        if (bounds == this.aboveChatboxRight) {
+            return OverlayPosition.ABOVE_CHATBOX_RIGHT;
+        }
+        if (bounds == this.canvasTopRight) {
+            return OverlayPosition.CANVAS_TOP_RIGHT;
+        }
+        throw new IllegalArgumentException();
+    }
 
-	Collection<Rectangle> getBounds()
-	{
-		return Arrays.asList(topLeft, topCenter, topRight, bottomLeft, bottomRight, aboveChatboxRight, canvasTopRight);
-	}
+    Collection<Rectangle> getBounds() {
+        return Arrays.asList(this.topLeft, this.topCenter, this.topRight, this.bottomLeft, this.bottomRight, this.aboveChatboxRight, this.canvasTopRight);
+    }
+
+    public Rectangle getTopLeft() {
+        return this.topLeft;
+    }
+
+    public Rectangle getTopCenter() {
+        return this.topCenter;
+    }
+
+    public Rectangle getTopRight() {
+        return this.topRight;
+    }
+
+    public Rectangle getBottomLeft() {
+        return this.bottomLeft;
+    }
+
+    public Rectangle getBottomRight() {
+        return this.bottomRight;
+    }
+
+    public Rectangle getAboveChatboxRight() {
+        return this.aboveChatboxRight;
+    }
+
+    public Rectangle getCanvasTopRight() {
+        return this.canvasTopRight;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof OverlayBounds)) {
+            return false;
+        }
+        OverlayBounds other = (OverlayBounds)o;
+        Rectangle this$topLeft = this.getTopLeft();
+        Rectangle other$topLeft = other.getTopLeft();
+        if (this$topLeft == null ? other$topLeft != null : !((Object)this$topLeft).equals(other$topLeft)) {
+            return false;
+        }
+        Rectangle this$topCenter = this.getTopCenter();
+        Rectangle other$topCenter = other.getTopCenter();
+        if (this$topCenter == null ? other$topCenter != null : !((Object)this$topCenter).equals(other$topCenter)) {
+            return false;
+        }
+        Rectangle this$topRight = this.getTopRight();
+        Rectangle other$topRight = other.getTopRight();
+        if (this$topRight == null ? other$topRight != null : !((Object)this$topRight).equals(other$topRight)) {
+            return false;
+        }
+        Rectangle this$bottomLeft = this.getBottomLeft();
+        Rectangle other$bottomLeft = other.getBottomLeft();
+        if (this$bottomLeft == null ? other$bottomLeft != null : !((Object)this$bottomLeft).equals(other$bottomLeft)) {
+            return false;
+        }
+        Rectangle this$bottomRight = this.getBottomRight();
+        Rectangle other$bottomRight = other.getBottomRight();
+        if (this$bottomRight == null ? other$bottomRight != null : !((Object)this$bottomRight).equals(other$bottomRight)) {
+            return false;
+        }
+        Rectangle this$aboveChatboxRight = this.getAboveChatboxRight();
+        Rectangle other$aboveChatboxRight = other.getAboveChatboxRight();
+        if (this$aboveChatboxRight == null ? other$aboveChatboxRight != null : !((Object)this$aboveChatboxRight).equals(other$aboveChatboxRight)) {
+            return false;
+        }
+        Rectangle this$canvasTopRight = this.getCanvasTopRight();
+        Rectangle other$canvasTopRight = other.getCanvasTopRight();
+        return !(this$canvasTopRight == null ? other$canvasTopRight != null : !((Object)this$canvasTopRight).equals(other$canvasTopRight));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Rectangle $topLeft = this.getTopLeft();
+        result = result * 59 + ($topLeft == null ? 43 : ((Object)$topLeft).hashCode());
+        Rectangle $topCenter = this.getTopCenter();
+        result = result * 59 + ($topCenter == null ? 43 : ((Object)$topCenter).hashCode());
+        Rectangle $topRight = this.getTopRight();
+        result = result * 59 + ($topRight == null ? 43 : ((Object)$topRight).hashCode());
+        Rectangle $bottomLeft = this.getBottomLeft();
+        result = result * 59 + ($bottomLeft == null ? 43 : ((Object)$bottomLeft).hashCode());
+        Rectangle $bottomRight = this.getBottomRight();
+        result = result * 59 + ($bottomRight == null ? 43 : ((Object)$bottomRight).hashCode());
+        Rectangle $aboveChatboxRight = this.getAboveChatboxRight();
+        result = result * 59 + ($aboveChatboxRight == null ? 43 : ((Object)$aboveChatboxRight).hashCode());
+        Rectangle $canvasTopRight = this.getCanvasTopRight();
+        result = result * 59 + ($canvasTopRight == null ? 43 : ((Object)$canvasTopRight).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "OverlayBounds(topLeft=" + this.getTopLeft() + ", topCenter=" + this.getTopCenter() + ", topRight=" + this.getTopRight() + ", bottomLeft=" + this.getBottomLeft() + ", bottomRight=" + this.getBottomRight() + ", aboveChatboxRight=" + this.getAboveChatboxRight() + ", canvasTopRight=" + this.getCanvasTopRight() + ")";
+    }
+
+    public OverlayBounds(Rectangle topLeft, Rectangle topCenter, Rectangle topRight, Rectangle bottomLeft, Rectangle bottomRight, Rectangle aboveChatboxRight, Rectangle canvasTopRight) {
+        this.topLeft = topLeft;
+        this.topCenter = topCenter;
+        this.topRight = topRight;
+        this.bottomLeft = bottomLeft;
+        this.bottomRight = bottomRight;
+        this.aboveChatboxRight = aboveChatboxRight;
+        this.canvasTopRight = canvasTopRight;
+    }
 }
+

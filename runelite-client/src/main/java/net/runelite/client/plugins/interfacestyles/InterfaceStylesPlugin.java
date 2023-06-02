@@ -1,43 +1,34 @@
 /*
- * Copyright (c) 2018, Lotto <https://github.com/devLotto>
- * Copyright (c) 2018, Raqes <j.raqes@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *   list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.HealthBar
+ *  net.runelite.api.SpritePixels
+ *  net.runelite.api.events.BeforeMenuRender
+ *  net.runelite.api.events.BeforeRender
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.PostHealthBar
+ *  net.runelite.api.events.ScriptCallbackEvent
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.interfacestyles;
 
 import com.google.inject.Provides;
 import java.awt.image.BufferedImage;
 import javax.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.HealthBar;
-import net.runelite.api.SpriteID;
 import net.runelite.api.SpritePixels;
 import net.runelite.api.events.BeforeMenuRender;
 import net.runelite.api.events.BeforeRender;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.PostHealthBar;
 import net.runelite.api.events.ScriptCallbackEvent;
@@ -46,371 +37,253 @@ import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.interfacestyles.HealthbarOverride;
+import net.runelite.client.plugins.interfacestyles.InterfaceStylesConfig;
+import net.runelite.client.plugins.interfacestyles.Skin;
+import net.runelite.client.plugins.interfacestyles.SpriteOverride;
+import net.runelite.client.plugins.interfacestyles.WidgetOffset;
+import net.runelite.client.plugins.interfacestyles.WidgetOverride;
 import net.runelite.client.util.ImageUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
-@PluginDescriptor(
-	name = "Interface Styles",
-	description = "Change the interface style to the 2005/2010 interface",
-	tags = {"2005", "2010", "skin", "theme", "ui"},
-	enabledByDefault = false
-)
-public class InterfaceStylesPlugin extends Plugin
-{
-	@Inject
-	private Client client;
+@PluginDescriptor(name="Interface Styles", description="Change the interface style to the 2005/2010 interface", tags={"2005", "2010", "skin", "theme", "ui"}, enabledByDefault=false)
+public class InterfaceStylesPlugin
+extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(InterfaceStylesPlugin.class);
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private InterfaceStylesConfig config;
+    @Inject
+    private SpriteManager spriteManager;
+    private SpritePixels[] defaultCrossSprites;
 
-	@Inject
-	private ClientThread clientThread;
+    @Provides
+    InterfaceStylesConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(InterfaceStylesConfig.class);
+    }
 
-	@Inject
-	private InterfaceStylesConfig config;
+    @Override
+    protected void startUp() throws Exception {
+        this.clientThread.invoke(this::updateAllOverrides);
+    }
 
-	@Inject
-	private SpriteManager spriteManager;
+    @Override
+    protected void shutDown() throws Exception {
+        this.clientThread.invoke(() -> {
+            this.restoreWidgetDimensions();
+            this.removeGameframe();
+            this.restoreHealthBars();
+            this.restoreCrossSprites();
+        });
+    }
 
-	private SpritePixels[] defaultCrossSprites;
+    @Subscribe
+    public void onConfigChanged(ConfigChanged config) {
+        if (config.getGroup().equals("interfaceStyles")) {
+            this.clientThread.invoke(this::updateAllOverrides);
+        }
+    }
 
-	@Provides
-	InterfaceStylesConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(InterfaceStylesConfig.class);
-	}
+    @Subscribe
+    public void onScriptCallbackEvent(ScriptCallbackEvent event) {
+        if ("forceStackStones".equals(event.getEventName()) && this.config.alwaysStack()) {
+            int[] intStack = this.client.getIntStack();
+            int intStackSize = this.client.getIntStackSize();
+            intStack[intStackSize - 1] = 1;
+        }
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		clientThread.invoke(this::updateAllOverrides);
-	}
+    @Subscribe
+    public void onBeforeRender(BeforeRender event) {
+        this.adjustWidgetDimensions();
+    }
 
-	@Override
-	protected void shutDown() throws Exception
-	{
-		clientThread.invoke(() ->
-		{
-			restoreWidgetDimensions();
-			removeGameframe();
-			restoreHealthBars();
-			restoreCrossSprites();
-		});
-	}
+    @Subscribe
+    public void onPostHealthBar(PostHealthBar postHealthBar) {
+        if (!this.config.hdHealthBars()) {
+            return;
+        }
+        HealthBar healthBar = postHealthBar.getHealthBar();
+        HealthbarOverride override = HealthbarOverride.get(healthBar.getHealthBarFrontSpriteId());
+        if (override != null) {
+            healthBar.setPadding(override.getPadding());
+        }
+    }
 
-	@Subscribe
-	public void onConfigChanged(ConfigChanged config)
-	{
-		if (config.getGroup().equals("interfaceStyles"))
-		{
-			clientThread.invoke(this::updateAllOverrides);
-		}
-	}
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged gameStateChanged) {
+        if (gameStateChanged.getGameState() != GameState.LOGIN_SCREEN) {
+            return;
+        }
+        this.overrideCrossSprites();
+    }
 
-	@Subscribe
-	public void onScriptCallbackEvent(ScriptCallbackEvent event)
-	{
-		if ("forceStackStones".equals(event.getEventName()) && config.alwaysStack())
-		{
-			int[] intStack = client.getIntStack();
-			int intStackSize = client.getIntStackSize();
-			intStack[intStackSize - 1] = 1;
-		}
-	}
+    private void updateAllOverrides() {
+        this.removeGameframe();
+        this.overrideSprites();
+        this.overrideWidgetSprites();
+        this.restoreWidgetDimensions();
+        this.adjustWidgetDimensions();
+        this.overrideHealthBars();
+        this.overrideCrossSprites();
+    }
 
-	@Subscribe
-	public void onBeforeRender(BeforeRender event)
-	{
-		adjustWidgetDimensions();
-	}
+    @Subscribe
+    public void onBeforeMenuRender(BeforeMenuRender event) {
+        if (this.config.hdMenu()) {
+            this.client.draw2010Menu(this.config.menuAlpha());
+            event.consume();
+        } else if (this.config.menuAlpha() != 255) {
+            this.client.drawOriginalMenu(this.config.menuAlpha());
+            event.consume();
+        }
+    }
 
-	@Subscribe
-	public void onPostHealthBar(PostHealthBar postHealthBar)
-	{
-		if (!config.hdHealthBars())
-		{
-			return;
-		}
+    private void overrideSprites() {
+        Skin configuredSkin = this.config.skin();
+        for (SpriteOverride spriteOverride : SpriteOverride.values()) {
+            for (Skin skin : spriteOverride.getSkin()) {
+                if (skin != configuredSkin) continue;
+                String configSkin = skin.getExtendSkin() != null ? skin.getExtendSkin().toString() : skin.toString();
+                String file = configSkin + "/" + spriteOverride.getSpriteID() + ".png";
+                SpritePixels spritePixels = this.getFileSpritePixels(file);
+                if (spriteOverride.getSpriteID() == 169) {
+                    this.client.setCompass(spritePixels);
+                    continue;
+                }
+                this.client.getSpriteOverrides().put(spriteOverride.getSpriteID(), spritePixels);
+            }
+        }
+    }
 
-		HealthBar healthBar = postHealthBar.getHealthBar();
-		HealthbarOverride override = HealthbarOverride.get(healthBar.getHealthBarFrontSpriteId());
+    private void restoreSprites() {
+        this.client.getWidgetSpriteCache().reset();
+        for (SpriteOverride spriteOverride : SpriteOverride.values()) {
+            this.client.getSpriteOverrides().remove(spriteOverride.getSpriteID());
+        }
+    }
 
-		// Check if this is the health bar we are replacing
-		if (override != null)
-		{
-			// Increase padding to show some more green at very low hp percentages
-			healthBar.setPadding(override.getPadding());
-		}
-	}
+    private void overrideWidgetSprites() {
+        Skin configuredSkin = this.config.skin();
+        for (WidgetOverride widgetOverride : WidgetOverride.values()) {
+            String configSkin;
+            String file;
+            SpritePixels spritePixels;
+            if (widgetOverride.getSkin() != configuredSkin && widgetOverride.getSkin() != configuredSkin.getExtendSkin() || (spritePixels = this.getFileSpritePixels(file = (configSkin = configuredSkin.getExtendSkin() != null ? configuredSkin.getExtendSkin().toString() : configuredSkin.toString()) + "/widget/" + widgetOverride.getName() + ".png")) == null) continue;
+            for (WidgetInfo widgetInfo : widgetOverride.getWidgetInfo()) {
+                this.client.getWidgetSpriteOverrides().put(widgetInfo.getPackedId(), spritePixels);
+            }
+        }
+    }
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		if (gameStateChanged.getGameState() != GameState.LOGIN_SCREEN)
-		{
-			return;
-		}
+    private void restoreWidgetSprites() {
+        for (WidgetOverride widgetOverride : WidgetOverride.values()) {
+            for (WidgetInfo widgetInfo : widgetOverride.getWidgetInfo()) {
+                this.client.getWidgetSpriteOverrides().remove(widgetInfo.getPackedId());
+            }
+        }
+    }
 
-		/*
-		 * The cross sprites aren't loaded yet when the initial config change event is received.
-		 * So run the overriding for cross sprites when we reach the login screen,
-		 * at which point the cross sprites will have been loaded.
-		 */
-		overrideCrossSprites();
-	}
+    private SpritePixels getFileSpritePixels(String file) {
+        try {
+            log.debug("Loading: {}", (Object)file);
+            BufferedImage image = ImageUtil.loadImageResource(this.getClass(), file);
+            return ImageUtil.getImageSpritePixels(image, this.client);
+        }
+        catch (RuntimeException ex) {
+            log.debug("Unable to load image: ", (Throwable)ex);
+            return null;
+        }
+    }
 
-	private void updateAllOverrides()
-	{
-		removeGameframe();
-		overrideSprites();
-		overrideWidgetSprites();
-		restoreWidgetDimensions();
-		adjustWidgetDimensions();
-		overrideHealthBars();
-		overrideCrossSprites();
-	}
+    private void adjustWidgetDimensions() {
+        for (WidgetOffset widgetOffset : WidgetOffset.values()) {
+            Widget widget;
+            if (widgetOffset.getSkin() != this.config.skin() || (widget = this.client.getWidget(widgetOffset.getWidgetInfo())) == null) continue;
+            if (widgetOffset.getOffsetX() != null) {
+                widget.setRelativeX(widgetOffset.getOffsetX().intValue());
+            }
+            if (widgetOffset.getOffsetY() != null) {
+                widget.setRelativeY(widgetOffset.getOffsetY().intValue());
+            }
+            if (widgetOffset.getWidth() != null) {
+                widget.setWidth(widgetOffset.getWidth().intValue());
+            }
+            if (widgetOffset.getHeight() == null) continue;
+            widget.setHeight(widgetOffset.getHeight().intValue());
+        }
+    }
 
-	@Subscribe
-	public void onBeforeMenuRender(BeforeMenuRender event)
-	{
-		if (config.hdMenu())
-		{
-			client.draw2010Menu(config.menuAlpha());
-			event.consume();
-		}
-		else if (config.menuAlpha() != 255)
-		{
-			client.drawOriginalMenu(config.menuAlpha());
-			event.consume();
-		}
-	}
+    private void overrideHealthBars() {
+        if (this.config.hdHealthBars()) {
+            this.spriteManager.addSpriteOverrides(HealthbarOverride.values());
+            this.clientThread.invokeLater(((Client)this.client)::resetHealthBarCaches);
+        } else {
+            this.restoreHealthBars();
+        }
+    }
 
-	private void overrideSprites()
-	{
-		final Skin configuredSkin = config.skin();
-		for (SpriteOverride spriteOverride : SpriteOverride.values())
-		{
-			for (Skin skin : spriteOverride.getSkin())
-			{
-				if (skin == configuredSkin)
-				{
-					final String configSkin = skin.getExtendSkin() != null
-						? skin.getExtendSkin().toString()
-						: skin.toString();
-					String file = configSkin + "/" + spriteOverride.getSpriteID() + ".png";
-					SpritePixels spritePixels = getFileSpritePixels(file);
+    private void restoreHealthBars() {
+        this.spriteManager.removeSpriteOverrides(HealthbarOverride.values());
+        this.clientThread.invokeLater(((Client)this.client)::resetHealthBarCaches);
+    }
 
-					if (spriteOverride.getSpriteID() == SpriteID.COMPASS_TEXTURE)
-					{
-						client.setCompass(spritePixels);
-					}
-					else
-					{
-						client.getSpriteOverrides().put(spriteOverride.getSpriteID(), spritePixels);
-					}
-				}
-			}
-		}
-	}
+    private void overrideCrossSprites() {
+        if (this.config.rsCrossSprites()) {
+            if (this.defaultCrossSprites != null) {
+                return;
+            }
+            SpritePixels[] crossSprites = this.client.getCrossSprites();
+            if (crossSprites == null) {
+                return;
+            }
+            this.defaultCrossSprites = new SpritePixels[crossSprites.length];
+            System.arraycopy(crossSprites, 0, this.defaultCrossSprites, 0, this.defaultCrossSprites.length);
+            for (int i = 0; i < crossSprites.length; ++i) {
+                SpritePixels newSprite = this.getFileSpritePixels("rs3/cross_sprites/" + i + ".png");
+                if (newSprite == null) continue;
+                crossSprites[i] = newSprite;
+            }
+        } else {
+            this.restoreCrossSprites();
+        }
+    }
 
-	private void restoreSprites()
-	{
-		client.getWidgetSpriteCache().reset();
+    private void restoreCrossSprites() {
+        if (this.defaultCrossSprites == null) {
+            return;
+        }
+        SpritePixels[] crossSprites = this.client.getCrossSprites();
+        if (crossSprites != null && this.defaultCrossSprites.length == crossSprites.length) {
+            System.arraycopy(this.defaultCrossSprites, 0, crossSprites, 0, this.defaultCrossSprites.length);
+        }
+        this.defaultCrossSprites = null;
+    }
 
-		for (SpriteOverride spriteOverride : SpriteOverride.values())
-		{
-			client.getSpriteOverrides().remove(spriteOverride.getSpriteID());
-		}
-	}
+    private void restoreWidgetDimensions() {
+        for (WidgetOffset widgetOffset : WidgetOffset.values()) {
+            Widget widget = this.client.getWidget(widgetOffset.getWidgetInfo());
+            if (widget == null) continue;
+            widget.revalidate();
+        }
+    }
 
-	private void overrideWidgetSprites()
-	{
-		final Skin configuredSkin = config.skin();
-		for (WidgetOverride widgetOverride : WidgetOverride.values())
-		{
-			if (widgetOverride.getSkin() == configuredSkin
-				|| widgetOverride.getSkin() == configuredSkin.getExtendSkin())
-			{
-				final String configSkin = configuredSkin.getExtendSkin() != null
-					? configuredSkin.getExtendSkin().toString()
-					: configuredSkin.toString();
-				String file = configSkin + "/widget/" + widgetOverride.getName() + ".png";
-				SpritePixels spritePixels = getFileSpritePixels(file);
-
-				if (spritePixels != null)
-				{
-					for (WidgetInfo widgetInfo : widgetOverride.getWidgetInfo())
-					{
-						client.getWidgetSpriteOverrides().put(widgetInfo.getPackedId(), spritePixels);
-					}
-				}
-			}
-		}
-	}
-
-	private void restoreWidgetSprites()
-	{
-		for (WidgetOverride widgetOverride : WidgetOverride.values())
-		{
-			for (WidgetInfo widgetInfo : widgetOverride.getWidgetInfo())
-			{
-				client.getWidgetSpriteOverrides().remove(widgetInfo.getPackedId());
-			}
-		}
-	}
-
-	private SpritePixels getFileSpritePixels(String file)
-	{
-		try
-		{
-			log.debug("Loading: {}", file);
-			BufferedImage image = ImageUtil.loadImageResource(this.getClass(), file);
-			return ImageUtil.getImageSpritePixels(image, client);
-		}
-		catch (RuntimeException ex)
-		{
-			log.debug("Unable to load image: ", ex);
-		}
-
-		return null;
-	}
-
-	private void adjustWidgetDimensions()
-	{
-		for (WidgetOffset widgetOffset : WidgetOffset.values())
-		{
-			if (widgetOffset.getSkin() != config.skin())
-			{
-				continue;
-			}
-
-			Widget widget = client.getWidget(widgetOffset.getWidgetInfo());
-
-			if (widget != null)
-			{
-				if (widgetOffset.getOffsetX() != null)
-				{
-					widget.setRelativeX(widgetOffset.getOffsetX());
-				}
-
-				if (widgetOffset.getOffsetY() != null)
-				{
-					widget.setRelativeY(widgetOffset.getOffsetY());
-				}
-
-				if (widgetOffset.getWidth() != null)
-				{
-					widget.setWidth(widgetOffset.getWidth());
-				}
-
-				if (widgetOffset.getHeight() != null)
-				{
-					widget.setHeight(widgetOffset.getHeight());
-				}
-			}
-		}
-	}
-
-	private void overrideHealthBars()
-	{
-		if (config.hdHealthBars())
-		{
-			spriteManager.addSpriteOverrides(HealthbarOverride.values());
-			// Reset health bar caches to apply the override
-			clientThread.invokeLater(client::resetHealthBarCaches);
-		}
-		else
-		{
-			restoreHealthBars();
-		}
-	}
-
-	private void restoreHealthBars()
-	{
-		spriteManager.removeSpriteOverrides(HealthbarOverride.values());
-		clientThread.invokeLater(client::resetHealthBarCaches);
-	}
-
-	private void overrideCrossSprites()
-	{
-		if (config.rsCrossSprites())
-		{
-			// If we've already replaced them,
-			// we don't need to replace them again
-			if (defaultCrossSprites != null)
-			{
-				return;
-			}
-
-			SpritePixels[] crossSprites = client.getCrossSprites();
-
-			if (crossSprites == null)
-			{
-				return;
-			}
-
-			defaultCrossSprites = new SpritePixels[crossSprites.length];
-			System.arraycopy(crossSprites, 0, defaultCrossSprites, 0, defaultCrossSprites.length);
-
-			for (int i = 0; i < crossSprites.length; i++)
-			{
-				SpritePixels newSprite = getFileSpritePixels("rs3/cross_sprites/" + i + ".png");
-
-				if (newSprite == null)
-				{
-					continue;
-				}
-
-				crossSprites[i] = newSprite;
-			}
-		}
-		else
-		{
-			restoreCrossSprites();
-		}
-	}
-
-	private void restoreCrossSprites()
-	{
-		if (defaultCrossSprites == null)
-		{
-			return;
-		}
-
-		SpritePixels[] crossSprites = client.getCrossSprites();
-
-		if (crossSprites != null && defaultCrossSprites.length == crossSprites.length)
-		{
-			System.arraycopy(defaultCrossSprites, 0, crossSprites, 0, defaultCrossSprites.length);
-		}
-
-		defaultCrossSprites = null;
-	}
-
-	private void restoreWidgetDimensions()
-	{
-		for (WidgetOffset widgetOffset : WidgetOffset.values())
-		{
-			Widget widget = client.getWidget(widgetOffset.getWidgetInfo());
-
-			if (widget != null)
-			{
-				widget.revalidate();
-			}
-		}
-	}
-
-	private void removeGameframe()
-	{
-		restoreSprites();
-		restoreWidgetSprites();
-
-		BufferedImage compassImage = spriteManager.getSprite(SpriteID.COMPASS_TEXTURE, 0);
-
-		if (compassImage != null)
-		{
-			SpritePixels compass = ImageUtil.getImageSpritePixels(compassImage, client);
-			client.setCompass(compass);
-		}
-	}
+    private void removeGameframe() {
+        this.restoreSprites();
+        this.restoreWidgetSprites();
+        BufferedImage compassImage = this.spriteManager.getSprite(169, 0);
+        if (compassImage != null) {
+            SpritePixels compass = ImageUtil.getImageSpritePixels(compassImage, this.client);
+            this.client.setCompass(compass);
+        }
+    }
 }
+

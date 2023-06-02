@@ -1,26 +1,19 @@
 /*
- * Copyright (c) 2021, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Strings
+ *  com.google.common.util.concurrent.Runnables
+ *  com.google.gson.Gson
+ *  com.google.gson.JsonSyntaxException
+ *  com.google.gson.reflect.TypeToken
+ *  javax.inject.Inject
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.Client
+ *  net.runelite.api.MenuEntry
+ *  net.runelite.api.widgets.WidgetInfo
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.groundmarkers;
 
@@ -42,218 +35,143 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.MenuEntry;
-import static net.runelite.api.widgets.WidgetInfo.MINIMAP_WORLDMAP_OPTIONS;
+import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.menus.MenuManager;
 import net.runelite.client.menus.WidgetMenuOption;
+import net.runelite.client.plugins.groundmarkers.GroundMarkerPlugin;
+import net.runelite.client.plugins.groundmarkers.GroundMarkerPoint;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
-class GroundMarkerSharingManager
-{
-	private static final WidgetMenuOption EXPORT_MARKERS_OPTION = new WidgetMenuOption("Export", "Ground Markers", MINIMAP_WORLDMAP_OPTIONS);
-	private static final WidgetMenuOption IMPORT_MARKERS_OPTION = new WidgetMenuOption("Import", "Ground Markers", MINIMAP_WORLDMAP_OPTIONS);
-	private static final WidgetMenuOption CLEAR_MARKERS_OPTION = new WidgetMenuOption("Clear", "Ground Markers", MINIMAP_WORLDMAP_OPTIONS);
+class GroundMarkerSharingManager {
+    private static final Logger log = LoggerFactory.getLogger(GroundMarkerSharingManager.class);
+    private static final WidgetMenuOption EXPORT_MARKERS_OPTION = new WidgetMenuOption("Export", "Ground Markers", WidgetInfo.MINIMAP_WORLDMAP_OPTIONS);
+    private static final WidgetMenuOption IMPORT_MARKERS_OPTION = new WidgetMenuOption("Import", "Ground Markers", WidgetInfo.MINIMAP_WORLDMAP_OPTIONS);
+    private static final WidgetMenuOption CLEAR_MARKERS_OPTION = new WidgetMenuOption("Clear", "Ground Markers", WidgetInfo.MINIMAP_WORLDMAP_OPTIONS);
+    private final GroundMarkerPlugin plugin;
+    private final Client client;
+    private final MenuManager menuManager;
+    private final ChatMessageManager chatMessageManager;
+    private final ChatboxPanelManager chatboxPanelManager;
+    private final Gson gson;
 
-	private final GroundMarkerPlugin plugin;
-	private final Client client;
-	private final MenuManager menuManager;
-	private final ChatMessageManager chatMessageManager;
-	private final ChatboxPanelManager chatboxPanelManager;
-	private final Gson gson;
+    @Inject
+    private GroundMarkerSharingManager(GroundMarkerPlugin plugin, Client client, MenuManager menuManager, ChatMessageManager chatMessageManager, ChatboxPanelManager chatboxPanelManager, Gson gson) {
+        this.plugin = plugin;
+        this.client = client;
+        this.menuManager = menuManager;
+        this.chatMessageManager = chatMessageManager;
+        this.chatboxPanelManager = chatboxPanelManager;
+        this.gson = gson;
+    }
 
-	@Inject
-	private GroundMarkerSharingManager(GroundMarkerPlugin plugin, Client client, MenuManager menuManager,
-		ChatMessageManager chatMessageManager, ChatboxPanelManager chatboxPanelManager, Gson gson)
-	{
-		this.plugin = plugin;
-		this.client = client;
-		this.menuManager = menuManager;
-		this.chatMessageManager = chatMessageManager;
-		this.chatboxPanelManager = chatboxPanelManager;
-		this.gson = gson;
-	}
+    void addImportExportMenuOptions() {
+        this.menuManager.addManagedCustomMenu(EXPORT_MARKERS_OPTION, this::exportGroundMarkers);
+        this.menuManager.addManagedCustomMenu(IMPORT_MARKERS_OPTION, this::promptForImport);
+    }
 
-	void addImportExportMenuOptions()
-	{
-		menuManager.addManagedCustomMenu(EXPORT_MARKERS_OPTION, this::exportGroundMarkers);
-		menuManager.addManagedCustomMenu(IMPORT_MARKERS_OPTION, this::promptForImport);
-	}
+    void addClearMenuOption() {
+        this.menuManager.addManagedCustomMenu(CLEAR_MARKERS_OPTION, this::promptForClear);
+    }
 
-	void addClearMenuOption()
-	{
-		menuManager.addManagedCustomMenu(CLEAR_MARKERS_OPTION, this::promptForClear);
-	}
+    void removeMenuOptions() {
+        this.menuManager.removeManagedCustomMenu(EXPORT_MARKERS_OPTION);
+        this.menuManager.removeManagedCustomMenu(IMPORT_MARKERS_OPTION);
+        this.menuManager.removeManagedCustomMenu(CLEAR_MARKERS_OPTION);
+    }
 
-	void removeMenuOptions()
-	{
-		menuManager.removeManagedCustomMenu(EXPORT_MARKERS_OPTION);
-		menuManager.removeManagedCustomMenu(IMPORT_MARKERS_OPTION);
-		menuManager.removeManagedCustomMenu(CLEAR_MARKERS_OPTION);
-	}
+    private void exportGroundMarkers(MenuEntry menuEntry) {
+        int[] regions = this.client.getMapRegions();
+        if (regions == null) {
+            return;
+        }
+        List activePoints = Arrays.stream(regions).mapToObj(regionId -> this.plugin.getPoints(regionId).stream()).flatMap(Function.identity()).collect(Collectors.toList());
+        if (activePoints.isEmpty()) {
+            this.sendChatMessage("You have no ground markers to export.");
+            return;
+        }
+        String exportDump = this.gson.toJson(activePoints);
+        log.debug("Exported ground markers: {}", (Object)exportDump);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(exportDump), null);
+        this.sendChatMessage(activePoints.size() + " ground markers were copied to your clipboard.");
+    }
 
-	private void exportGroundMarkers(MenuEntry menuEntry)
-	{
-		int[] regions = client.getMapRegions();
-		if (regions == null)
-		{
-			return;
-		}
+    private void promptForImport(MenuEntry menuEntry) {
+        List importPoints;
+        String clipboardText;
+        try {
+            clipboardText = Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.stringFlavor).toString();
+        }
+        catch (UnsupportedFlavorException | IOException ex) {
+            this.sendChatMessage("Unable to read system clipboard.");
+            log.warn("error reading clipboard", (Throwable)ex);
+            return;
+        }
+        log.debug("Clipboard contents: {}", (Object)clipboardText);
+        if (Strings.isNullOrEmpty((String)clipboardText)) {
+            this.sendChatMessage("You do not have any ground markers copied in your clipboard.");
+            return;
+        }
+        try {
+            importPoints = (List)this.gson.fromJson(clipboardText, new TypeToken<List<GroundMarkerPoint>>(){}.getType());
+        }
+        catch (JsonSyntaxException e) {
+            log.debug("Malformed JSON for clipboard import", (Throwable)e);
+            this.sendChatMessage("You do not have any ground markers copied in your clipboard.");
+            return;
+        }
+        if (importPoints.isEmpty()) {
+            this.sendChatMessage("You do not have any ground markers copied in your clipboard.");
+            return;
+        }
+        this.chatboxPanelManager.openTextMenuInput("Are you sure you want to import " + importPoints.size() + " ground markers?").option("Yes", () -> this.importGroundMarkers(importPoints)).option("No", Runnables.doNothing()).build();
+    }
 
-		List<GroundMarkerPoint> activePoints = Arrays.stream(regions)
-			.mapToObj(regionId -> plugin.getPoints(regionId).stream())
-			.flatMap(Function.identity())
-			.collect(Collectors.toList());
+    private void importGroundMarkers(Collection<GroundMarkerPoint> importPoints) {
+        Map<Integer, List<GroundMarkerPoint>> regionGroupedPoints = importPoints.stream().collect(Collectors.groupingBy(GroundMarkerPoint::getRegionId));
+        regionGroupedPoints.forEach((regionId, groupedPoints) -> {
+            log.debug("Importing {} points to region {}", (Object)groupedPoints.size(), regionId);
+            Collection<GroundMarkerPoint> regionPoints = this.plugin.getPoints((int)regionId);
+            ArrayList<GroundMarkerPoint> mergedList = new ArrayList<GroundMarkerPoint>(regionPoints.size() + groupedPoints.size());
+            mergedList.addAll(regionPoints);
+            for (GroundMarkerPoint point : groupedPoints) {
+                if (mergedList.contains(point)) continue;
+                mergedList.add(point);
+            }
+            this.plugin.savePoints((int)regionId, (Collection<GroundMarkerPoint>)mergedList);
+        });
+        log.debug("Reloading points after import");
+        this.plugin.loadPoints();
+        this.sendChatMessage(importPoints.size() + " ground markers were imported from the clipboard.");
+    }
 
-		if (activePoints.isEmpty())
-		{
-			sendChatMessage("You have no ground markers to export.");
-			return;
-		}
+    private void promptForClear(MenuEntry entry) {
+        int[] regions = this.client.getMapRegions();
+        if (regions == null) {
+            return;
+        }
+        long numActivePoints = Arrays.stream(regions).mapToLong(regionId -> this.plugin.getPoints(regionId).size()).sum();
+        if (numActivePoints == 0L) {
+            this.sendChatMessage("You have no ground markers to clear.");
+            return;
+        }
+        this.chatboxPanelManager.openTextMenuInput("Are you sure you want to clear the<br>" + numActivePoints + " currently loaded ground markers?").option("Yes", () -> {
+            for (int regionId : regions) {
+                this.plugin.savePoints(regionId, null);
+            }
+            this.plugin.loadPoints();
+            this.sendChatMessage(numActivePoints + " ground marker" + (numActivePoints == 1L ? " was cleared." : "s were cleared."));
+        }).option("No", Runnables.doNothing()).build();
+    }
 
-		final String exportDump = gson.toJson(activePoints);
-
-		log.debug("Exported ground markers: {}", exportDump);
-
-		Toolkit.getDefaultToolkit()
-			.getSystemClipboard()
-			.setContents(new StringSelection(exportDump), null);
-		sendChatMessage(activePoints.size() + " ground markers were copied to your clipboard.");
-	}
-
-	private void promptForImport(MenuEntry menuEntry)
-	{
-		final String clipboardText;
-		try
-		{
-			clipboardText = Toolkit.getDefaultToolkit()
-				.getSystemClipboard()
-				.getData(DataFlavor.stringFlavor)
-				.toString();
-		}
-		catch (IOException | UnsupportedFlavorException ex)
-		{
-			sendChatMessage("Unable to read system clipboard.");
-			log.warn("error reading clipboard", ex);
-			return;
-		}
-
-		log.debug("Clipboard contents: {}", clipboardText);
-		if (Strings.isNullOrEmpty(clipboardText))
-		{
-			sendChatMessage("You do not have any ground markers copied in your clipboard.");
-			return;
-		}
-
-		List<GroundMarkerPoint> importPoints;
-		try
-		{
-			// CHECKSTYLE:OFF
-			importPoints = gson.fromJson(clipboardText, new TypeToken<List<GroundMarkerPoint>>(){}.getType());
-			// CHECKSTYLE:ON
-		}
-		catch (JsonSyntaxException e)
-		{
-			log.debug("Malformed JSON for clipboard import", e);
-			sendChatMessage("You do not have any ground markers copied in your clipboard.");
-			return;
-		}
-
-		if (importPoints.isEmpty())
-		{
-			sendChatMessage("You do not have any ground markers copied in your clipboard.");
-			return;
-		}
-
-		chatboxPanelManager.openTextMenuInput("Are you sure you want to import " + importPoints.size() + " ground markers?")
-			.option("Yes", () -> importGroundMarkers(importPoints))
-			.option("No", Runnables.doNothing())
-			.build();
-	}
-
-	private void importGroundMarkers(Collection<GroundMarkerPoint> importPoints)
-	{
-		// regions being imported may not be loaded on client,
-		// so need to import each bunch directly into the config
-		// first, collate the list of unique region ids in the import
-		Map<Integer, List<GroundMarkerPoint>> regionGroupedPoints = importPoints.stream()
-			.collect(Collectors.groupingBy(GroundMarkerPoint::getRegionId));
-
-		// now import each region into the config
-		regionGroupedPoints.forEach((regionId, groupedPoints) ->
-		{
-			// combine imported points with existing region points
-			log.debug("Importing {} points to region {}", groupedPoints.size(), regionId);
-			Collection<GroundMarkerPoint> regionPoints = plugin.getPoints(regionId);
-
-			List<GroundMarkerPoint> mergedList = new ArrayList<>(regionPoints.size() + groupedPoints.size());
-			// add existing points
-			mergedList.addAll(regionPoints);
-
-			// add new points
-			for (GroundMarkerPoint point : groupedPoints)
-			{
-				// filter out duplicates
-				if (!mergedList.contains(point))
-				{
-					mergedList.add(point);
-				}
-			}
-
-			plugin.savePoints(regionId, mergedList);
-		});
-
-		// reload points from config
-		log.debug("Reloading points after import");
-		plugin.loadPoints();
-		sendChatMessage(importPoints.size() + " ground markers were imported from the clipboard.");
-	}
-
-	private void promptForClear(MenuEntry entry)
-	{
-		int[] regions = client.getMapRegions();
-		if (regions == null)
-		{
-			return;
-		}
-
-		long numActivePoints = Arrays.stream(regions)
-			.mapToLong(regionId -> plugin.getPoints(regionId).size())
-			.sum();
-
-		if (numActivePoints == 0)
-		{
-			sendChatMessage("You have no ground markers to clear.");
-			return;
-		}
-
-		chatboxPanelManager.openTextMenuInput("Are you sure you want to clear the<br>" + numActivePoints + " currently loaded ground markers?")
-			.option("Yes", () ->
-			{
-				for (int regionId : regions)
-				{
-					plugin.savePoints(regionId, null);
-				}
-
-				plugin.loadPoints();
-				sendChatMessage(numActivePoints + " ground marker"
-					+ (numActivePoints == 1 ? " was cleared." : "s were cleared."));
-
-			})
-			.option("No", Runnables.doNothing())
-			.build();
-	}
-
-	private void sendChatMessage(final String message)
-	{
-		chatMessageManager.queue(QueuedMessage.builder()
-			.type(ChatMessageType.CONSOLE)
-			.runeLiteFormattedMessage(message)
-			.build());
-	}
+    private void sendChatMessage(String message) {
+        this.chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.CONSOLE).runeLiteFormattedMessage(message).build());
+    }
 }
+

@@ -1,38 +1,73 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.http.api.config;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+public class ConfigEntry {
+    private String key;
+    private String value;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class ConfigEntry
-{
-	private String key;
-	private String value;
+    public String getKey() {
+        return this.key;
+    }
+
+    public String getValue() {
+        return this.value;
+    }
+
+    public void setKey(String key) {
+        this.key = key;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ConfigEntry)) {
+            return false;
+        }
+        ConfigEntry other = (ConfigEntry)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        String this$key = this.getKey();
+        String other$key = other.getKey();
+        if (this$key == null ? other$key != null : !this$key.equals(other$key)) {
+            return false;
+        }
+        String this$value = this.getValue();
+        String other$value = other.getValue();
+        return !(this$value == null ? other$value != null : !this$value.equals(other$value));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof ConfigEntry;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        String $key = this.getKey();
+        result = result * 59 + ($key == null ? 43 : $key.hashCode());
+        String $value = this.getValue();
+        result = result * 59 + ($value == null ? 43 : $value.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ConfigEntry(key=" + this.getKey() + ", value=" + this.getValue() + ")";
+    }
+
+    public ConfigEntry(String key, String value) {
+        this.key = key;
+        this.value = value;
+    }
+
+    public ConfigEntry() {
+    }
 }
+

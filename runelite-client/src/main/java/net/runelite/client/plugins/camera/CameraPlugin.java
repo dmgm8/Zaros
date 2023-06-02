@@ -1,33 +1,29 @@
 /*
- * Copyright (c) 2018 Abex
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * Copyright (c) 2019, Wynadorn <https://github.com/Wynadorn>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.primitives.Ints
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.MenuEntry
+ *  net.runelite.api.VarPlayer
+ *  net.runelite.api.events.BeforeRender
+ *  net.runelite.api.events.ClientTick
+ *  net.runelite.api.events.FocusChanged
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.ScriptCallbackEvent
+ *  net.runelite.api.events.ScriptPreFired
+ *  net.runelite.api.events.WidgetLoaded
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.plugins.camera;
 
 import com.google.common.primitives.Ints;
 import com.google.inject.Provides;
+import java.awt.Component;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import javax.inject.Inject;
@@ -35,9 +31,6 @@ import javax.swing.SwingUtilities;
 import net.runelite.api.Client;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
-import net.runelite.api.ScriptID;
-import net.runelite.api.SettingID;
-import net.runelite.api.VarClientInt;
 import net.runelite.api.VarPlayer;
 import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.ClientTick;
@@ -46,9 +39,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.events.WidgetLoaded;
-import net.runelite.api.widgets.JavaScriptCallback;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -60,463 +51,312 @@ import net.runelite.client.input.MouseListener;
 import net.runelite.client.input.MouseManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.camera.CameraConfig;
+import net.runelite.client.plugins.camera.ControlFunction;
 import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 
-@PluginDescriptor(
-	name = "Camera",
-	description = "Expands zoom limit, provides vertical camera, and remaps mouse input keys",
-	tags = {"zoom", "limit", "vertical", "click", "mouse"},
-	enabledByDefault = false
-)
-public class CameraPlugin extends Plugin implements KeyListener, MouseListener
-{
-	private static final int DEFAULT_ZOOM_INCREMENT = 25;
-	private static final int DEFAULT_OUTER_ZOOM_LIMIT = 128;
-	static final int DEFAULT_INNER_ZOOM_LIMIT = 896;
+@PluginDescriptor(name="Camera", description="Expands zoom limit, provides vertical camera, and remaps mouse input keys", tags={"zoom", "limit", "vertical", "click", "mouse"}, enabledByDefault=false)
+public class CameraPlugin
+extends Plugin
+implements KeyListener,
+MouseListener {
+    private static final int DEFAULT_ZOOM_INCREMENT = 25;
+    private static final int DEFAULT_OUTER_ZOOM_LIMIT = 128;
+    static final int DEFAULT_INNER_ZOOM_LIMIT = 896;
+    private boolean controlDown;
+    private boolean rightClick;
+    private boolean middleClick;
+    private boolean menuHasEntries;
+    private int savedCameraYaw;
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private CameraConfig config;
+    @Inject
+    private KeyManager keyManager;
+    @Inject
+    private MouseManager mouseManager;
+    @Inject
+    private TooltipManager tooltipManager;
+    private Tooltip sliderTooltip;
 
-	private boolean controlDown;
-	// flags used to store the mousedown states
-	private boolean rightClick;
-	private boolean middleClick;
-	/**
-	 * Whether or not the current menu has any non-ignored menu entries
-	 */
-	private boolean menuHasEntries;
-	private int savedCameraYaw;
+    @Provides
+    CameraConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(CameraConfig.class);
+    }
 
-	@Inject
-	private Client client;
+    @Override
+    protected void startUp() {
+        this.rightClick = false;
+        this.middleClick = false;
+        this.menuHasEntries = false;
+        this.copyConfigs();
+        this.keyManager.registerKeyListener(this);
+        this.mouseManager.registerMouseListener(this);
+        this.clientThread.invoke(() -> {
+            Widget settingsInit;
+            Widget sideSlider = this.client.getWidget(WidgetInfo.SETTINGS_SIDE_CAMERA_ZOOM_SLIDER_TRACK);
+            if (sideSlider != null) {
+                this.addZoomTooltip(sideSlider);
+            }
+            if ((settingsInit = this.client.getWidget(WidgetInfo.SETTINGS_INIT)) != null) {
+                this.client.createScriptEvent(settingsInit.getOnLoadListener()).setSource(settingsInit).run();
+            }
+        });
+    }
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    protected void shutDown() {
+        this.client.setCameraPitchRelaxerEnabled(false);
+        this.client.setInvertYaw(false);
+        this.client.setInvertPitch(false);
+        this.keyManager.unregisterKeyListener(this);
+        this.mouseManager.unregisterMouseListener(this);
+        this.controlDown = false;
+        this.clientThread.invoke(() -> {
+            Widget settingsInit;
+            Widget sideSlider = this.client.getWidget(WidgetInfo.SETTINGS_SIDE_CAMERA_ZOOM_SLIDER_TRACK);
+            if (sideSlider != null) {
+                sideSlider.setOnMouseRepeatListener((Object[])null);
+            }
+            if ((settingsInit = this.client.getWidget(WidgetInfo.SETTINGS_INIT)) != null) {
+                this.client.createScriptEvent(settingsInit.getOnLoadListener()).setSource(settingsInit).run();
+            }
+        });
+    }
 
-	@Inject
-	private CameraConfig config;
+    void copyConfigs() {
+        this.client.setCameraPitchRelaxerEnabled(this.config.relaxCameraPitch());
+        this.client.setInvertYaw(this.config.invertYaw());
+        this.client.setInvertPitch(this.config.invertPitch());
+    }
 
-	@Inject
-	private KeyManager keyManager;
+    @Subscribe
+    public void onScriptCallbackEvent(ScriptCallbackEvent event) {
+        if (this.client.getIndexScripts().isOverlayOutdated()) {
+            return;
+        }
+        int[] intStack = this.client.getIntStack();
+        int intStackSize = this.client.getIntStackSize();
+        if (!this.controlDown && "scrollWheelZoom".equals(event.getEventName()) && this.config.controlFunction() == ControlFunction.CONTROL_TO_ZOOM) {
+            intStack[intStackSize - 1] = 1;
+        }
+        if ("innerZoomLimit".equals(event.getEventName()) && this.config.innerLimit()) {
+            intStack[intStackSize - 1] = 1004;
+            return;
+        }
+        if ("outerZoomLimit".equals(event.getEventName())) {
+            int outerZoomLimit;
+            int outerLimit = Ints.constrainToRange((int)this.config.outerLimit(), (int)-400, (int)400);
+            intStack[intStackSize - 1] = outerZoomLimit = 128 - outerLimit;
+            return;
+        }
+        if ("scrollWheelZoomIncrement".equals(event.getEventName()) && this.config.zoomIncrement() != 25) {
+            intStack[intStackSize - 1] = this.config.zoomIncrement();
+            return;
+        }
+        if ("lookPreservePitch".equals(event.getEventName()) && this.config.compassLookPreservePitch()) {
+            intStack[intStackSize - 1] = this.client.getCameraPitch();
+            return;
+        }
+        if (this.config.innerLimit()) {
+            double exponent = 2.0;
+            switch (event.getEventName()) {
+                case "zoomLinToExp": {
+                    double range = intStack[intStackSize - 1];
+                    double value = intStack[intStackSize - 2];
+                    value = Math.pow(value / range, 2.0) * range;
+                    intStack[intStackSize - 2] = (int)value;
+                    break;
+                }
+                case "zoomExpToLin": {
+                    double range = intStack[intStackSize - 1];
+                    double value = intStack[intStackSize - 2];
+                    value = Math.pow(value / range, 0.5) * range;
+                    intStack[intStackSize - 2] = (int)value;
+                    break;
+                }
+            }
+        }
+    }
 
-	@Inject
-	private MouseManager mouseManager;
+    @Subscribe
+    public void onFocusChanged(FocusChanged event) {
+        if (!event.isFocused()) {
+            this.controlDown = false;
+        }
+    }
 
-	@Inject
-	private TooltipManager tooltipManager;
+    @Subscribe
+    public void onConfigChanged(ConfigChanged ev) {
+        this.copyConfigs();
+    }
 
-	private Tooltip sliderTooltip;
+    @Override
+    public void keyTyped(KeyEvent e) {
+    }
 
-	@Provides
-	CameraConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(CameraConfig.class);
-	}
+    @Override
+    public void keyPressed(KeyEvent e) {
+        if (e.getKeyCode() == 17) {
+            this.controlDown = true;
+        }
+    }
 
-	@Override
-	protected void startUp()
-	{
-		rightClick = false;
-		middleClick = false;
-		menuHasEntries = false;
-		copyConfigs();
-		keyManager.registerKeyListener(this);
-		mouseManager.registerMouseListener(this);
-		clientThread.invoke(() ->
-		{
-			Widget sideSlider = client.getWidget(WidgetInfo.SETTINGS_SIDE_CAMERA_ZOOM_SLIDER_TRACK);
-			if (sideSlider != null)
-			{
-				addZoomTooltip(sideSlider);
-			}
+    @Override
+    public void keyReleased(KeyEvent e) {
+        if (e.getKeyCode() == 17) {
+            this.controlDown = false;
+            if (this.config.controlFunction() == ControlFunction.CONTROL_TO_RESET) {
+                int zoomValue = Ints.constrainToRange((int)this.config.ctrlZoomValue(), (int)-400, (int)1004);
+                this.clientThread.invokeLater(() -> this.client.runScript(new Object[]{42, zoomValue, zoomValue}));
+            }
+        }
+    }
 
-			Widget settingsInit = client.getWidget(WidgetInfo.SETTINGS_INIT);
-			if (settingsInit != null)
-			{
-				client.createScriptEvent(settingsInit.getOnLoadListener())
-					.setSource(settingsInit)
-					.run();
-			}
-		});
-	}
+    private boolean hasMenuEntries(MenuEntry[] menuEntries) {
+        block4: for (MenuEntry menuEntry : menuEntries) {
+            MenuAction action = menuEntry.getType();
+            switch (action) {
+                case CANCEL: 
+                case WALK: {
+                    continue block4;
+                }
+                case EXAMINE_OBJECT: 
+                case EXAMINE_NPC: 
+                case EXAMINE_ITEM_GROUND: 
+                case EXAMINE_ITEM: 
+                case CC_OP_LOW_PRIORITY: {
+                    if (this.config.ignoreExamine()) continue block4;
+                }
+                default: {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
-	@Override
-	protected void shutDown()
-	{
-		client.setCameraPitchRelaxerEnabled(false);
-		client.setInvertYaw(false);
-		client.setInvertPitch(false);
-		keyManager.unregisterKeyListener(this);
-		mouseManager.unregisterMouseListener(this);
-		controlDown = false;
+    @Subscribe
+    public void onClientTick(ClientTick event) {
+        this.menuHasEntries = this.hasMenuEntries(this.client.getMenuEntries());
+        this.sliderTooltip = null;
+    }
 
-		clientThread.invoke(() ->
-		{
-			Widget sideSlider = client.getWidget(WidgetInfo.SETTINGS_SIDE_CAMERA_ZOOM_SLIDER_TRACK);
-			if (sideSlider != null)
-			{
-				sideSlider.setOnMouseRepeatListener((Object[]) null);
-			}
+    @Subscribe
+    private void onScriptPreFired(ScriptPreFired ev) {
+        switch (ev.getScriptId()) {
+            case 3885: {
+                int arg = this.client.getIntStackSize() - 7;
+                int[] is = this.client.getIntStack();
+                if (is[arg] != 14) break;
+                this.addZoomTooltip(this.client.getScriptActiveWidget());
+                break;
+            }
+            case 833: 
+            case 3896: {
+                this.sliderTooltip = this.makeSliderTooltip();
+            }
+        }
+    }
 
-			Widget settingsInit = client.getWidget(WidgetInfo.SETTINGS_INIT);
-			if (settingsInit != null)
-			{
-				client.createScriptEvent(settingsInit.getOnLoadListener())
-					.setSource(settingsInit)
-					.run();
-			}
-		});
-	}
+    @Subscribe
+    private void onWidgetLoaded(WidgetLoaded ev) {
+        if (ev.getGroupId() == 116) {
+            this.addZoomTooltip(this.client.getWidget(WidgetInfo.SETTINGS_SIDE_CAMERA_ZOOM_SLIDER_TRACK));
+        }
+    }
 
-	void copyConfigs()
-	{
-		client.setCameraPitchRelaxerEnabled(config.relaxCameraPitch());
-		client.setInvertYaw(config.invertYaw());
-		client.setInvertPitch(config.invertPitch());
-	}
+    private void addZoomTooltip(Widget w) {
+        w.setOnMouseRepeatListener(new Object[]{ev -> {
+            this.sliderTooltip = this.makeSliderTooltip();
+        }});
+    }
 
-	@Subscribe
-	public void onScriptCallbackEvent(ScriptCallbackEvent event)
-	{
-		if (client.getIndexScripts().isOverlayOutdated())
-		{
-			// if any cache overlay fails to load then assume at least one of the zoom scripts is outdated
-			// and prevent zoom extending entirely.
-			return;
-		}
+    private Tooltip makeSliderTooltip() {
+        int value = this.client.getVarcIntValue(74);
+        int max = this.config.innerLimit() ? 1004 : 896;
+        return new Tooltip("Camera Zoom: " + value + " / " + max);
+    }
 
-		int[] intStack = client.getIntStack();
-		int intStackSize = client.getIntStackSize();
+    @Subscribe
+    private void onBeforeRender(BeforeRender ev) {
+        if (this.sliderTooltip != null) {
+            this.tooltipManager.add(this.sliderTooltip);
+        }
+    }
 
-		if (!controlDown && "scrollWheelZoom".equals(event.getEventName()) && config.controlFunction() == ControlFunction.CONTROL_TO_ZOOM)
-		{
-			intStack[intStackSize - 1] = 1;
-		}
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged gameStateChanged) {
+        switch (gameStateChanged.getGameState()) {
+            case HOPPING: {
+                this.savedCameraYaw = this.client.getMapAngle();
+                break;
+            }
+            case LOGGED_IN: {
+                if (this.savedCameraYaw != 0 && this.config.preserveYaw()) {
+                    this.client.setCameraYawTarget(this.savedCameraYaw);
+                }
+                this.savedCameraYaw = 0;
+            }
+        }
+    }
 
-		if ("innerZoomLimit".equals(event.getEventName()) && config.innerLimit())
-		{
-			intStack[intStackSize - 1] = CameraConfig.INNER_ZOOM_LIMIT;
-			return;
-		}
+    @Override
+    public MouseEvent mousePressed(MouseEvent mouseEvent) {
+        if (SwingUtilities.isRightMouseButton(mouseEvent) && this.config.rightClickMovesCamera()) {
+            boolean oneButton;
+            boolean bl = oneButton = this.client.getVarpValue(VarPlayer.MOUSE_BUTTONS) == 1;
+            if (!this.menuHasEntries || oneButton) {
+                this.rightClick = true;
+                mouseEvent = new MouseEvent((Component)mouseEvent.getSource(), mouseEvent.getID(), mouseEvent.getWhen(), mouseEvent.getModifiersEx(), mouseEvent.getX(), mouseEvent.getY(), mouseEvent.getClickCount(), mouseEvent.isPopupTrigger(), 2);
+            }
+        } else if (SwingUtilities.isMiddleMouseButton(mouseEvent) && this.config.middleClickMenu()) {
+            this.middleClick = true;
+            mouseEvent = new MouseEvent((Component)mouseEvent.getSource(), mouseEvent.getID(), mouseEvent.getWhen(), mouseEvent.getModifiersEx(), mouseEvent.getX(), mouseEvent.getY(), mouseEvent.getClickCount(), mouseEvent.isPopupTrigger(), 3);
+        }
+        return mouseEvent;
+    }
 
-		if ("outerZoomLimit".equals(event.getEventName()))
-		{
-			int outerLimit = Ints.constrainToRange(config.outerLimit(), CameraConfig.OUTER_LIMIT_MIN, CameraConfig.OUTER_LIMIT_MAX);
-			int outerZoomLimit = DEFAULT_OUTER_ZOOM_LIMIT - outerLimit;
-			intStack[intStackSize - 1] = outerZoomLimit;
-			return;
-		}
+    @Override
+    public MouseEvent mouseReleased(MouseEvent mouseEvent) {
+        if (this.rightClick) {
+            this.rightClick = false;
+            mouseEvent = new MouseEvent((Component)mouseEvent.getSource(), mouseEvent.getID(), mouseEvent.getWhen(), mouseEvent.getModifiersEx(), mouseEvent.getX(), mouseEvent.getY(), mouseEvent.getClickCount(), mouseEvent.isPopupTrigger(), 2);
+        }
+        if (this.middleClick) {
+            this.middleClick = false;
+            mouseEvent = new MouseEvent((Component)mouseEvent.getSource(), mouseEvent.getID(), mouseEvent.getWhen(), mouseEvent.getModifiersEx(), mouseEvent.getX(), mouseEvent.getY(), mouseEvent.getClickCount(), mouseEvent.isPopupTrigger(), 3);
+        }
+        return mouseEvent;
+    }
 
-		if ("scrollWheelZoomIncrement".equals(event.getEventName()) && config.zoomIncrement() != DEFAULT_ZOOM_INCREMENT)
-		{
-			intStack[intStackSize - 1] = config.zoomIncrement();
-			return;
-		}
+    @Override
+    public MouseEvent mouseDragged(MouseEvent mouseEvent) {
+        return mouseEvent;
+    }
 
-		if ("lookPreservePitch".equals(event.getEventName()) && config.compassLookPreservePitch())
-		{
-			intStack[intStackSize - 1] = client.getCameraPitch();
-			return;
-		}
+    @Override
+    public MouseEvent mouseMoved(MouseEvent mouseEvent) {
+        return mouseEvent;
+    }
 
-		if (config.innerLimit())
-		{
-			// This lets the options panel's slider have an exponential rate
-			final double exponent = 2.d;
-			switch (event.getEventName())
-			{
-				case "zoomLinToExp":
-				{
-					double range = intStack[intStackSize - 1];
-					double value = intStack[intStackSize - 2];
-					value = Math.pow(value / range, exponent) * range;
-					intStack[intStackSize - 2] = (int) value;
-					break;
-				}
-				case "zoomExpToLin":
-				{
-					double range = intStack[intStackSize - 1];
-					double value = intStack[intStackSize - 2];
-					value = Math.pow(value / range, 1.d / exponent) * range;
-					intStack[intStackSize - 2] = (int) value;
-					break;
-				}
-			}
-		}
-	}
+    @Override
+    public MouseEvent mouseClicked(MouseEvent mouseEvent) {
+        return mouseEvent;
+    }
 
-	@Subscribe
-	public void onFocusChanged(FocusChanged event)
-	{
-		if (!event.isFocused())
-		{
-			controlDown = false;
-		}
-	}
+    @Override
+    public MouseEvent mouseEntered(MouseEvent mouseEvent) {
+        return mouseEvent;
+    }
 
-	@Subscribe
-	public void onConfigChanged(ConfigChanged ev)
-	{
-		copyConfigs();
-	}
-
-	@Override
-	public void keyTyped(KeyEvent e)
-	{
-	}
-
-	@Override
-	public void keyPressed(KeyEvent e)
-	{
-		if (e.getKeyCode() == KeyEvent.VK_CONTROL)
-		{
-			controlDown = true;
-		}
-	}
-
-	@Override
-	public void keyReleased(KeyEvent e)
-	{
-		if (e.getKeyCode() == KeyEvent.VK_CONTROL)
-		{
-			controlDown = false;
-
-			if (config.controlFunction() == ControlFunction.CONTROL_TO_RESET)
-			{
-				final int zoomValue = Ints.constrainToRange(config.ctrlZoomValue(), CameraConfig.OUTER_LIMIT_MIN, CameraConfig.INNER_ZOOM_LIMIT);
-				clientThread.invokeLater(() -> client.runScript(ScriptID.CAMERA_DO_ZOOM, zoomValue, zoomValue));
-			}
-		}
-	}
-
-	/**
-	 * Checks if the menu has any non-ignored entries
-	 */
-	private boolean hasMenuEntries(MenuEntry[] menuEntries)
-	{
-		for (MenuEntry menuEntry : menuEntries)
-		{
-			MenuAction action = menuEntry.getType();
-			switch (action)
-			{
-				case CANCEL:
-				case WALK:
-					break;
-				case EXAMINE_OBJECT:
-				case EXAMINE_NPC:
-				case EXAMINE_ITEM_GROUND:
-				case EXAMINE_ITEM:
-				case CC_OP_LOW_PRIORITY:
-					if (config.ignoreExamine())
-					{
-						break;
-					}
-				default:
-					return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Checks if the menu has any options, because menu entries are built each
-	 * tick and the MouseListener runs on the awt thread
-	 */
-	@Subscribe
-	public void onClientTick(ClientTick event)
-	{
-		menuHasEntries = hasMenuEntries(client.getMenuEntries());
-		sliderTooltip = null;
-	}
-
-	@Subscribe
-	private void onScriptPreFired(ScriptPreFired ev)
-	{
-		switch (ev.getScriptId())
-		{
-			case ScriptID.SETTINGS_SLIDER_CHOOSE_ONOP:
-			{
-				int arg = client.getIntStackSize() - 7;
-				int[] is = client.getIntStack();
-
-				if (is[arg] == SettingID.CAMERA_ZOOM)
-				{
-					addZoomTooltip(client.getScriptActiveWidget());
-				}
-				break;
-			}
-			case ScriptID.ZOOM_SLIDER_ONDRAG:
-			case ScriptID.SETTINGS_ZOOM_SLIDER_ONDRAG:
-				sliderTooltip = makeSliderTooltip();
-				break;
-		}
-	}
-
-	@Subscribe
-	private void onWidgetLoaded(WidgetLoaded ev)
-	{
-		if (ev.getGroupId() == WidgetID.SETTINGS_SIDE_GROUP_ID)
-		{
-			addZoomTooltip(client.getWidget(WidgetInfo.SETTINGS_SIDE_CAMERA_ZOOM_SLIDER_TRACK));
-		}
-	}
-
-	private void addZoomTooltip(Widget w)
-	{
-		w.setOnMouseRepeatListener((JavaScriptCallback) ev -> sliderTooltip = makeSliderTooltip());
-	}
-
-	private Tooltip makeSliderTooltip()
-	{
-		int value = client.getVar(VarClientInt.CAMERA_ZOOM_RESIZABLE_VIEWPORT);
-		int max = config.innerLimit() ? config.INNER_ZOOM_LIMIT : CameraPlugin.DEFAULT_INNER_ZOOM_LIMIT;
-		return new Tooltip("Camera Zoom: " + value + " / " + max);
-	}
-
-	@Subscribe
-	private void onBeforeRender(BeforeRender ev)
-	{
-		if (sliderTooltip != null)
-		{
-			tooltipManager.add(sliderTooltip);
-		}
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		switch (gameStateChanged.getGameState())
-		{
-			case HOPPING:
-				savedCameraYaw = client.getMapAngle();
-				break;
-			case LOGGED_IN:
-				if (savedCameraYaw != 0 && config.preserveYaw())
-				{
-					client.setCameraYawTarget(savedCameraYaw);
-				}
-				savedCameraYaw = 0;
-				break;
-		}
-	}
-
-	/**
-	 * The event that is triggered when a mouse button is pressed
-	 * In this method the right click is changed to a middle-click to enable rotating the camera
-	 * <p>
-	 * This method also provides the config option to enable the middle-mouse button to always open the right click menu
-	 */
-	@Override
-	public MouseEvent mousePressed(MouseEvent mouseEvent)
-	{
-		if (SwingUtilities.isRightMouseButton(mouseEvent) && config.rightClickMovesCamera())
-		{
-			boolean oneButton = client.getVar(VarPlayer.MOUSE_BUTTONS) == 1;
-			// Only move the camera if there is nothing at the menu, or if
-			// in one-button mode. In one-button mode, left and right click always do the same thing,
-			// so always treat it as the menu is empty
-			if (!menuHasEntries || oneButton)
-			{
-				// Set the rightClick flag to true so we can release the button in mouseReleased() later
-				rightClick = true;
-				// Change the mousePressed() MouseEvent to the middle mouse button
-				mouseEvent = new MouseEvent((java.awt.Component) mouseEvent.getSource(),
-					mouseEvent.getID(),
-					mouseEvent.getWhen(),
-					mouseEvent.getModifiersEx(),
-					mouseEvent.getX(),
-					mouseEvent.getY(),
-					mouseEvent.getClickCount(),
-					mouseEvent.isPopupTrigger(),
-					MouseEvent.BUTTON2);
-			}
-		}
-		else if (SwingUtilities.isMiddleMouseButton((mouseEvent)) && config.middleClickMenu())
-		{
-			// Set the middleClick flag to true so we can release it later in mouseReleased()
-			middleClick = true;
-			// Chance the middle mouse button MouseEvent to a right-click
-			mouseEvent = new MouseEvent((java.awt.Component) mouseEvent.getSource(),
-				mouseEvent.getID(),
-				mouseEvent.getWhen(),
-				mouseEvent.getModifiersEx(),
-				mouseEvent.getX(),
-				mouseEvent.getY(),
-				mouseEvent.getClickCount(),
-				mouseEvent.isPopupTrigger(),
-				MouseEvent.BUTTON3);
-		}
-		return mouseEvent;
-	}
-
-	/**
-	 * Correct the MouseEvent to release the correct button
-	 */
-	@Override
-	public MouseEvent mouseReleased(MouseEvent mouseEvent)
-	{
-		if (rightClick)
-		{
-			rightClick = false;
-			// Change the MouseEvent to button 2 so the middle mouse button will be released
-			mouseEvent = new MouseEvent((java.awt.Component) mouseEvent.getSource(),
-				mouseEvent.getID(),
-				mouseEvent.getWhen(),
-				mouseEvent.getModifiersEx(),
-				mouseEvent.getX(),
-				mouseEvent.getY(),
-				mouseEvent.getClickCount(),
-				mouseEvent.isPopupTrigger(),
-				MouseEvent.BUTTON2);
-
-		}
-		if (middleClick)
-		{
-			middleClick = false;
-			// Change the MouseEvent ot button 3 so the right mouse button will be released
-			mouseEvent = new MouseEvent((java.awt.Component) mouseEvent.getSource(),
-				mouseEvent.getID(),
-				mouseEvent.getWhen(),
-				mouseEvent.getModifiersEx(),
-				mouseEvent.getX(),
-				mouseEvent.getY(),
-				mouseEvent.getClickCount(),
-				mouseEvent.isPopupTrigger(),
-				MouseEvent.BUTTON3);
-		}
-		return mouseEvent;
-	}
-
-	/*
-	 * These methods are unused but required to be present in a MouseListener implementation
-	 */
-	// region Unused MouseListener methods
-	@Override
-	public MouseEvent mouseDragged(MouseEvent mouseEvent)
-	{
-		return mouseEvent;
-	}
-
-	@Override
-	public MouseEvent mouseMoved(MouseEvent mouseEvent)
-	{
-		return mouseEvent;
-	}
-
-	@Override
-	public MouseEvent mouseClicked(MouseEvent mouseEvent)
-	{
-		return mouseEvent;
-	}
-
-	@Override
-	public MouseEvent mouseEntered(MouseEvent mouseEvent)
-	{
-		return mouseEvent;
-	}
-
-	@Override
-	public MouseEvent mouseExited(MouseEvent mouseEvent)
-	{
-		return mouseEvent;
-	}
-	// endregion
+    @Override
+    public MouseEvent mouseExited(MouseEvent mouseEvent) {
+        return mouseEvent;
+    }
 }
+

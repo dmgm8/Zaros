@@ -1,26 +1,9 @@
 /*
- * Copyright (c) 2019 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.ui;
 
@@ -45,192 +28,139 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.border.EmptyBorder;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.RuneLite;
 import net.runelite.client.RuneLiteProperties;
+import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.SplashScreen;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.VerificationException;
-import org.pushingpixels.substance.internal.SubstanceSynapse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
-public class FatalErrorDialog extends JDialog
-{
-	private static final AtomicBoolean alreadyOpen = new AtomicBoolean(false);
+public class FatalErrorDialog
+extends JDialog {
+    private static final Logger log = LoggerFactory.getLogger(FatalErrorDialog.class);
+    private static final AtomicBoolean alreadyOpen = new AtomicBoolean(false);
+    private final JPanel rightColumn = new JPanel();
+    private final Font font = new Font("Dialog", 0, 12);
+    private final JLabel title;
 
-	private final JPanel rightColumn = new JPanel();
-	private final Font font = new Font(Font.DIALOG, Font.PLAIN, 12);
-	private final JLabel title;
+    public FatalErrorDialog(String message) {
+        if (alreadyOpen.getAndSet(true)) {
+            throw new IllegalStateException("Fatal error during fatal error: " + message);
+        }
+        try {
+            BufferedImage logo = ImageUtil.loadImageResource(FatalErrorDialog.class, "runelite_transparent.png");
+            this.setIconImage(logo);
+            JLabel runelite = new JLabel();
+            runelite.setIcon(new ImageIcon(logo));
+            runelite.setAlignmentX(0.5f);
+            runelite.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            runelite.setOpaque(true);
+            this.rightColumn.add(runelite);
+        }
+        catch (RuntimeException logo) {
+            // empty catch block
+        }
+        this.addWindowListener(new WindowAdapter(){
 
-	public FatalErrorDialog(String message)
-	{
-		if (alreadyOpen.getAndSet(true))
-		{
-			throw new IllegalStateException("Fatal error during fatal error: " + message);
-		}
+            @Override
+            public void windowClosing(WindowEvent e) {
+                System.exit(-1);
+            }
+        });
+        this.setTitle("Fatal error starting RuneLite");
+        this.setLayout(new BorderLayout());
+        JPanel pane = (JPanel)this.getContentPane();
+        pane.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        pane.putClientProperty("substancelaf.internal.colorizationFactor", 1.0);
+        JPanel leftPane = new JPanel();
+        leftPane.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        leftPane.setLayout(new BorderLayout());
+        this.title = new JLabel("There was a fatal error starting RuneLite");
+        this.title.setForeground(Color.WHITE);
+        this.title.setFont(this.font.deriveFont(16.0f));
+        this.title.setBorder(new EmptyBorder(10, 10, 10, 10));
+        leftPane.add((Component)this.title, "North");
+        leftPane.setPreferredSize(new Dimension(400, 200));
+        JTextArea textArea = new JTextArea(message);
+        textArea.setFont(this.font);
+        textArea.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        textArea.setForeground(Color.LIGHT_GRAY);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        textArea.setBorder(new EmptyBorder(10, 10, 10, 10));
+        textArea.setEditable(false);
+        textArea.setOpaque(false);
+        leftPane.add((Component)textArea, "Center");
+        pane.add((Component)leftPane, "Center");
+        this.rightColumn.setLayout(new BoxLayout(this.rightColumn, 1));
+        this.rightColumn.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        this.rightColumn.setMaximumSize(new Dimension(200, Integer.MAX_VALUE));
+        pane.add((Component)this.rightColumn, "East");
+    }
 
-		try
-		{
-			BufferedImage logo = ImageUtil.loadImageResource(FatalErrorDialog.class, "openosrs_transparent.png");
-			setIconImage(logo);
+    public void open() {
+        this.addButton("Exit", () -> System.exit(-1));
+        this.pack();
+        this.setLocationRelativeTo(null);
+        SplashScreen.stop();
+        this.setVisible(true);
+    }
 
-			JLabel runelite = new JLabel();
-			runelite.setIcon(new ImageIcon(logo));
-			runelite.setAlignmentX(Component.CENTER_ALIGNMENT);
-			runelite.setBackground(ColorScheme.DARK_GRAY_COLOR);
-			runelite.setOpaque(true);
-			rightColumn.add(runelite);
-		}
-		catch (RuntimeException e)
-		{
-		}
+    public FatalErrorDialog addButton(String message, Runnable action) {
+        JButton button = new JButton(message);
+        button.addActionListener(e -> action.run());
+        button.setFont(this.font);
+        button.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        button.setForeground(Color.LIGHT_GRAY);
+        button.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, ColorScheme.DARK_GRAY_COLOR.brighter()), new EmptyBorder(4, 4, 4, 4)));
+        button.setAlignmentX(0.5f);
+        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+        button.setFocusPainted(false);
+        button.addChangeListener(ev -> {
+            if (button.getModel().isPressed()) {
+                button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+            } else if (button.getModel().isRollover()) {
+                button.setBackground(ColorScheme.DARK_GRAY_HOVER_COLOR);
+            } else {
+                button.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            }
+        });
+        this.rightColumn.add(button);
+        this.rightColumn.revalidate();
+        return this;
+    }
 
-		addWindowListener(new WindowAdapter()
-		{
-			@Override
-			public void windowClosing(WindowEvent e)
-			{
-				System.exit(-1);
-			}
-		});
+    public FatalErrorDialog setTitle(String windowTitle, String header) {
+        super.setTitle(windowTitle);
+        this.title.setText(header);
+        return this;
+    }
 
-		setTitle("Fatal error starting OpenOSRS");
-		setLayout(new BorderLayout());
+    public FatalErrorDialog addHelpButtons() {
+        return this.addButton("Open logs folder", () -> LinkBrowser.open(RuneLite.LOGS_DIR.toString())).addButton("Get help on Discord", () -> LinkBrowser.browse(RuneLiteProperties.getDiscordInvite())).addButton("Troubleshooting steps", () -> LinkBrowser.browse(RuneLiteProperties.getTroubleshootingLink()));
+    }
 
-		JPanel pane = (JPanel) getContentPane();
-		pane.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		pane.putClientProperty(SubstanceSynapse.COLORIZATION_FACTOR, 1.0);
+    public FatalErrorDialog addBuildingGuide() {
+        return this.addButton("Building guide", () -> LinkBrowser.browse(RuneLiteProperties.getBuildingLink()));
+    }
 
-		JPanel leftPane = new JPanel();
-		leftPane.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		leftPane.setLayout(new BorderLayout());
-
-		title = new JLabel("There was a fatal error starting OpenOSRS");
-		title.setForeground(Color.WHITE);
-		title.setFont(font.deriveFont(16.f));
-		title.setBorder(new EmptyBorder(10, 10, 10, 10));
-		leftPane.add(title, BorderLayout.NORTH);
-
-		leftPane.setPreferredSize(new Dimension(400, 200));
-		JTextArea textArea = new JTextArea(message);
-		textArea.setFont(font);
-		textArea.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		textArea.setForeground(Color.LIGHT_GRAY);
-		textArea.setLineWrap(true);
-		textArea.setWrapStyleWord(true);
-		textArea.setBorder(new EmptyBorder(10, 10, 10, 10));
-		textArea.setEditable(false);
-		textArea.setOpaque(false);
-		leftPane.add(textArea, BorderLayout.CENTER);
-
-		pane.add(leftPane, BorderLayout.CENTER);
-
-		rightColumn.setLayout(new BoxLayout(rightColumn, BoxLayout.Y_AXIS));
-		rightColumn.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		rightColumn.setMaximumSize(new Dimension(200, Integer.MAX_VALUE));
-
-		pane.add(rightColumn, BorderLayout.EAST);
-	}
-
-	public void open()
-	{
-		addButton("Exit", () -> System.exit(-1));
-
-		pack();
-		setLocationRelativeTo(null);
-		SplashScreen.stop();
-		setVisible(true);
-	}
-
-	public FatalErrorDialog addButton(String message, Runnable action)
-	{
-		JButton button = new JButton(message);
-		button.addActionListener(e -> action.run());
-		button.setFont(font);
-		button.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		button.setForeground(Color.LIGHT_GRAY);
-		button.setBorder(BorderFactory.createCompoundBorder(
-			BorderFactory.createMatteBorder(1, 0, 0, 0, ColorScheme.DARK_GRAY_COLOR.brighter()),
-			new EmptyBorder(4, 4, 4, 4)
-		));
-		button.setAlignmentX(Component.CENTER_ALIGNMENT);
-		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-		button.setFocusPainted(false);
-		button.addChangeListener(ev ->
-		{
-			if (button.getModel().isPressed())
-			{
-				button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-			}
-			else if (button.getModel().isRollover())
-			{
-				button.setBackground(ColorScheme.DARK_GRAY_HOVER_COLOR);
-			}
-			else
-			{
-				button.setBackground(ColorScheme.DARK_GRAY_COLOR);
-			}
-		});
-
-		rightColumn.add(button);
-		rightColumn.revalidate();
-
-		return this;
-	}
-
-	public FatalErrorDialog setTitle(String windowTitle, String header)
-	{
-		super.setTitle(windowTitle);
-		title.setText(header);
-		return this;
-	}
-
-	public FatalErrorDialog addHelpButtons()
-	{
-		return addButton("Open logs folder", () -> LinkBrowser.open(RuneLite.LOGS_DIR.toString()))
-			.addButton("Get help on Discord", () -> LinkBrowser.browse(RuneLiteProperties.getDiscordInvite()))
-			.addButton("Troubleshooting steps", () -> LinkBrowser.browse(RuneLiteProperties.getTroubleshootingLink()));
-	}
-
-	public FatalErrorDialog addBuildingGuide()
-	{
-		return addButton("Building guide", () -> LinkBrowser.browse(RuneLiteProperties.getBuildingLink()));
-	}
-
-	public static void showNetErrorWindow(String action, Throwable err)
-	{
-		if (err instanceof VerificationException || err instanceof GeneralSecurityException)
-		{
-			new FatalErrorDialog("OpenOSRS was unable to verify the security of its connection to the internet while " +
-				action + ". You may have a misbehaving antivirus, internet service provider, a proxy, or an incomplete" +
-				" java installation.")
-				.addHelpButtons()
-				.open();
-			return;
-		}
-
-		if (err instanceof ConnectException)
-		{
-			new FatalErrorDialog("OpenOSRS is unable to connect to a required server while " + action + ". " +
-				"Please check your internet connection")
-				.addHelpButtons()
-				.open();
-			return;
-		}
-
-		if (err instanceof UnknownHostException)
-		{
-			new FatalErrorDialog("OpenOSRS is unable to resolve the address of a required server while " + action + ". " +
-				"Your DNS resolver may be misconfigured, pointing to an inaccurate resolver, or your internet connection may " +
-				"be down. ")
-				.addHelpButtons()
-				.addButton("Change your DNS resolver", () -> LinkBrowser.browse(RuneLiteProperties.getDNSChangeLink()))
-				.open();
-			return;
-		}
-
-		new FatalErrorDialog("RuneLite encountered a fatal error while " + action + ".")
-			.addHelpButtons()
-			.open();
-	}
+    public static void showNetErrorWindow(String action, Throwable err) {
+        if (err instanceof VerificationException || err instanceof GeneralSecurityException) {
+            new FatalErrorDialog("RuneLite was unable to verify the security of its connection to the internet while " + action + ". You may have a misbehaving antivirus, internet service provider, a proxy, or an incomplete java installation.").addHelpButtons().open();
+            return;
+        }
+        if (err instanceof ConnectException) {
+            new FatalErrorDialog("RuneLite is unable to connect to a required server while " + action + ". Please check your internet connection").addHelpButtons().open();
+            return;
+        }
+        if (err instanceof UnknownHostException) {
+            new FatalErrorDialog("RuneLite is unable to resolve the address of a required server while " + action + ". Your DNS resolver may be misconfigured, pointing to an inaccurate resolver, or your internet connection may be down. ").addHelpButtons().addButton("Change your DNS resolver", () -> LinkBrowser.browse(RuneLiteProperties.getDNSChangeLink())).open();
+            return;
+        }
+        new FatalErrorDialog("RuneLite encountered a fatal error while " + action + ".").addHelpButtons().open();
+    }
 }
+

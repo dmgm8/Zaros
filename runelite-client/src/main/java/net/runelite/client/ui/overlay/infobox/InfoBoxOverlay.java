@@ -1,27 +1,12 @@
 /*
- * Copyright (c) 2017, Seth <Sethtroll3@gmail.com>
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Strings
+ *  lombok.NonNull
+ *  net.runelite.api.Client
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.events.MenuOptionClicked
  */
 package net.runelite.client.ui.overlay.infobox;
 
@@ -35,7 +20,6 @@ import java.awt.Rectangle;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import lombok.Getter;
 import lombok.NonNull;
 import net.runelite.api.Client;
 import net.runelite.api.MenuAction;
@@ -51,181 +35,135 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.ComponentOrientation;
 import net.runelite.client.ui.overlay.components.InfoBoxComponent;
 import net.runelite.client.ui.overlay.components.LayoutableRenderableEntity;
+import net.runelite.client.ui.overlay.infobox.InfoBox;
+import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 
-public class InfoBoxOverlay extends OverlayPanel
-{
-	private static final int GAP = 1;
-	private static final int DEFAULT_WRAP_COUNT = 4;
+public class InfoBoxOverlay
+extends OverlayPanel {
+    private static final int GAP = 1;
+    private static final int DEFAULT_WRAP_COUNT = 4;
+    private final InfoBoxManager infoboxManager;
+    private final TooltipManager tooltipManager;
+    private final Client client;
+    private final RuneLiteConfig config;
+    private final EventBus eventBus;
+    private final String name;
+    private ComponentOrientation orientation;
+    private final List<InfoBox> infoBoxes = new CopyOnWriteArrayList<InfoBox>();
+    private InfoBoxComponent hoveredComponent;
 
-	private final InfoBoxManager infoboxManager;
-	private final TooltipManager tooltipManager;
-	private final Client client;
-	private final RuneLiteConfig config;
-	private final EventBus eventBus;
-	private final String name;
-	private ComponentOrientation orientation;
+    InfoBoxOverlay(InfoBoxManager infoboxManager, TooltipManager tooltipManager, Client client, RuneLiteConfig config, EventBus eventBus, String name, @NonNull ComponentOrientation orientation) {
+        if (orientation == null) {
+            throw new NullPointerException("orientation is marked non-null but is null");
+        }
+        this.tooltipManager = tooltipManager;
+        this.infoboxManager = infoboxManager;
+        this.client = client;
+        this.config = config;
+        this.eventBus = eventBus;
+        this.name = name;
+        this.orientation = orientation;
+        this.setPosition(OverlayPosition.TOP_LEFT);
+        this.setClearChildren(false);
+        this.setDragTargetable(true);
+        this.panelComponent.setWrap(true);
+        this.panelComponent.setBackgroundColor(null);
+        this.panelComponent.setBorder(new Rectangle());
+        this.panelComponent.setGap(new Point(1, 1));
+    }
 
-	@Getter
-	private final List<InfoBox> infoBoxes = new CopyOnWriteArrayList<>();
+    @Override
+    public String getName() {
+        return this.name;
+    }
 
-	private InfoBoxComponent hoveredComponent;
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        boolean menuOpen = this.client.isMenuOpen();
+        if (!menuOpen) {
+            this.hoveredComponent = null;
+        }
+        if (this.infoBoxes.isEmpty()) {
+            return null;
+        }
+        this.panelComponent.setPreferredSize(new Dimension(4 * (this.config.infoBoxSize() + 1), 4 * (this.config.infoBoxSize() + 1)));
+        this.panelComponent.setOrientation(this.orientation);
+        Font font = this.config.infoboxFontType().getFont();
+        boolean infoBoxTextOutline = this.config.infoBoxTextOutline();
+        Color overlayBackgroundColor = this.config.overlayBackgroundColor();
+        Dimension preferredSize = new Dimension(this.config.infoBoxSize(), this.config.infoBoxSize());
+        for (InfoBox box : this.infoBoxes) {
+            if (!box.render()) continue;
+            String text = box.getText();
+            Color color = box.getTextColor();
+            InfoBoxComponent infoBoxComponent = new InfoBoxComponent();
+            infoBoxComponent.setText(text);
+            infoBoxComponent.setFont(font);
+            if (color != null) {
+                infoBoxComponent.setColor(color);
+            }
+            infoBoxComponent.setOutline(infoBoxTextOutline);
+            infoBoxComponent.setImage(box.getScaledImage());
+            infoBoxComponent.setTooltip(box.getTooltip());
+            infoBoxComponent.setPreferredSize(preferredSize);
+            infoBoxComponent.setBackgroundColor(overlayBackgroundColor);
+            infoBoxComponent.setInfoBox(box);
+            this.panelComponent.getChildren().add(infoBoxComponent);
+        }
+        Dimension dimension = super.render(graphics);
+        Point mouse = new Point(this.client.getMouseCanvasPosition().getX(), this.client.getMouseCanvasPosition().getY());
+        for (LayoutableRenderableEntity child : this.panelComponent.getChildren()) {
+            InfoBoxComponent component = (InfoBoxComponent)child;
+            Rectangle intersectionRectangle = new Rectangle(component.getBounds());
+            intersectionRectangle.translate(this.getBounds().x, this.getBounds().y);
+            if (!intersectionRectangle.contains(mouse)) continue;
+            String tooltip = component.getTooltip();
+            if (!Strings.isNullOrEmpty((String)tooltip)) {
+                this.tooltipManager.add(new Tooltip(tooltip));
+            }
+            if (menuOpen) break;
+            this.hoveredComponent = component;
+            break;
+        }
+        this.panelComponent.getChildren().clear();
+        return dimension;
+    }
 
-	InfoBoxOverlay(
-		InfoBoxManager infoboxManager,
-		TooltipManager tooltipManager,
-		Client client,
-		RuneLiteConfig config,
-		EventBus eventBus,
-		String name,
-		@NonNull ComponentOrientation orientation)
-	{
-		this.tooltipManager = tooltipManager;
-		this.infoboxManager = infoboxManager;
-		this.client = client;
-		this.config = config;
-		this.eventBus = eventBus;
-		this.name = name;
-		this.orientation = orientation;
-		setPosition(OverlayPosition.TOP_LEFT);
-		setClearChildren(false);
-		setDragTargetable(true);
+    @Override
+    public List<OverlayMenuEntry> getMenuEntries() {
+        return this.hoveredComponent == null ? Collections.emptyList() : this.hoveredComponent.getInfoBox().getMenuEntries();
+    }
 
-		panelComponent.setWrap(true);
-		panelComponent.setBackgroundColor(null);
-		panelComponent.setBorder(new Rectangle());
-		panelComponent.setGap(new Point(GAP, GAP));
-	}
+    @Subscribe
+    public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked) {
+        if (menuOptionClicked.getMenuAction() != MenuAction.RUNELITE_INFOBOX || this.hoveredComponent == null) {
+            return;
+        }
+        InfoBox infoBox = this.hoveredComponent.getInfoBox();
+        OverlayMenuEntry overlayMenuEntry = infoBox.getMenuEntries().stream().filter(me -> me.getOption().equals(menuOptionClicked.getMenuOption())).findAny().orElse(null);
+        if (overlayMenuEntry != null) {
+            this.eventBus.post(new InfoBoxMenuClicked(overlayMenuEntry, infoBox));
+        }
+    }
 
-	@Override
-	public String getName()
-	{
-		return this.name;
-	}
+    @Override
+    public boolean onDrag(Overlay source) {
+        if (!(source instanceof InfoBoxOverlay)) {
+            return false;
+        }
+        this.infoboxManager.mergeInfoBoxes((InfoBoxOverlay)source, this);
+        return true;
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		final boolean menuOpen = client.isMenuOpen();
-		if (!menuOpen)
-		{
-			hoveredComponent = null;
-		}
+    ComponentOrientation flip() {
+        this.orientation = this.orientation == ComponentOrientation.HORIZONTAL ? ComponentOrientation.VERTICAL : ComponentOrientation.HORIZONTAL;
+        return this.orientation;
+    }
 
-		if (infoBoxes.isEmpty())
-		{
-			return null;
-		}
-
-		// Set preferred size to the size of DEFAULT_WRAP_COUNT infoboxes, including the padding - which is applied
-		// to the last infobox prior to wrapping too.
-		panelComponent.setPreferredSize(new Dimension(DEFAULT_WRAP_COUNT * (config.infoBoxSize() + GAP), DEFAULT_WRAP_COUNT * (config.infoBoxSize() + GAP)));
-		panelComponent.setOrientation(orientation);
-
-		final Font font = config.infoboxFontType().getFont();
-		final boolean infoBoxTextOutline = config.infoBoxTextOutline();
-		final Color overlayBackgroundColor = config.overlayBackgroundColor();
-		final Dimension preferredSize = new Dimension(config.infoBoxSize(), config.infoBoxSize());
-		for (InfoBox box : infoBoxes)
-		{
-			if (!box.render())
-			{
-				continue;
-			}
-
-			final String text = box.getText();
-			final Color color = box.getTextColor();
-
-			final InfoBoxComponent infoBoxComponent = new InfoBoxComponent();
-			infoBoxComponent.setText(text);
-			infoBoxComponent.setFont(font);
-			if (color != null)
-			{
-				infoBoxComponent.setColor(color);
-			}
-			infoBoxComponent.setOutline(infoBoxTextOutline);
-			infoBoxComponent.setImage(box.getScaledImage());
-			infoBoxComponent.setTooltip(box.getTooltip());
-			infoBoxComponent.setPreferredSize(preferredSize);
-			infoBoxComponent.setBackgroundColor(overlayBackgroundColor);
-			infoBoxComponent.setInfoBox(box);
-			panelComponent.getChildren().add(infoBoxComponent);
-		}
-
-		final Dimension dimension = super.render(graphics);
-
-		// Handle tooltips
-		final Point mouse = new Point(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY());
-
-		for (final LayoutableRenderableEntity child : panelComponent.getChildren())
-		{
-			final InfoBoxComponent component = (InfoBoxComponent) child;
-
-			// Create intersection rectangle
-			final Rectangle intersectionRectangle = new Rectangle(component.getBounds());
-			intersectionRectangle.translate(getBounds().x, getBounds().y);
-
-			if (intersectionRectangle.contains(mouse))
-			{
-				final String tooltip = component.getTooltip();
-				if (!Strings.isNullOrEmpty(tooltip))
-				{
-					tooltipManager.add(new Tooltip(tooltip));
-				}
-
-				if (!menuOpen)
-				{
-					hoveredComponent = component;
-				}
-				break;
-			}
-		}
-
-		panelComponent.getChildren().clear();
-		return dimension;
-	}
-
-	@Override
-	public List<OverlayMenuEntry> getMenuEntries()
-	{
-		// we dynamically build the menu options based on which infobox is hovered
-		return hoveredComponent == null ? Collections.emptyList() : hoveredComponent.getInfoBox().getMenuEntries();
-	}
-
-	@Subscribe
-	public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked)
-	{
-		if (menuOptionClicked.getMenuAction() != MenuAction.RUNELITE_INFOBOX || hoveredComponent == null)
-		{
-			return;
-		}
-
-		InfoBox infoBox = hoveredComponent.getInfoBox();
-		OverlayMenuEntry overlayMenuEntry = infoBox.getMenuEntries().stream()
-			.filter(me -> me.getOption().equals(menuOptionClicked.getMenuOption()))
-			.findAny()
-			.orElse(null);
-		if (overlayMenuEntry != null)
-		{
-			eventBus.post(new InfoBoxMenuClicked(overlayMenuEntry, infoBox));
-		}
-	}
-
-	@Override
-	public boolean onDrag(Overlay source)
-	{
-		if (!(source instanceof InfoBoxOverlay))
-		{
-			return false;
-		}
-
-		infoboxManager.mergeInfoBoxes((InfoBoxOverlay) source, this);
-		return true;
-	}
-
-	ComponentOrientation flip()
-	{
-		return orientation = orientation == ComponentOrientation.HORIZONTAL ? ComponentOrientation.VERTICAL : ComponentOrientation.HORIZONTAL;
-	}
+    public List<InfoBox> getInfoBoxes() {
+        return this.infoBoxes;
+    }
 }
+

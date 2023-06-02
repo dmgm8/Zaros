@@ -1,88 +1,61 @@
 /*
- * Copyright (c) 2018, Kruithne <kruithne@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provider
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.WorldType
+ *  net.runelite.api.events.WorldChanged
  */
 package net.runelite.client.plugins.skillcalculator;
 
+import com.google.inject.Provider;
 import java.awt.image.BufferedImage;
 import javax.inject.Inject;
 import net.runelite.api.Client;
-import net.runelite.client.callback.ClientThread;
-import net.runelite.client.game.ItemManager;
-import net.runelite.client.game.SkillIconManager;
-import net.runelite.client.game.SpriteManager;
+import net.runelite.api.WorldType;
+import net.runelite.api.events.WorldChanged;
+import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.skillcalculator.SkillCalculatorPanel;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
-@PluginDescriptor(
-	name = "Skill Calculator",
-	description = "Enable the Skill Calculator panel",
-	tags = {"panel", "skilling"}
-)
-public class SkillCalculatorPlugin extends Plugin
-{
-	@Inject
-	private Client client;
+@PluginDescriptor(name="Skill Calculator", description="Enable the Skill Calculator panel", tags={"panel", "skilling"})
+public class SkillCalculatorPlugin
+extends Plugin {
+    @Inject
+    private Client client;
+    @Inject
+    private ClientToolbar clientToolbar;
+    @Inject
+    private Provider<SkillCalculatorPanel> uiPanel;
+    private NavigationButton uiNavigationButton;
+    private boolean lastWorldWasMembers;
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    protected void startUp() throws Exception {
+        BufferedImage icon = ImageUtil.loadImageResource(this.getClass(), "calc.png");
+        this.uiNavigationButton = NavigationButton.builder().tooltip("Skill Calculator").icon(icon).priority(6).panel((PluginPanel)this.uiPanel.get()).build();
+        this.clientToolbar.addNavigation(this.uiNavigationButton);
+    }
 
-	@Inject
-	private SkillIconManager skillIconManager;
+    @Override
+    protected void shutDown() throws Exception {
+        this.clientToolbar.removeNavigation(this.uiNavigationButton);
+    }
 
-	@Inject
-	private ItemManager itemManager;
-
-	@Inject
-	private SpriteManager spriteManager;
-
-	@Inject
-	private ClientToolbar clientToolbar;
-
-	private NavigationButton uiNavigationButton;
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "calc.png");
-		final SkillCalculatorPanel uiPanel = new SkillCalculatorPanel(skillIconManager, client, clientThread, spriteManager, itemManager);
-
-		uiNavigationButton = NavigationButton.builder()
-			.tooltip("Skill Calculator")
-			.icon(icon)
-			.priority(6)
-			.panel(uiPanel)
-			.build();
-
-		clientToolbar.addNavigation(uiNavigationButton);
-	}
-
-	@Override
-	protected void shutDown() throws Exception
-	{
-		clientToolbar.removeNavigation(uiNavigationButton);
-	}
+    @Subscribe
+    public void onWorldChanged(WorldChanged event) {
+        boolean currentWorldIsMembers = this.client.getWorldType().contains((Object)WorldType.MEMBERS);
+        if (currentWorldIsMembers != this.lastWorldWasMembers) {
+            ((SkillCalculatorPanel)this.uiPanel.get()).reloadCurrentCalculator();
+        }
+        this.lastWorldWasMembers = currentWorldIsMembers;
+    }
 }
+

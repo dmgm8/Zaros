@@ -1,96 +1,62 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.puzzlesolver.lightbox;
 
-public class LightboxSolver
-{
-	private LightboxState initial;
-	private final LightboxState[] switches = new LightboxState[LightBox.COMBINATIONS_POWER];
+import net.runelite.client.plugins.puzzlesolver.lightbox.Combination;
+import net.runelite.client.plugins.puzzlesolver.lightbox.LightboxSolution;
+import net.runelite.client.plugins.puzzlesolver.lightbox.LightboxState;
 
-	static boolean isBitSet(int num, int bit)
-	{
-		return ((num >>> bit) & 1) != 0;
-	}
+public class LightboxSolver {
+    private LightboxState initial;
+    private final LightboxState[] switches = new LightboxState[8];
 
-	private static boolean isSolved(LightboxState s)
-	{
-		for (int i = 0; i < LightBox.WIDTH; ++i)
-		{
-			for (int j = 0; j < LightBox.HEIGHT; ++j)
-			{
-				if (!s.getState(i, j))
-				{
-					return false;
-				}
-			}
-		}
-		return true;
-	}
+    static boolean isBitSet(int num, int bit) {
+        return (num >>> bit & 1) != 0;
+    }
 
-	public LightboxSolution solve()
-	{
-		LightboxSolution solution = null;
-		outer:
-		for (int i = 0; i < Math.pow(2, LightBox.COMBINATIONS_POWER); ++i)
-		{
-			LightboxState s = initial;
+    private static boolean isSolved(LightboxState s) {
+        for (int i = 0; i < 5; ++i) {
+            for (int j = 0; j < 5; ++j) {
+                if (s.getState(i, j)) continue;
+                return false;
+            }
+        }
+        return true;
+    }
 
-			for (int bit = 0; bit < LightBox.COMBINATIONS_POWER; ++bit)
-			{
-				if (isBitSet(i, bit))
-				{
-					// this switch is unknown, so this can't be a valid answer
-					if (switches[bit] == null)
-					{
-						continue outer;
-					}
+    public LightboxSolution solve() {
+        LightboxSolution solution = null;
+        int i = 0;
+        while ((double)i < Math.pow(2.0, 8.0)) {
+            block5: {
+                LightboxState s = this.initial;
+                for (int bit = 0; bit < 8; ++bit) {
+                    if (!LightboxSolver.isBitSet(i, bit)) continue;
+                    if (this.switches[bit] != null) {
+                        s = s.diff(this.switches[bit]);
+                        continue;
+                    }
+                    break block5;
+                }
+                if (LightboxSolver.isSolved(s)) {
+                    LightboxSolution sol = new LightboxSolution(i);
+                    if (solution == null || sol.numMoves() < solution.numMoves()) {
+                        solution = sol;
+                    }
+                }
+            }
+            ++i;
+        }
+        return solution;
+    }
 
-					s = s.diff(switches[bit]);
-				}
-			}
+    public void setInitial(LightboxState initial) {
+        this.initial = initial;
+    }
 
-			if (isSolved(s))
-			{
-				LightboxSolution sol = new LightboxSolution(i);
-				if (solution == null || sol.numMoves() < solution.numMoves())
-				{
-					solution = sol;
-				}
-			}
-		}
-
-		return solution;
-	}
-
-	public void setInitial(LightboxState initial)
-	{
-		this.initial = initial;
-	}
-
-	public void setSwitchChange(Combination combination, LightboxState newState)
-	{
-		switches[combination.ordinal()] = newState;
-	}
+    public void setSwitchChange(Combination combination, LightboxState newState) {
+        this.switches[combination.ordinal()] = newState;
+    }
 }
+

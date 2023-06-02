@@ -1,342 +1,293 @@
 /*
- * Copyright (c) 2019, Ron Young <https://github.com/raiyni>
- * All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *     list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.primitives.Ints
+ *  com.google.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.ItemComposition
+ *  net.runelite.api.widgets.Widget
  */
-
 package net.runelite.client.game.chatbox;
 
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import java.awt.event.KeyEvent;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Consumer;
 import javax.inject.Singleton;
-import lombok.Getter;
-import lombok.Value;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
-import net.runelite.api.widgets.ItemQuantityMode;
-import net.runelite.api.widgets.JavaScriptCallback;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetPositionMode;
-import net.runelite.api.widgets.WidgetSizeMode;
-import net.runelite.api.widgets.WidgetTextAlignment;
-import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
-import net.runelite.client.ui.JagexColors;
+import net.runelite.client.game.chatbox.ChatboxPanelManager;
+import net.runelite.client.game.chatbox.ChatboxTextInput;
 
 @Singleton
-public class ChatboxItemSearch extends ChatboxTextInput
-{
-	private static final int ICON_HEIGHT = 32;
-	private static final int ICON_WIDTH = 36;
-	private static final int PADDING = 6;
-	private static final int MAX_RESULTS = 24;
-	private static final int FONT_SIZE = 16;
-	private static final int HOVERED_OPACITY = 128;
+public class ChatboxItemSearch
+extends ChatboxTextInput {
+    private static final int ICON_HEIGHT = 32;
+    private static final int ICON_WIDTH = 36;
+    private static final int PADDING = 6;
+    private static final int MAX_RESULTS = 24;
+    private static final int FONT_SIZE = 16;
+    private static final int HOVERED_OPACITY = 128;
+    private final ChatboxPanelManager chatboxPanelManager;
+    private final ItemManager itemManager;
+    private final Client client;
+    private final Map<Integer, ItemComposition> results = new LinkedHashMap<Integer, ItemComposition>();
+    private String tooltipText;
+    private int index = -1;
+    private Consumer<Integer> onItemSelected;
 
-	private final ChatboxPanelManager chatboxPanelManager;
-	private final ItemManager itemManager;
-	private final Client client;
+    @Inject
+    private ChatboxItemSearch(ChatboxPanelManager chatboxPanelManager, ClientThread clientThread, ItemManager itemManager, Client client) {
+        super(chatboxPanelManager, clientThread);
+        this.chatboxPanelManager = chatboxPanelManager;
+        this.itemManager = itemManager;
+        this.client = client;
+        this.lines(1);
+        this.prompt("Item Search");
+        this.onChanged(searchString -> clientThread.invokeLater(() -> {
+            this.filterResults();
+            this.update();
+        }));
+    }
 
-	private final Map<Integer, ItemComposition> results = new LinkedHashMap<>();
-	private String tooltipText;
-	private int index = -1;
+    @Override
+    protected void update() {
+        Widget container = this.chatboxPanelManager.getContainerWidget();
+        container.deleteAllChildren();
+        Widget promptWidget = container.createChild(-1, 4);
+        promptWidget.setText(this.getPrompt());
+        promptWidget.setTextColor(0x800000);
+        promptWidget.setFontId(this.getFontID());
+        promptWidget.setOriginalX(0);
+        promptWidget.setOriginalY(5);
+        promptWidget.setXPositionMode(1);
+        promptWidget.setYPositionMode(0);
+        promptWidget.setOriginalHeight(16);
+        promptWidget.setXTextAlignment(1);
+        promptWidget.setYTextAlignment(1);
+        promptWidget.setWidthMode(1);
+        promptWidget.revalidate();
+        this.buildEdit(0, 21, container.getWidth(), 16);
+        Widget separator = container.createChild(-1, 9);
+        separator.setOriginalX(0);
+        separator.setOriginalY(40);
+        separator.setXPositionMode(1);
+        separator.setYPositionMode(0);
+        separator.setOriginalHeight(0);
+        separator.setOriginalWidth(16);
+        separator.setWidthMode(1);
+        separator.setTextColor(0x666666);
+        separator.revalidate();
+        int x = 6;
+        int y = 18;
+        int idx = 0;
+        for (ItemComposition itemComposition : this.results.values()) {
+            Widget item = container.createChild(-1, 5);
+            item.setXPositionMode(0);
+            item.setYPositionMode(0);
+            item.setOriginalX(x);
+            item.setOriginalY(y + 32);
+            item.setOriginalHeight(32);
+            item.setOriginalWidth(36);
+            item.setName("<col=ff9040>" + itemComposition.getName());
+            item.setItemId(itemComposition.getId());
+            item.setItemQuantity(10000);
+            item.setItemQuantityMode(0);
+            item.setBorderType(1);
+            item.setAction(0, this.tooltipText);
+            item.setHasListener(true);
+            if (this.index == idx) {
+                item.setOpacity(128);
+            } else {
+                item.setOnMouseOverListener(new Object[]{ev -> item.setOpacity(128)});
+                item.setOnMouseLeaveListener(new Object[]{ev -> item.setOpacity(0)});
+            }
+            item.setOnOpListener(new Object[]{ev -> {
+                if (this.onItemSelected != null) {
+                    this.onItemSelected.accept(itemComposition.getId());
+                }
+                this.chatboxPanelManager.close();
+            }});
+            if ((x += 42) + 36 >= container.getWidth()) {
+                y += 38;
+                x = 6;
+            }
+            item.revalidate();
+            ++idx;
+        }
+    }
 
-	@Getter
-	private Consumer<Integer> onItemSelected;
+    @Override
+    public void keyPressed(KeyEvent ev) {
+        if (!this.chatboxPanelManager.shouldTakeInput()) {
+            return;
+        }
+        switch (ev.getKeyCode()) {
+            case 10: {
+                ev.consume();
+                if (this.index <= -1) break;
+                if (this.onItemSelected != null) {
+                    this.onItemSelected.accept(this.results.keySet().toArray(new Integer[this.results.size()])[this.index]);
+                }
+                this.chatboxPanelManager.close();
+                break;
+            }
+            case 9: 
+            case 39: {
+                ev.consume();
+                if (this.results.isEmpty()) break;
+                ++this.index;
+                if (this.index >= this.results.size()) {
+                    this.index = 0;
+                }
+                this.clientThread.invokeLater(this::update);
+                break;
+            }
+            case 37: {
+                ev.consume();
+                if (this.results.isEmpty()) break;
+                --this.index;
+                if (this.index < 0) {
+                    this.index = this.results.size() - 1;
+                }
+                this.clientThread.invokeLater(this::update);
+                break;
+            }
+            case 38: {
+                ev.consume();
+                if (this.results.size() < 12) break;
+                this.index -= 12;
+                if (this.index < 0) {
+                    this.index = this.results.size() == 24 ? (this.index += this.results.size()) : (this.index += 24);
+                    this.index = Ints.constrainToRange(this.index, 0, this.results.size() - 1);
+                }
+                this.clientThread.invokeLater(this::update);
+                break;
+            }
+            case 40: {
+                ev.consume();
+                if (this.results.size() < 12) break;
+                this.index += 12;
+                if (this.index >= 24) {
+                    this.index = this.results.size() == 24 ? (this.index -= this.results.size()) : (this.index -= 24);
+                    this.index = Ints.constrainToRange(this.index, 0, this.results.size() - 1);
+                }
+                this.clientThread.invokeLater(this::update);
+                break;
+            }
+            default: {
+                super.keyPressed(ev);
+            }
+        }
+    }
 
-	@Value
-	private static class ItemIcon
-	{
-		private final int modelId;
-		private final short[] colorsToReplace;
-		private final short[] texturesToReplace;
-	}
+    @Override
+    protected void close() {
+        this.value("");
+        this.results.clear();
+        this.index = -1;
+        super.close();
+    }
 
-	@Inject
-	private ChatboxItemSearch(ChatboxPanelManager chatboxPanelManager, ClientThread clientThread,
-		ItemManager itemManager, Client client)
-	{
-		super(chatboxPanelManager, clientThread);
-		this.chatboxPanelManager = chatboxPanelManager;
-		this.itemManager = itemManager;
-		this.client = client;
+    @Override
+    @Deprecated
+    public ChatboxTextInput onDone(Consumer<String> onDone) {
+        throw new UnsupportedOperationException();
+    }
 
-		lines(1);
-		prompt("Item Search");
-		onChanged(searchString ->
-			clientThread.invokeLater(() ->
-			{
-				filterResults();
-				update();
-			}));
-	}
+    private void filterResults() {
+        this.results.clear();
+        this.index = -1;
+        String search = this.getValue().toLowerCase();
+        if (search.isEmpty()) {
+            return;
+        }
+        HashSet<ItemIcon> itemIcons = new HashSet<ItemIcon>();
+        for (int i = 0; i < this.client.getItemCount() && this.results.size() < 24; ++i) {
+            ItemIcon itemIcon;
+            ItemComposition itemComposition = this.itemManager.getItemComposition(this.itemManager.canonicalize(i));
+            String name = itemComposition.getName().toLowerCase();
+            if (name.equals("null") || !name.contains(search) || this.results.containsKey(itemComposition.getId()) || itemIcons.contains(itemIcon = new ItemIcon(itemComposition.getInventoryModel(), itemComposition.getColorToReplaceWith(), itemComposition.getTextureToReplaceWith()))) continue;
+            itemIcons.add(itemIcon);
+            this.results.put(itemComposition.getId(), itemComposition);
+        }
+    }
 
-	@Override
-	protected void update()
-	{
-		Widget container = chatboxPanelManager.getContainerWidget();
-		container.deleteAllChildren();
+    public ChatboxItemSearch onItemSelected(Consumer<Integer> onItemSelected) {
+        this.onItemSelected = onItemSelected;
+        return this;
+    }
 
-		Widget promptWidget = container.createChild(-1, WidgetType.TEXT);
-		promptWidget.setText(getPrompt());
-		promptWidget.setTextColor(0x800000);
-		promptWidget.setFontId(getFontID());
-		promptWidget.setOriginalX(0);
-		promptWidget.setOriginalY(5);
-		promptWidget.setXPositionMode(WidgetPositionMode.ABSOLUTE_CENTER);
-		promptWidget.setYPositionMode(WidgetPositionMode.ABSOLUTE_TOP);
-		promptWidget.setOriginalHeight(FONT_SIZE);
-		promptWidget.setXTextAlignment(WidgetTextAlignment.CENTER);
-		promptWidget.setYTextAlignment(WidgetTextAlignment.CENTER);
-		promptWidget.setWidthMode(WidgetSizeMode.MINUS);
-		promptWidget.revalidate();
+    public ChatboxItemSearch tooltipText(String text) {
+        this.tooltipText = text;
+        return this;
+    }
 
-		buildEdit(0, 5 + FONT_SIZE, container.getWidth(), FONT_SIZE);
+    public Consumer<Integer> getOnItemSelected() {
+        return this.onItemSelected;
+    }
 
-		Widget separator = container.createChild(-1, WidgetType.LINE);
-		separator.setOriginalX(0);
-		separator.setOriginalY(8 + (FONT_SIZE * 2));
-		separator.setXPositionMode(WidgetPositionMode.ABSOLUTE_CENTER);
-		separator.setYPositionMode(WidgetPositionMode.ABSOLUTE_TOP);
-		separator.setOriginalHeight(0);
-		separator.setOriginalWidth(16);
-		separator.setWidthMode(WidgetSizeMode.MINUS);
-		separator.setTextColor(0x666666);
-		separator.revalidate();
+    private static final class ItemIcon {
+        private final int modelId;
+        private final short[] colorsToReplace;
+        private final short[] texturesToReplace;
 
-		int x = PADDING;
-		int y = PADDING * 3;
-		int idx = 0;
-		for (ItemComposition itemComposition : results.values())
-		{
-			Widget item = container.createChild(-1, WidgetType.GRAPHIC);
-			item.setXPositionMode(WidgetPositionMode.ABSOLUTE_LEFT);
-			item.setYPositionMode(WidgetPositionMode.ABSOLUTE_TOP);
-			item.setOriginalX(x);
-			item.setOriginalY(y + FONT_SIZE * 2);
-			item.setOriginalHeight(ICON_HEIGHT);
-			item.setOriginalWidth(ICON_WIDTH);
-			item.setName(JagexColors.MENU_TARGET_TAG + itemComposition.getName());
-			item.setItemId(itemComposition.getId());
-			item.setItemQuantity(10000);
-			item.setItemQuantityMode(ItemQuantityMode.NEVER);
-			item.setBorderType(1);
-			item.setAction(0, tooltipText);
-			item.setHasListener(true);
+        public ItemIcon(int modelId, short[] colorsToReplace, short[] texturesToReplace) {
+            this.modelId = modelId;
+            this.colorsToReplace = colorsToReplace;
+            this.texturesToReplace = texturesToReplace;
+        }
 
-			if (index == idx)
-			{
-				item.setOpacity(HOVERED_OPACITY);
-			}
-			else
-			{
-				item.setOnMouseOverListener((JavaScriptCallback) ev -> item.setOpacity(HOVERED_OPACITY));
-				item.setOnMouseLeaveListener((JavaScriptCallback) ev -> item.setOpacity(0));
-			}
+        public int getModelId() {
+            return this.modelId;
+        }
 
-			item.setOnOpListener((JavaScriptCallback) ev ->
-			{
-				if (onItemSelected != null)
-				{
-					onItemSelected.accept(itemComposition.getId());
-				}
+        public short[] getColorsToReplace() {
+            return this.colorsToReplace;
+        }
 
-				chatboxPanelManager.close();
-			});
+        public short[] getTexturesToReplace() {
+            return this.texturesToReplace;
+        }
 
-			x += ICON_WIDTH + PADDING;
-			if (x + ICON_WIDTH >= container.getWidth())
-			{
-				y += ICON_HEIGHT + PADDING;
-				x = PADDING;
-			}
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof ItemIcon)) {
+                return false;
+            }
+            ItemIcon other = (ItemIcon)o;
+            if (this.getModelId() != other.getModelId()) {
+                return false;
+            }
+            if (!Arrays.equals(this.getColorsToReplace(), other.getColorsToReplace())) {
+                return false;
+            }
+            return Arrays.equals(this.getTexturesToReplace(), other.getTexturesToReplace());
+        }
 
-			item.revalidate();
-			++idx;
-		}
-	}
+        public int hashCode() {
+            int PRIME = 59;
+            int result = 1;
+            result = result * 59 + this.getModelId();
+            result = result * 59 + Arrays.hashCode(this.getColorsToReplace());
+            result = result * 59 + Arrays.hashCode(this.getTexturesToReplace());
+            return result;
+        }
 
-	@Override
-	public void keyPressed(KeyEvent ev)
-	{
-		if (!chatboxPanelManager.shouldTakeInput())
-		{
-			return;
-		}
-
-		switch (ev.getKeyCode())
-		{
-			case KeyEvent.VK_ENTER:
-				ev.consume();
-				if (index > -1)
-				{
-					if (onItemSelected != null)
-					{
-						onItemSelected.accept(results.keySet().toArray(new Integer[results.size()])[index]);
-					}
-
-					chatboxPanelManager.close();
-				}
-				break;
-			case KeyEvent.VK_TAB:
-			case KeyEvent.VK_RIGHT:
-				ev.consume();
-				if (!results.isEmpty())
-				{
-					index++;
-					if (index >= results.size())
-					{
-						index = 0;
-					}
-					clientThread.invokeLater(this::update);
-				}
-				break;
-			case KeyEvent.VK_LEFT:
-				ev.consume();
-				if (!results.isEmpty())
-				{
-					index--;
-					if (index < 0)
-					{
-						index = results.size() - 1;
-					}
-					clientThread.invokeLater(this::update);
-				}
-				break;
-			case KeyEvent.VK_UP:
-				ev.consume();
-				if (results.size() >= (MAX_RESULTS / 2))
-				{
-					index -= MAX_RESULTS / 2;
-					if (index < 0)
-					{
-						if (results.size() == MAX_RESULTS)
-						{
-							index += results.size();
-						}
-						else
-						{
-							index += MAX_RESULTS;
-						}
-						index = Ints.constrainToRange(index, 0, results.size() - 1);
-					}
-
-					clientThread.invokeLater(this::update);
-				}
-				break;
-			case KeyEvent.VK_DOWN:
-				ev.consume();
-				if (results.size() >= (MAX_RESULTS / 2))
-				{
-					index += MAX_RESULTS / 2;
-					if (index >= MAX_RESULTS)
-					{
-						if (results.size() == MAX_RESULTS)
-						{
-							index -= results.size();
-						}
-						else
-						{
-							index -= MAX_RESULTS;
-						}
-						index = Ints.constrainToRange(index, 0, results.size() - 1);
-					}
-
-					clientThread.invokeLater(this::update);
-				}
-				break;
-			default:
-				super.keyPressed(ev);
-		}
-	}
-
-	@Override
-	protected void close()
-	{
-		// Clear search string when closed
-		value("");
-		results.clear();
-		index = -1;
-		super.close();
-	}
-
-	@Override
-	@Deprecated
-	public ChatboxTextInput onDone(Consumer<String> onDone)
-	{
-		throw new UnsupportedOperationException();
-	}
-
-	private void filterResults()
-	{
-		results.clear();
-		index = -1;
-
-		String search = getValue().toLowerCase();
-		if (search.isEmpty())
-		{
-			return;
-		}
-
-		Set<ItemIcon> itemIcons = new HashSet<>();
-		for (int i = 0; i < client.getItemCount() && results.size() < MAX_RESULTS; i++)
-		{
-			ItemComposition itemComposition = itemManager.getItemComposition(itemManager.canonicalize(i));
-			String name = itemComposition.getName().toLowerCase();
-
-			// The client assigns "null" to item names of items it doesn't know about
-			// and the item might already be in the results from canonicalize
-			if (!name.equals("null") && name.contains(search) && !results.containsKey(itemComposition.getId()))
-			{
-				// Check if the results already contain the same item image
-				ItemIcon itemIcon = new ItemIcon(itemComposition.getInventoryModel(),
-					itemComposition.getColorToReplaceWith(), itemComposition.getTextureToReplaceWith());
-				if (itemIcons.contains(itemIcon))
-				{
-					continue;
-				}
-
-				itemIcons.add(itemIcon);
-				results.put(itemComposition.getId(), itemComposition);
-			}
-		}
-	}
-
-	public ChatboxItemSearch onItemSelected(Consumer<Integer> onItemSelected)
-	{
-		this.onItemSelected = onItemSelected;
-		return this;
-	}
-
-	public ChatboxItemSearch tooltipText(final String text)
-	{
-		tooltipText = text;
-		return this;
-	}
+        public String toString() {
+            return "ChatboxItemSearch.ItemIcon(modelId=" + this.getModelId() + ", colorsToReplace=" + Arrays.toString(this.getColorsToReplace()) + ", texturesToReplace=" + Arrays.toString(this.getTexturesToReplace()) + ")";
+        }
+    }
 }
+

@@ -1,39 +1,58 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.events;
 
-import lombok.Value;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayMenuEntry;
 
-/**
- * Event fired when an overlay menu entry is clicked.
- */
-@Value
-public class OverlayMenuClicked
-{
-	private OverlayMenuEntry entry;
-	private Overlay overlay;
+public final class OverlayMenuClicked {
+    private final OverlayMenuEntry entry;
+    private final Overlay overlay;
+
+    public OverlayMenuClicked(OverlayMenuEntry entry, Overlay overlay) {
+        this.entry = entry;
+        this.overlay = overlay;
+    }
+
+    public OverlayMenuEntry getEntry() {
+        return this.entry;
+    }
+
+    public Overlay getOverlay() {
+        return this.overlay;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof OverlayMenuClicked)) {
+            return false;
+        }
+        OverlayMenuClicked other = (OverlayMenuClicked)o;
+        OverlayMenuEntry this$entry = this.getEntry();
+        OverlayMenuEntry other$entry = other.getEntry();
+        if (this$entry == null ? other$entry != null : !((Object)this$entry).equals(other$entry)) {
+            return false;
+        }
+        Overlay this$overlay = this.getOverlay();
+        Overlay other$overlay = other.getOverlay();
+        return !(this$overlay == null ? other$overlay != null : !this$overlay.equals(other$overlay));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        OverlayMenuEntry $entry = this.getEntry();
+        result = result * 59 + ($entry == null ? 43 : ((Object)$entry).hashCode());
+        Overlay $overlay = this.getOverlay();
+        result = result * 59 + ($overlay == null ? 43 : $overlay.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "OverlayMenuClicked(entry=" + this.getEntry() + ", overlay=" + this.getOverlay() + ")";
+    }
 }
+

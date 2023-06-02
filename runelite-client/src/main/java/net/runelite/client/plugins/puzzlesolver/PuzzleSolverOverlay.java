@@ -1,28 +1,16 @@
 /*
- * Copyright (c) 2018, Lotto <https://github.com/devLotto>
- * Copyright (c) 2018, Henke <https://github.com/henke96>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *   list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.Item
+ *  net.runelite.api.ItemContainer
+ *  net.runelite.api.Point
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.plugins.puzzlesolver;
 
@@ -30,7 +18,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
@@ -42,12 +29,11 @@ import net.runelite.api.GameState;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
-import static net.runelite.api.SpriteID.MINIMAP_DESTINATION_FLAG;
-import static net.runelite.client.plugins.puzzlesolver.solver.PuzzleSolver.BLANK_TILE_VALUE;
-import static net.runelite.client.plugins.puzzlesolver.solver.PuzzleSolver.DIMENSION;
+import net.runelite.api.Point;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.game.SpriteManager;
+import net.runelite.client.plugins.puzzlesolver.PuzzleSolverConfig;
 import net.runelite.client.plugins.puzzlesolver.solver.PuzzleSolver;
 import net.runelite.client.plugins.puzzlesolver.solver.PuzzleState;
 import net.runelite.client.plugins.puzzlesolver.solver.heuristics.ManhattanDistance;
@@ -62,422 +48,220 @@ import net.runelite.client.ui.overlay.components.BackgroundComponent;
 import net.runelite.client.ui.overlay.components.TextComponent;
 import net.runelite.client.util.ImageUtil;
 
-public class PuzzleSolverOverlay extends Overlay
-{
-	private static final int INFO_BOX_WIDTH = 100;
-	private static final int INFO_BOX_OFFSET_Y = 50;
-	private static final int INFO_BOX_TOP_BORDER = 2;
-	private static final int INFO_BOX_BOTTOM_BORDER = 2;
-
-	private static final int PUZZLE_TILE_SIZE = 39;
-	private static final int DOT_MARKER_SIZE = 16;
-
-	private final Client client;
-	private final PuzzleSolverConfig config;
-	private final ScheduledExecutorService executorService;
-	private final SpriteManager spriteManager;
-
-	private PuzzleSolver solver;
-	private Future<?> solverFuture;
-	private int[] cachedItems;
-
-	private BufferedImage upArrow;
-	private BufferedImage leftArrow;
-	private BufferedImage rightArrow;
-
-	@Inject
-	public PuzzleSolverOverlay(Client client, PuzzleSolverConfig config, ScheduledExecutorService executorService, SpriteManager spriteManager)
-	{
-		setPosition(OverlayPosition.DYNAMIC);
-		setPriority(OverlayPriority.HIGH);
-		setLayer(OverlayLayer.ABOVE_WIDGETS);
-		this.client = client;
-		this.config = config;
-		this.executorService = executorService;
-		this.spriteManager = spriteManager;
-	}
-
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		if ((!config.displaySolution() && !config.displayRemainingMoves())
-				|| client.getGameState() != GameState.LOGGED_IN)
-		{
-			return null;
-		}
-
-		boolean useNormalSolver = true;
-		ItemContainer container = client.getItemContainer(InventoryID.PUZZLE_BOX);
-
-		if (container == null)
-		{
-			useNormalSolver = false;
-			container = client.getItemContainer(InventoryID.MONKEY_MADNESS_PUZZLE_BOX);
-
-			if (container == null)
-			{
-				return null;
-			}
-		}
-
-		Widget puzzleBox = client.getWidget(WidgetInfo.PUZZLE_BOX);
-
-		if (puzzleBox == null)
-		{
-			return null;
-		}
-
-		net.runelite.api.Point puzzleBoxLocation = puzzleBox.getCanvasLocation();
-
-		String infoString = "Solving..";
-
-		int[] itemIds = getItemIds(container, useNormalSolver);
-		boolean shouldCache = false;
-
-		if (solver != null)
-		{
-			if (solver.hasFailed())
-			{
-				infoString = "The puzzle could not be solved";
-			}
-			else
-			{
-				if (solver.hasSolution())
-				{
-					boolean foundPosition = false;
-
-					// Find the current state by looking at the current step and then the next 5 steps
-					for (int i = 0; i < 6; i++)
-					{
-						int j = solver.getPosition() + i;
-
-						if (j == solver.getStepCount())
-						{
-							break;
-						}
-
-						PuzzleState currentState = solver.getStep(j);
-
-						// If this is false, player has moved the empty tile
-						if (currentState != null && currentState.hasPieces(itemIds))
-						{
-							foundPosition = true;
-							solver.setPosition(j);
-							if (i > 0)
-							{
-								shouldCache = true;
-							}
-							break;
-						}
-					}
-
-					// If looking at the next steps didn't find the current state,
-					// see if we can find the current state in the 5 previous steps
-					if (!foundPosition)
-					{
-						for (int i = 1; i < 6; i++)
-						{
-							int j = solver.getPosition() - i;
-
-							if (j < 0)
-							{
-								break;
-							}
-
-							PuzzleState currentState = solver.getStep(j);
-
-							if (currentState != null && currentState.hasPieces(itemIds))
-							{
-								foundPosition = true;
-								shouldCache = true;
-								solver.setPosition(j);
-								break;
-							}
-						}
-					}
-
-					if (foundPosition)
-					{
-						int stepsLeft = solver.getStepCount() - solver.getPosition() - 1;
-
-						if (stepsLeft == 0)
-						{
-							infoString = "Solved!";
-						}
-						else if (config.displayRemainingMoves())
-						{
-							infoString = "Moves left: " + stepsLeft;
-						}
-						else
-						{
-							infoString = null;
-						}
-
-						if (config.displaySolution())
-						{
-							if (config.drawDots())
-							{
-								graphics.setColor(Color.YELLOW);
-
-								// Display the next 4 steps
-								for (int i = 1; i < 5; i++)
-								{
-									int j = solver.getPosition() + i;
-
-									if (j >= solver.getStepCount())
-									{
-										break;
-									}
-
-									PuzzleState futureMove = solver.getStep(j);
-
-									if (futureMove == null)
-									{
-										break;
-									}
-
-									int blankX = futureMove.getEmptyPiece() % DIMENSION;
-									int blankY = futureMove.getEmptyPiece() / DIMENSION;
-
-									int markerSize = DOT_MARKER_SIZE - i * 3;
-
-									int x = puzzleBoxLocation.getX() + blankX * PUZZLE_TILE_SIZE
-											+ PUZZLE_TILE_SIZE / 2 - markerSize / 2;
-
-									int y = puzzleBoxLocation.getY() + blankY * PUZZLE_TILE_SIZE
-											+ PUZZLE_TILE_SIZE / 2 - markerSize / 2;
-
-									graphics.fillOval(x, y, markerSize, markerSize);
-								}
-							}
-							else
-							{
-								// Find the current blank tile position
-								PuzzleState currentMove = solver.getStep(solver.getPosition());
-
-								int lastBlankX = currentMove.getEmptyPiece() % DIMENSION;
-								int lastBlankY = currentMove.getEmptyPiece() / DIMENSION;
-
-								// Display the next 3 steps
-								for (int i = 1; i < 4; i++)
-								{
-									int j = solver.getPosition() + i;
-
-									if (j >= solver.getStepCount())
-									{
-										break;
-									}
-
-									PuzzleState futureMove = solver.getStep(j);
-
-									if (futureMove == null)
-									{
-										break;
-									}
-
-									int blankX = futureMove.getEmptyPiece() % DIMENSION;
-									int blankY = futureMove.getEmptyPiece() / DIMENSION;
-
-									int xDelta = blankX - lastBlankX;
-									int yDelta = blankY - lastBlankY;
-
-									BufferedImage arrow;
-									if (xDelta > 0)
-									{
-										arrow = getRightArrow();
-									}
-									else if (xDelta < 0)
-									{
-										arrow = getLeftArrow();
-									}
-									else if (yDelta > 0)
-									{
-										arrow = getDownArrow();
-									}
-									else
-									{
-										arrow = getUpArrow();
-									}
-
-									if (arrow == null)
-									{
-										continue;
-									}
-
-									int x = puzzleBoxLocation.getX() + blankX * PUZZLE_TILE_SIZE
-											+ PUZZLE_TILE_SIZE / 2 - arrow.getWidth() / 2;
-
-									int y = puzzleBoxLocation.getY() + blankY * PUZZLE_TILE_SIZE
-											+ PUZZLE_TILE_SIZE / 2 - arrow.getHeight() / 2;
-
-									OverlayUtil.renderImageLocation(graphics, new net.runelite.api.Point(x, y), arrow);
-
-									lastBlankX = blankX;
-									lastBlankY = blankY;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// Draw info box
-		if (infoString != null)
-		{
-			int x = puzzleBoxLocation.getX() + puzzleBox.getWidth() / 2 - INFO_BOX_WIDTH / 2;
-			int y = puzzleBoxLocation.getY() - INFO_BOX_OFFSET_Y;
-
-			FontMetrics fm = graphics.getFontMetrics();
-			int height = INFO_BOX_TOP_BORDER + fm.getHeight() + INFO_BOX_BOTTOM_BORDER;
-
-			BackgroundComponent backgroundComponent = new BackgroundComponent();
-			backgroundComponent.setRectangle(new Rectangle(x, y, INFO_BOX_WIDTH, height));
-			backgroundComponent.render(graphics);
-
-			int textOffsetX = (INFO_BOX_WIDTH - fm.stringWidth(infoString)) / 2;
-			int textOffsetY = fm.getHeight();
-
-			TextComponent textComponent = new TextComponent();
-			textComponent.setPosition(new Point(x + textOffsetX, y + textOffsetY));
-			textComponent.setText(infoString);
-			textComponent.render(graphics);
-		}
-
-		// Solve the puzzle if we don't have an up to date solution
-		if (solver == null || cachedItems == null
-			|| (!shouldCache && solver.hasExceededWaitDuration() && !Arrays.equals(cachedItems, itemIds)))
-		{
-			solve(itemIds, useNormalSolver);
-			shouldCache = true;
-		}
-
-		if (shouldCache)
-		{
-			cacheItems(itemIds);
-		}
-
-		return null;
-	}
-
-	private int[] getItemIds(ItemContainer container, boolean useNormalSolver)
-	{
-		int[] itemIds = new int[DIMENSION * DIMENSION];
-
-		Item[] items = container.getItems();
-
-		for (int i = 0; i < items.length; i++)
-		{
-			itemIds[i] = items[i].getId();
-		}
-
-		// If blank is in the last position, items doesn't contain it, so let's add it manually
-		if (itemIds.length > items.length)
-		{
-			itemIds[items.length] = BLANK_TILE_VALUE;
-		}
-
-		return convertToSolverFormat(itemIds, useNormalSolver);
-	}
-
-	private int[] convertToSolverFormat(int[] items, boolean useNormalSolver)
-	{
-		int lowestId = Integer.MAX_VALUE;
-
-		int[] convertedItems = new int[items.length];
-
-		for (int id : items)
-		{
-			if (id == BLANK_TILE_VALUE)
-			{
-				continue;
-			}
-
-			if (lowestId > id)
-			{
-				lowestId = id;
-			}
-		}
-
-		for (int i = 0; i < items.length; i++)
-		{
-			if (items[i] != BLANK_TILE_VALUE)
-			{
-				int value = items[i] - lowestId;
-
-				// The MM puzzle has gaps
-				if (!useNormalSolver)
-				{
-					value /= 2;
-				}
-
-				convertedItems[i] = value;
-			}
-			else
-			{
-				convertedItems[i] = BLANK_TILE_VALUE;
-			}
-		}
-
-		return convertedItems;
-	}
-
-	private void cacheItems(int[] items)
-	{
-		cachedItems = new int[items.length];
-		System.arraycopy(items, 0, cachedItems, 0, cachedItems.length);
-	}
-
-	private void solve(int[] items, boolean useNormalSolver)
-	{
-		if (solverFuture != null)
-		{
-			solverFuture.cancel(true);
-		}
-
-		PuzzleState puzzleState = new PuzzleState(items);
-
-		if (useNormalSolver)
-		{
-			solver = new PuzzleSolver(new IDAStar(new ManhattanDistance()), puzzleState);
-		}
-		else
-		{
-			solver = new PuzzleSolver(new IDAStarMM(new ManhattanDistance()), puzzleState);
-		}
-
-		solverFuture = executorService.submit(solver);
-	}
-
-	private BufferedImage getDownArrow()
-	{
-		return spriteManager.getSprite(MINIMAP_DESTINATION_FLAG, 1);
-	}
-
-	private BufferedImage getUpArrow()
-	{
-		if (upArrow == null)
-		{
-			upArrow = ImageUtil.rotateImage(getDownArrow(), Math.PI);
-		}
-		return upArrow;
-	}
-
-	private BufferedImage getLeftArrow()
-	{
-		if (leftArrow == null)
-		{
-			leftArrow = ImageUtil.rotateImage(getDownArrow(), Math.PI / 2);
-		}
-		return leftArrow;
-	}
-
-	private BufferedImage getRightArrow()
-	{
-		if (rightArrow == null)
-		{
-			rightArrow = ImageUtil.rotateImage(getDownArrow(), 3 * Math.PI / 2);
-		}
-		return rightArrow;
-	}
+public class PuzzleSolverOverlay
+extends Overlay {
+    private static final int INFO_BOX_WIDTH = 100;
+    private static final int INFO_BOX_OFFSET_Y = 50;
+    private static final int INFO_BOX_TOP_BORDER = 2;
+    private static final int INFO_BOX_BOTTOM_BORDER = 2;
+    private static final int PUZZLE_TILE_SIZE = 39;
+    private static final int DOT_MARKER_SIZE = 16;
+    private final Client client;
+    private final PuzzleSolverConfig config;
+    private final ScheduledExecutorService executorService;
+    private final SpriteManager spriteManager;
+    private PuzzleSolver solver;
+    private Future<?> solverFuture;
+    private int[] cachedItems;
+    private BufferedImage upArrow;
+    private BufferedImage leftArrow;
+    private BufferedImage rightArrow;
+
+    @Inject
+    public PuzzleSolverOverlay(Client client, PuzzleSolverConfig config, ScheduledExecutorService executorService, SpriteManager spriteManager) {
+        this.setPosition(OverlayPosition.DYNAMIC);
+        this.setPriority(OverlayPriority.HIGH);
+        this.setLayer(OverlayLayer.ABOVE_WIDGETS);
+        this.client = client;
+        this.config = config;
+        this.executorService = executorService;
+        this.spriteManager = spriteManager;
+    }
+
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        Widget puzzleBox;
+        if (!this.config.displaySolution() && !this.config.displayRemainingMoves() || this.client.getGameState() != GameState.LOGGED_IN) {
+            return null;
+        }
+        boolean useNormalSolver = true;
+        ItemContainer container = this.client.getItemContainer(InventoryID.PUZZLE_BOX);
+        if (container == null) {
+            useNormalSolver = false;
+            container = this.client.getItemContainer(InventoryID.MONKEY_MADNESS_PUZZLE_BOX);
+            if (container == null) {
+                return null;
+            }
+        }
+        if ((puzzleBox = this.client.getWidget(WidgetInfo.PUZZLE_BOX)) == null) {
+            return null;
+        }
+        Point puzzleBoxLocation = puzzleBox.getCanvasLocation();
+        String infoString = "Solving..";
+        int[] itemIds = this.getItemIds(container, useNormalSolver);
+        boolean shouldCache = false;
+        if (this.solver != null) {
+            if (this.solver.hasFailed()) {
+                infoString = "The puzzle could not be solved";
+            } else if (this.solver.hasSolution()) {
+                PuzzleState currentState;
+                int j;
+                int i;
+                boolean foundPosition = false;
+                for (i = 0; i < 6 && (j = this.solver.getPosition() + i) != this.solver.getStepCount(); ++i) {
+                    currentState = this.solver.getStep(j);
+                    if (currentState == null || !currentState.hasPieces(itemIds)) continue;
+                    foundPosition = true;
+                    this.solver.setPosition(j);
+                    if (i <= 0) break;
+                    shouldCache = true;
+                    break;
+                }
+                if (!foundPosition) {
+                    for (i = 1; i < 6 && (j = this.solver.getPosition() - i) >= 0; ++i) {
+                        currentState = this.solver.getStep(j);
+                        if (currentState == null || !currentState.hasPieces(itemIds)) continue;
+                        foundPosition = true;
+                        shouldCache = true;
+                        this.solver.setPosition(j);
+                        break;
+                    }
+                }
+                if (foundPosition) {
+                    int stepsLeft = this.solver.getStepCount() - this.solver.getPosition() - 1;
+                    infoString = stepsLeft == 0 ? "Solved!" : (this.config.displayRemainingMoves() ? "Moves left: " + stepsLeft : null);
+                    if (this.config.displaySolution()) {
+                        if (this.config.drawDots()) {
+                            PuzzleState futureMove;
+                            int j2;
+                            graphics.setColor(Color.YELLOW);
+                            for (int i2 = 1; i2 < 5 && (j2 = this.solver.getPosition() + i2) < this.solver.getStepCount() && (futureMove = this.solver.getStep(j2)) != null; ++i2) {
+                                int blankX = futureMove.getEmptyPiece() % 5;
+                                int blankY = futureMove.getEmptyPiece() / 5;
+                                int markerSize = 16 - i2 * 3;
+                                int x = puzzleBoxLocation.getX() + blankX * 39 + 19 - markerSize / 2;
+                                int y = puzzleBoxLocation.getY() + blankY * 39 + 19 - markerSize / 2;
+                                graphics.fillOval(x, y, markerSize, markerSize);
+                            }
+                        } else {
+                            PuzzleState futureMove;
+                            int j3;
+                            PuzzleState currentMove = this.solver.getStep(this.solver.getPosition());
+                            int lastBlankX = currentMove.getEmptyPiece() % 5;
+                            int lastBlankY = currentMove.getEmptyPiece() / 5;
+                            for (int i3 = 1; i3 < 4 && (j3 = this.solver.getPosition() + i3) < this.solver.getStepCount() && (futureMove = this.solver.getStep(j3)) != null; ++i3) {
+                                int blankX = futureMove.getEmptyPiece() % 5;
+                                int blankY = futureMove.getEmptyPiece() / 5;
+                                int xDelta = blankX - lastBlankX;
+                                int yDelta = blankY - lastBlankY;
+                                BufferedImage arrow = xDelta > 0 ? this.getRightArrow() : (xDelta < 0 ? this.getLeftArrow() : (yDelta > 0 ? this.getDownArrow() : this.getUpArrow()));
+                                if (arrow == null) continue;
+                                int x = puzzleBoxLocation.getX() + blankX * 39 + 19 - arrow.getWidth() / 2;
+                                int y = puzzleBoxLocation.getY() + blankY * 39 + 19 - arrow.getHeight() / 2;
+                                OverlayUtil.renderImageLocation(graphics, new Point(x, y), arrow);
+                                lastBlankX = blankX;
+                                lastBlankY = blankY;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (infoString != null) {
+            int x = puzzleBoxLocation.getX() + puzzleBox.getWidth() / 2 - 50;
+            int y = puzzleBoxLocation.getY() - 50;
+            FontMetrics fm = graphics.getFontMetrics();
+            int height = 2 + fm.getHeight() + 2;
+            BackgroundComponent backgroundComponent = new BackgroundComponent();
+            backgroundComponent.setRectangle(new Rectangle(x, y, 100, height));
+            backgroundComponent.render(graphics);
+            int textOffsetX = (100 - fm.stringWidth(infoString)) / 2;
+            int textOffsetY = fm.getHeight();
+            TextComponent textComponent = new TextComponent();
+            textComponent.setPosition(new java.awt.Point(x + textOffsetX, y + textOffsetY));
+            textComponent.setText(infoString);
+            textComponent.render(graphics);
+        }
+        if (this.solver == null || this.cachedItems == null || !shouldCache && this.solver.hasExceededWaitDuration() && !Arrays.equals(this.cachedItems, itemIds)) {
+            this.solve(itemIds, useNormalSolver);
+            shouldCache = true;
+        }
+        if (shouldCache) {
+            this.cacheItems(itemIds);
+        }
+        return null;
+    }
+
+    private int[] getItemIds(ItemContainer container, boolean useNormalSolver) {
+        int[] itemIds = new int[25];
+        Item[] items = container.getItems();
+        for (int i = 0; i < items.length; ++i) {
+            itemIds[i] = items[i].getId();
+        }
+        if (itemIds.length > items.length) {
+            itemIds[items.length] = -1;
+        }
+        return this.convertToSolverFormat(itemIds, useNormalSolver);
+    }
+
+    private int[] convertToSolverFormat(int[] items, boolean useNormalSolver) {
+        int lowestId = Integer.MAX_VALUE;
+        int[] convertedItems = new int[items.length];
+        for (int id : items) {
+            if (id == -1 || lowestId <= id) continue;
+            lowestId = id;
+        }
+        for (int i = 0; i < items.length; ++i) {
+            if (items[i] != -1) {
+                int value = items[i] - lowestId;
+                if (!useNormalSolver) {
+                    value /= 2;
+                }
+                convertedItems[i] = value;
+                continue;
+            }
+            convertedItems[i] = -1;
+        }
+        return convertedItems;
+    }
+
+    private void cacheItems(int[] items) {
+        this.cachedItems = new int[items.length];
+        System.arraycopy(items, 0, this.cachedItems, 0, this.cachedItems.length);
+    }
+
+    private void solve(int[] items, boolean useNormalSolver) {
+        if (this.solverFuture != null) {
+            this.solverFuture.cancel(true);
+        }
+        PuzzleState puzzleState = new PuzzleState(items);
+        this.solver = useNormalSolver ? new PuzzleSolver(new IDAStar(new ManhattanDistance()), puzzleState) : new PuzzleSolver(new IDAStarMM(new ManhattanDistance()), puzzleState);
+        this.solverFuture = this.executorService.submit(this.solver);
+    }
+
+    private BufferedImage getDownArrow() {
+        return this.spriteManager.getSprite(422, 1);
+    }
+
+    private BufferedImage getUpArrow() {
+        if (this.upArrow == null) {
+            this.upArrow = ImageUtil.rotateImage(this.getDownArrow(), Math.PI);
+        }
+        return this.upArrow;
+    }
+
+    private BufferedImage getLeftArrow() {
+        if (this.leftArrow == null) {
+            this.leftArrow = ImageUtil.rotateImage(this.getDownArrow(), 1.5707963267948966);
+        }
+        return this.leftArrow;
+    }
+
+    private BufferedImage getRightArrow() {
+        if (this.rightArrow == null) {
+            this.rightArrow = ImageUtil.rotateImage(this.getDownArrow(), 4.71238898038469);
+        }
+        return this.rightArrow;
+    }
 }
+

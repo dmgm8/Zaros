@@ -1,36 +1,91 @@
 /*
- * Copyright (c) 2019, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.http.api.chat;
 
-import lombok.Data;
+public class Task {
+    private String task;
+    private int amount;
+    private int initialAmount;
+    private String location;
 
-@Data
-public class Task
-{
-	private String task;
-	private int amount;
-	private int initialAmount;
-	private String location;
+    public String getTask() {
+        return this.task;
+    }
+
+    public int getAmount() {
+        return this.amount;
+    }
+
+    public int getInitialAmount() {
+        return this.initialAmount;
+    }
+
+    public String getLocation() {
+        return this.location;
+    }
+
+    public void setTask(String task) {
+        this.task = task;
+    }
+
+    public void setAmount(int amount) {
+        this.amount = amount;
+    }
+
+    public void setInitialAmount(int initialAmount) {
+        this.initialAmount = initialAmount;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof Task)) {
+            return false;
+        }
+        Task other = (Task)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getAmount() != other.getAmount()) {
+            return false;
+        }
+        if (this.getInitialAmount() != other.getInitialAmount()) {
+            return false;
+        }
+        String this$task = this.getTask();
+        String other$task = other.getTask();
+        if (this$task == null ? other$task != null : !this$task.equals(other$task)) {
+            return false;
+        }
+        String this$location = this.getLocation();
+        String other$location = other.getLocation();
+        return !(this$location == null ? other$location != null : !this$location.equals(other$location));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof Task;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getAmount();
+        result = result * 59 + this.getInitialAmount();
+        String $task = this.getTask();
+        result = result * 59 + ($task == null ? 43 : $task.hashCode());
+        String $location = this.getLocation();
+        result = result * 59 + ($location == null ? 43 : $location.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "Task(task=" + this.getTask() + ", amount=" + this.getAmount() + ", initialAmount=" + this.getInitialAmount() + ", location=" + this.getLocation() + ")";
+    }
 }
+

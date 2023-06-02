@@ -1,26 +1,8 @@
 /*
- * Copyright (c) 2018, Kamiel
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.Point
  */
 package net.runelite.client.ui.overlay.components;
 
@@ -30,44 +12,59 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Stroke;
 import java.awt.geom.Arc2D;
-import lombok.Setter;
 import net.runelite.api.Point;
 import net.runelite.client.ui.overlay.RenderableEntity;
 
-@Setter
-public class ProgressPieComponent implements RenderableEntity
-{
-	private int diameter = 25;
-	private Color borderColor = Color.WHITE;
-	private Color fill = Color.WHITE;
-	private Stroke stroke = new BasicStroke(1);
-	private double progress;
-	private Point position;
+public class ProgressPieComponent
+implements RenderableEntity {
+    private int diameter = 25;
+    private Color borderColor = Color.WHITE;
+    private Color fill = Color.WHITE;
+    private Stroke stroke = new BasicStroke(1.0f);
+    private double progress;
+    private Point position;
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		//Construct the arc
-		Arc2D.Float arc = new Arc2D.Float(Arc2D.PIE);
-		arc.setAngleStart(90);
-		arc.setAngleExtent(progress * 360);
-		arc.setFrame(position.getX() - diameter / 2, position.getY() - diameter / 2, diameter, diameter);
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        Arc2D.Float arc = new Arc2D.Float(2);
+        arc.setAngleStart(90.0);
+        arc.setAngleExtent(this.progress * 360.0);
+        arc.setFrame(this.position.getX() - this.diameter / 2, this.position.getY() - this.diameter / 2, this.diameter, this.diameter);
+        graphics.setColor(this.fill);
+        graphics.fill(arc);
+        graphics.setStroke(this.stroke);
+        graphics.setColor(this.borderColor);
+        graphics.drawOval(this.position.getX() - this.diameter / 2, this.position.getY() - this.diameter / 2, this.diameter, this.diameter);
+        return new Dimension(this.diameter, this.diameter);
+    }
 
-		//Draw the inside of the arc
-		graphics.setColor(fill);
-		graphics.fill(arc);
+    public void setBorder(Color border, int size) {
+        this.borderColor = border;
+        this.stroke = new BasicStroke(size);
+    }
 
-		//Draw the outlines of the arc
-		graphics.setStroke(stroke);
-		graphics.setColor(borderColor);
-		graphics.drawOval(position.getX() - diameter / 2, position.getY() - diameter / 2, diameter, diameter);
+    public void setDiameter(int diameter) {
+        this.diameter = diameter;
+    }
 
-		return new Dimension(diameter, diameter);
-	}
+    public void setBorderColor(Color borderColor) {
+        this.borderColor = borderColor;
+    }
 
-	public void setBorder(Color border, int size)
-	{
-		this.borderColor = border;
-		stroke = new BasicStroke(size);
-	}
+    public void setFill(Color fill) {
+        this.fill = fill;
+    }
+
+    public void setStroke(Stroke stroke) {
+        this.stroke = stroke;
+    }
+
+    public void setProgress(double progress) {
+        this.progress = progress;
+    }
+
+    public void setPosition(Point position) {
+        this.position = position;
+    }
 }
+

@@ -1,39 +1,58 @@
 /*
- * Copyright (c) 2021, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.Value;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanChannelMember;
 
-/**
- * An event when a clan member joins a clan channel.
- */
-@Value
-public class ClanMemberJoined
-{
-	private final ClanChannel clanChannel;
-	private final ClanChannelMember clanMember;
+public final class ClanMemberJoined {
+    private final ClanChannel clanChannel;
+    private final ClanChannelMember clanMember;
+
+    public ClanMemberJoined(ClanChannel clanChannel, ClanChannelMember clanMember) {
+        this.clanChannel = clanChannel;
+        this.clanMember = clanMember;
+    }
+
+    public ClanChannel getClanChannel() {
+        return this.clanChannel;
+    }
+
+    public ClanChannelMember getClanMember() {
+        return this.clanMember;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ClanMemberJoined)) {
+            return false;
+        }
+        ClanMemberJoined other = (ClanMemberJoined)o;
+        ClanChannel this$clanChannel = this.getClanChannel();
+        ClanChannel other$clanChannel = other.getClanChannel();
+        if (this$clanChannel == null ? other$clanChannel != null : !this$clanChannel.equals(other$clanChannel)) {
+            return false;
+        }
+        ClanChannelMember this$clanMember = this.getClanMember();
+        ClanChannelMember other$clanMember = other.getClanMember();
+        return !(this$clanMember == null ? other$clanMember != null : !this$clanMember.equals(other$clanMember));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        ClanChannel $clanChannel = this.getClanChannel();
+        result = result * 59 + ($clanChannel == null ? 43 : $clanChannel.hashCode());
+        ClanChannelMember $clanMember = this.getClanMember();
+        result = result * 59 + ($clanMember == null ? 43 : $clanMember.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ClanMemberJoined(clanChannel=" + this.getClanChannel() + ", clanMember=" + this.getClanMember() + ")";
+    }
 }
+

@@ -1,43 +1,52 @@
 /*
- * Copyright (c) 2021, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.clan;
 
-import lombok.Value;
+public final class ClanTitle {
+    private final int id;
+    private final String name;
 
-/**
- * A clan title, such as Owner, Administrator, Anchor, etc.
- */
-@Value
-public class ClanTitle
-{
-	/**
-	 * The id of the title
-	 */
-	int id;
-	/**
-	 * The name of the title
-	 */
-	String name;
+    public ClanTitle(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public int getId() {
+        return this.id;
+    }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ClanTitle)) {
+            return false;
+        }
+        ClanTitle other = (ClanTitle)o;
+        if (this.getId() != other.getId()) {
+            return false;
+        }
+        String this$name = this.getName();
+        String other$name = other.getName();
+        return !(this$name == null ? other$name != null : !this$name.equals(other$name));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getId();
+        String $name = this.getName();
+        result = result * 59 + ($name == null ? 43 : $name.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ClanTitle(id=" + this.getId() + ", name=" + this.getName() + ")";
+    }
 }
+

@@ -1,93 +1,59 @@
 /*
- * Copyright (c) 2018 Charlie Waters
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
  */
 package net.runelite.client.plugins.notes;
 
 import com.google.inject.Provides;
 import java.awt.image.BufferedImage;
 import javax.inject.Inject;
-import net.runelite.client.events.SessionOpen;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.SessionOpen;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.notes.NotesConfig;
+import net.runelite.client.plugins.notes.NotesPanel;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 
-@PluginDescriptor(
-	name = "Notes",
-	description = "Enable the Notes panel",
-	tags = {"panel"},
-	loadWhenOutdated = true
-)
-public class NotesPlugin extends Plugin
-{
-	@Inject
-	private ClientToolbar clientToolbar;
+@PluginDescriptor(name="Notes", description="Enable the Notes panel", tags={"panel"}, loadWhenOutdated=true)
+public class NotesPlugin
+extends Plugin {
+    @Inject
+    private ClientToolbar clientToolbar;
+    @Inject
+    private NotesConfig config;
+    private NotesPanel panel;
+    private NavigationButton navButton;
 
-	@Inject
-	private NotesConfig config;
+    @Provides
+    NotesConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(NotesConfig.class);
+    }
 
-	private NotesPanel panel;
-	private NavigationButton navButton;
+    @Override
+    protected void startUp() throws Exception {
+        this.panel = (NotesPanel)this.injector.getInstance(NotesPanel.class);
+        this.panel.init(this.config);
+        BufferedImage icon = ImageUtil.loadImageResource(this.getClass(), "notes_icon.png");
+        this.navButton = NavigationButton.builder().tooltip("Notes").icon(icon).priority(7).panel(this.panel).build();
+        this.clientToolbar.addNavigation(this.navButton);
+    }
 
-	@Provides
-	NotesConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(NotesConfig.class);
-	}
+    @Override
+    protected void shutDown() {
+        this.clientToolbar.removeNavigation(this.navButton);
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		panel = injector.getInstance(NotesPanel.class);
-		panel.init(config);
-
-		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "notes_icon.png");
-
-		navButton = NavigationButton.builder()
-			.tooltip("Notes")
-			.icon(icon)
-			.priority(7)
-			.panel(panel)
-			.build();
-
-		clientToolbar.addNavigation(navButton);
-	}
-
-	@Override
-	protected void shutDown()
-	{
-		clientToolbar.removeNavigation(navButton);
-	}
-
-	@Subscribe
-	public void onSessionOpen(SessionOpen event)
-	{
-		// update notes
-		String data = config.notesData();
-		panel.setNotes(data);
-	}
+    @Subscribe
+    public void onSessionOpen(SessionOpen event) {
+        String data = this.config.notesData();
+        this.panel.setNotes(data);
+    }
 }
+

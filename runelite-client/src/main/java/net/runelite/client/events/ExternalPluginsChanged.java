@@ -1,38 +1,45 @@
 /*
- * Copyright (c) 2019 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.events;
 
 import java.util.List;
-import lombok.Value;
 import net.runelite.client.externalplugins.ExternalPluginManifest;
 
-/**
- * Posted when an external plugin has been added, removed, or updated
- */
-@Value
-public class ExternalPluginsChanged
-{
-	private final List<ExternalPluginManifest> loadedManifest;
+public final class ExternalPluginsChanged {
+    private final List<ExternalPluginManifest> loadedManifest;
+
+    public ExternalPluginsChanged(List<ExternalPluginManifest> loadedManifest) {
+        this.loadedManifest = loadedManifest;
+    }
+
+    public List<ExternalPluginManifest> getLoadedManifest() {
+        return this.loadedManifest;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ExternalPluginsChanged)) {
+            return false;
+        }
+        ExternalPluginsChanged other = (ExternalPluginsChanged)o;
+        List<ExternalPluginManifest> this$loadedManifest = this.getLoadedManifest();
+        List<ExternalPluginManifest> other$loadedManifest = other.getLoadedManifest();
+        return !(this$loadedManifest == null ? other$loadedManifest != null : !((Object)this$loadedManifest).equals(other$loadedManifest));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        List<ExternalPluginManifest> $loadedManifest = this.getLoadedManifest();
+        result = result * 59 + ($loadedManifest == null ? 43 : ((Object)$loadedManifest).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ExternalPluginsChanged(loadedManifest=" + this.getLoadedManifest() + ")";
+    }
 }
+

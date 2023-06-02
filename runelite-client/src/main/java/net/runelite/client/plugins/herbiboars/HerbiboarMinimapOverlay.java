@@ -1,26 +1,10 @@
 /*
- * Copyright (c) 2018, Kamiel
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Inject
+ *  net.runelite.api.Point
+ *  net.runelite.api.TileObject
  */
 package net.runelite.client.plugins.herbiboars;
 
@@ -30,52 +14,42 @@ import java.awt.Graphics2D;
 import java.util.Set;
 import net.runelite.api.Point;
 import net.runelite.api.TileObject;
+import net.runelite.client.plugins.herbiboars.HerbiboarConfig;
+import net.runelite.client.plugins.herbiboars.HerbiboarPlugin;
+import net.runelite.client.plugins.herbiboars.TrailToSpot;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
 
-class HerbiboarMinimapOverlay extends Overlay
-{
-	private final HerbiboarPlugin plugin;
-	private final HerbiboarConfig config;
+class HerbiboarMinimapOverlay
+extends Overlay {
+    private final HerbiboarPlugin plugin;
+    private final HerbiboarConfig config;
 
-	@Inject
-	public HerbiboarMinimapOverlay(HerbiboarPlugin plugin, HerbiboarConfig config)
-	{
-		setPosition(OverlayPosition.DYNAMIC);
-		setLayer(OverlayLayer.ABOVE_WIDGETS);
-		this.plugin = plugin;
-		this.config = config;
-	}
+    @Inject
+    public HerbiboarMinimapOverlay(HerbiboarPlugin plugin, HerbiboarConfig config) {
+        this.setPosition(OverlayPosition.DYNAMIC);
+        this.setLayer(OverlayLayer.ABOVE_WIDGETS);
+        this.plugin = plugin;
+        this.config = config;
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		if (!config.isTrailShown() || !plugin.isInHerbiboarArea())
-		{
-			return null;
-		}
-
-		TrailToSpot nextTrail = plugin.getNextTrail();
-		int finishId = plugin.getFinishId();
-		Set<Integer> shownTrailIds = plugin.getShownTrails();
-
-		for (TileObject tileObject : plugin.getTrails().values())
-		{
-			int id = tileObject.getId();
-			Point minimapLocation = tileObject.getMinimapLocation();
-
-			if (minimapLocation == null)
-			{
-				continue;
-			}
-
-			if (shownTrailIds.contains(id) && (finishId > 0 || nextTrail != null && !nextTrail.getFootprintIds().contains(id)))
-			{
-				OverlayUtil.renderMinimapLocation(graphics, minimapLocation, config.getTrailColor());
-			}
-		}
-		return null;
-	}
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        if (!this.config.isTrailShown() || !this.plugin.isInHerbiboarArea()) {
+            return null;
+        }
+        TrailToSpot nextTrail = this.plugin.getNextTrail();
+        int finishId = this.plugin.getFinishId();
+        Set<Integer> shownTrailIds = this.plugin.getShownTrails();
+        for (TileObject tileObject : this.plugin.getTrails().values()) {
+            int id = tileObject.getId();
+            Point minimapLocation = tileObject.getMinimapLocation();
+            if (minimapLocation == null || !shownTrailIds.contains(id) || finishId <= 0 && (nextTrail == null || nextTrail.getFootprintIds().contains(id))) continue;
+            OverlayUtil.renderMinimapLocation(graphics, minimapLocation, this.config.getTrailColor());
+        }
+        return null;
+    }
 }
+

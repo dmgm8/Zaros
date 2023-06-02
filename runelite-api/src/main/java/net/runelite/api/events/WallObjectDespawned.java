@@ -1,45 +1,68 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.Data;
 import net.runelite.api.Tile;
 import net.runelite.api.WallObject;
 
-/**
- * An event where a {@link WallObject} on a {@link Tile} has been removed.
- */
-@Data
-public class WallObjectDespawned
-{
-	/**
-	 * The affected tile.
-	 */
-	private Tile tile;
-	/**
-	 * The removed wall object.
-	 */
-	private WallObject wallObject;
+public class WallObjectDespawned {
+    private Tile tile;
+    private WallObject wallObject;
+
+    public Tile getTile() {
+        return this.tile;
+    }
+
+    public WallObject getWallObject() {
+        return this.wallObject;
+    }
+
+    public void setTile(Tile tile) {
+        this.tile = tile;
+    }
+
+    public void setWallObject(WallObject wallObject) {
+        this.wallObject = wallObject;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof WallObjectDespawned)) {
+            return false;
+        }
+        WallObjectDespawned other = (WallObjectDespawned)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        Tile this$tile = this.getTile();
+        Tile other$tile = other.getTile();
+        if (this$tile == null ? other$tile != null : !this$tile.equals(other$tile)) {
+            return false;
+        }
+        WallObject this$wallObject = this.getWallObject();
+        WallObject other$wallObject = other.getWallObject();
+        return !(this$wallObject == null ? other$wallObject != null : !this$wallObject.equals(other$wallObject));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof WallObjectDespawned;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Tile $tile = this.getTile();
+        result = result * 59 + ($tile == null ? 43 : $tile.hashCode());
+        WallObject $wallObject = this.getWallObject();
+        result = result * 59 + ($wallObject == null ? 43 : $wallObject.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "WallObjectDespawned(tile=" + this.getTile() + ", wallObject=" + this.getWallObject() + ")";
+    }
 }
+

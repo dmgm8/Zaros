@@ -1,56 +1,117 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.config;
 
 import java.lang.reflect.Type;
-import lombok.Value;
+import net.runelite.client.config.Alpha;
+import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigObject;
+import net.runelite.client.config.Range;
+import net.runelite.client.config.Units;
 
-@Value
-public class ConfigItemDescriptor implements ConfigObject
-{
-	private final ConfigItem item;
-	private final Type type;
-	private final Range range;
-	private final Alpha alpha;
-	private final Units units;
+public final class ConfigItemDescriptor
+implements ConfigObject {
+    private final ConfigItem item;
+    private final Type type;
+    private final Range range;
+    private final Alpha alpha;
+    private final Units units;
 
-	@Override
-	public String key()
-	{
-		return item.keyName();
-	}
+    @Override
+    public String key() {
+        return this.item.keyName();
+    }
 
-	@Override
-	public String name()
-	{
-		return item.name();
-	}
+    @Override
+    public String name() {
+        return this.item.name();
+    }
 
-	@Override
-	public int position()
-	{
-		return item.position();
-	}
+    @Override
+    public int position() {
+        return this.item.position();
+    }
+
+    public ConfigItemDescriptor(ConfigItem item, Type type, Range range, Alpha alpha, Units units) {
+        this.item = item;
+        this.type = type;
+        this.range = range;
+        this.alpha = alpha;
+        this.units = units;
+    }
+
+    public ConfigItem getItem() {
+        return this.item;
+    }
+
+    public Type getType() {
+        return this.type;
+    }
+
+    public Range getRange() {
+        return this.range;
+    }
+
+    public Alpha getAlpha() {
+        return this.alpha;
+    }
+
+    public Units getUnits() {
+        return this.units;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ConfigItemDescriptor)) {
+            return false;
+        }
+        ConfigItemDescriptor other = (ConfigItemDescriptor)o;
+        ConfigItem this$item = this.getItem();
+        ConfigItem other$item = other.getItem();
+        if (this$item == null ? other$item != null : !this$item.equals(other$item)) {
+            return false;
+        }
+        Type this$type = this.getType();
+        Type other$type = other.getType();
+        if (this$type == null ? other$type != null : !this$type.equals(other$type)) {
+            return false;
+        }
+        Range this$range = this.getRange();
+        Range other$range = other.getRange();
+        if (this$range == null ? other$range != null : !this$range.equals(other$range)) {
+            return false;
+        }
+        Alpha this$alpha = this.getAlpha();
+        Alpha other$alpha = other.getAlpha();
+        if (this$alpha == null ? other$alpha != null : !this$alpha.equals(other$alpha)) {
+            return false;
+        }
+        Units this$units = this.getUnits();
+        Units other$units = other.getUnits();
+        return !(this$units == null ? other$units != null : !this$units.equals(other$units));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        ConfigItem $item = this.getItem();
+        result = result * 59 + ($item == null ? 43 : $item.hashCode());
+        Type $type = this.getType();
+        result = result * 59 + ($type == null ? 43 : $type.hashCode());
+        Range $range = this.getRange();
+        result = result * 59 + ($range == null ? 43 : $range.hashCode());
+        Alpha $alpha = this.getAlpha();
+        result = result * 59 + ($alpha == null ? 43 : $alpha.hashCode());
+        Units $units = this.getUnits();
+        result = result * 59 + ($units == null ? 43 : $units.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ConfigItemDescriptor(item=" + this.getItem() + ", type=" + this.getType() + ", range=" + this.getRange() + ", alpha=" + this.getAlpha() + ", units=" + this.getUnits() + ")";
+    }
 }
+

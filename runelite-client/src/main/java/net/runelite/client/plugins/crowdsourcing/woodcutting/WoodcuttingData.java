@@ -1,47 +1,145 @@
 /*
- * Copyright (c) 2019, Weird Gloop <admin@weirdgloop.org>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.coords.WorldPoint
  */
-
 package net.runelite.client.plugins.crowdsourcing.woodcutting;
 
 import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.plugins.crowdsourcing.skilling.SkillingEndReason;
 
-@Data
-@AllArgsConstructor
-public class WoodcuttingData
-{
-	private final int level;
-	private final int startTick;
-	private final int endTick;
-	private final List<Integer> chopTicks;
-	private final List<Integer> nestTicks;
-	private final int axe;
-	private final int treeId;
-	private final WorldPoint treeLocation;
-	private final SkillingEndReason reason;
+public class WoodcuttingData {
+    private final int level;
+    private final int startTick;
+    private final int endTick;
+    private final List<Integer> chopTicks;
+    private final List<Integer> nestTicks;
+    private final int axe;
+    private final int treeId;
+    private final WorldPoint treeLocation;
+    private final SkillingEndReason reason;
+
+    public int getLevel() {
+        return this.level;
+    }
+
+    public int getStartTick() {
+        return this.startTick;
+    }
+
+    public int getEndTick() {
+        return this.endTick;
+    }
+
+    public List<Integer> getChopTicks() {
+        return this.chopTicks;
+    }
+
+    public List<Integer> getNestTicks() {
+        return this.nestTicks;
+    }
+
+    public int getAxe() {
+        return this.axe;
+    }
+
+    public int getTreeId() {
+        return this.treeId;
+    }
+
+    public WorldPoint getTreeLocation() {
+        return this.treeLocation;
+    }
+
+    public SkillingEndReason getReason() {
+        return this.reason;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof WoodcuttingData)) {
+            return false;
+        }
+        WoodcuttingData other = (WoodcuttingData)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getLevel() != other.getLevel()) {
+            return false;
+        }
+        if (this.getStartTick() != other.getStartTick()) {
+            return false;
+        }
+        if (this.getEndTick() != other.getEndTick()) {
+            return false;
+        }
+        if (this.getAxe() != other.getAxe()) {
+            return false;
+        }
+        if (this.getTreeId() != other.getTreeId()) {
+            return false;
+        }
+        List<Integer> this$chopTicks = this.getChopTicks();
+        List<Integer> other$chopTicks = other.getChopTicks();
+        if (this$chopTicks == null ? other$chopTicks != null : !((Object)this$chopTicks).equals(other$chopTicks)) {
+            return false;
+        }
+        List<Integer> this$nestTicks = this.getNestTicks();
+        List<Integer> other$nestTicks = other.getNestTicks();
+        if (this$nestTicks == null ? other$nestTicks != null : !((Object)this$nestTicks).equals(other$nestTicks)) {
+            return false;
+        }
+        WorldPoint this$treeLocation = this.getTreeLocation();
+        WorldPoint other$treeLocation = other.getTreeLocation();
+        if (this$treeLocation == null ? other$treeLocation != null : !this$treeLocation.equals((Object)other$treeLocation)) {
+            return false;
+        }
+        SkillingEndReason this$reason = this.getReason();
+        SkillingEndReason other$reason = other.getReason();
+        return !(this$reason == null ? other$reason != null : !((Object)((Object)this$reason)).equals((Object)other$reason));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof WoodcuttingData;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getLevel();
+        result = result * 59 + this.getStartTick();
+        result = result * 59 + this.getEndTick();
+        result = result * 59 + this.getAxe();
+        result = result * 59 + this.getTreeId();
+        List<Integer> $chopTicks = this.getChopTicks();
+        result = result * 59 + ($chopTicks == null ? 43 : ((Object)$chopTicks).hashCode());
+        List<Integer> $nestTicks = this.getNestTicks();
+        result = result * 59 + ($nestTicks == null ? 43 : ((Object)$nestTicks).hashCode());
+        WorldPoint $treeLocation = this.getTreeLocation();
+        result = result * 59 + ($treeLocation == null ? 43 : $treeLocation.hashCode());
+        SkillingEndReason $reason = this.getReason();
+        result = result * 59 + ($reason == null ? 43 : ((Object)((Object)$reason)).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "WoodcuttingData(level=" + this.getLevel() + ", startTick=" + this.getStartTick() + ", endTick=" + this.getEndTick() + ", chopTicks=" + this.getChopTicks() + ", nestTicks=" + this.getNestTicks() + ", axe=" + this.getAxe() + ", treeId=" + this.getTreeId() + ", treeLocation=" + (Object)this.getTreeLocation() + ", reason=" + (Object)((Object)this.getReason()) + ")";
+    }
+
+    public WoodcuttingData(int level, int startTick, int endTick, List<Integer> chopTicks, List<Integer> nestTicks, int axe, int treeId, WorldPoint treeLocation, SkillingEndReason reason) {
+        this.level = level;
+        this.startTick = startTick;
+        this.endTick = endTick;
+        this.chopTicks = chopTicks;
+        this.nestTicks = nestTicks;
+        this.axe = axe;
+        this.treeId = treeId;
+        this.treeLocation = treeLocation;
+        this.reason = reason;
+    }
 }
+

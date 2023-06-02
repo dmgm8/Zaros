@@ -1,26 +1,17 @@
 /*
- * Copyright (c) 2018, Kruithne <kruithne@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.EquipmentInventorySlot
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.Item
+ *  net.runelite.api.ItemContainer
+ *  net.runelite.api.events.ItemContainerChanged
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.customcursor;
 
@@ -29,7 +20,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.InventoryID;
@@ -44,132 +34,103 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.customcursor.CustomCursor;
+import net.runelite.client.plugins.customcursor.CustomCursorConfig;
 import net.runelite.client.ui.ClientUI;
+import net.runelite.client.util.AsyncBufferedImage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@PluginDescriptor(
-	name = "Custom Cursor",
-	description = "Replaces your mouse cursor image",
-	enabledByDefault = false
-)
-@Slf4j
-public class CustomCursorPlugin extends Plugin
-{
-	private static final File CUSTOM_IMAGE_FILE = new File(RuneLite.RUNELITE_DIR, "cursor.png");
+@PluginDescriptor(name="Custom Cursor", description="Replaces your mouse cursor image", enabledByDefault=false)
+public class CustomCursorPlugin
+extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(CustomCursorPlugin.class);
+    private static final File CUSTOM_IMAGE_FILE = new File(RuneLite.RUNELITE_DIR, "cursor.png");
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private ClientUI clientUI;
+    @Inject
+    private CustomCursorConfig config;
+    @Inject
+    private ItemManager itemManager;
 
-	@Inject
-	private Client client;
+    @Provides
+    CustomCursorConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(CustomCursorConfig.class);
+    }
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    protected void startUp() {
+        this.updateCursor();
+    }
 
-	@Inject
-	private ClientUI clientUI;
+    @Override
+    protected void shutDown() {
+        this.clientUI.resetCursor();
+    }
 
-	@Inject
-	private CustomCursorConfig config;
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (event.getGroup().equals("customcursor") && event.getKey().equals("cursorStyle")) {
+            this.updateCursor();
+        }
+    }
 
-	@Inject
-	private ItemManager itemManager;
+    @Subscribe
+    public void onItemContainerChanged(ItemContainerChanged event) {
+        if (this.config.selectedCursor() == CustomCursor.EQUIPPED_WEAPON && event.getContainerId() == InventoryID.EQUIPMENT.getId()) {
+            this.updateCursor();
+        }
+    }
 
-	@Provides
-	CustomCursorConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(CustomCursorConfig.class);
-	}
-
-	@Override
-	protected void startUp()
-	{
-		updateCursor();
-	}
-
-	@Override
-	protected void shutDown()
-	{
-		clientUI.resetCursor();
-	}
-
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		if (event.getGroup().equals("customcursor") && event.getKey().equals("cursorStyle"))
-		{
-			updateCursor();
-		}
-	}
-
-	@Subscribe
-	public void onItemContainerChanged(ItemContainerChanged event)
-	{
-		if (config.selectedCursor() == CustomCursor.EQUIPPED_WEAPON && event.getContainerId() == InventoryID.EQUIPMENT.getId())
-		{
-			updateCursor();
-		}
-	}
-
-	private void updateCursor()
-	{
-		CustomCursor selectedCursor = config.selectedCursor();
-
-		if (selectedCursor == CustomCursor.CUSTOM_IMAGE)
-		{
-			if (CUSTOM_IMAGE_FILE.exists())
-			{
-				try
-				{
-					BufferedImage image;
-					synchronized (ImageIO.class)
-					{
-						image = ImageIO.read(CUSTOM_IMAGE_FILE);
-					}
-					clientUI.setCursor(image, selectedCursor.getName());
-				}
-				catch (Exception e)
-				{
-					log.error("error setting custom cursor", e);
-					clientUI.resetCursor();
-				}
-			}
-			else
-			{
-				clientUI.resetCursor();
-			}
-		}
-		else if (selectedCursor == CustomCursor.EQUIPPED_WEAPON)
-		{
-			clientThread.invokeLater(() ->
-			{
-				final ItemContainer equipment = client.getItemContainer(InventoryID.EQUIPMENT);
-
-				if (equipment == null)
-				{
-					clientUI.resetCursor();
-					return;
-				}
-
-				Item weapon = equipment.getItem(EquipmentInventorySlot.WEAPON.getSlotIdx());
-				if (weapon == null)
-				{
-					clientUI.resetCursor();
-					return;
-				}
-
-				final BufferedImage image = itemManager.getImage(weapon.getId());
-
-				if (weapon.getQuantity() > 0)
-				{
-					clientUI.setCursor(image, selectedCursor.getName());
-				}
-				else
-				{
-					clientUI.resetCursor();
-				}
-			});
-		}
-		else
-		{
-			assert selectedCursor.getCursorImage() != null;
-			clientUI.setCursor(selectedCursor.getCursorImage(), selectedCursor.getName());
-		}
-	}
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    private void updateCursor() {
+        CustomCursor selectedCursor = this.config.selectedCursor();
+        if (selectedCursor == CustomCursor.CUSTOM_IMAGE) {
+            if (CUSTOM_IMAGE_FILE.exists()) {
+                try {
+                    Class<ImageIO> class_ = ImageIO.class;
+                    synchronized (ImageIO.class) {
+                        BufferedImage image = ImageIO.read(CUSTOM_IMAGE_FILE);
+                        // ** MonitorExit[var3_2] (shouldn't be in output)
+                        this.clientUI.setCursor(image, selectedCursor.getName());
+                    }
+                }
+                catch (Exception e) {
+                    log.error("error setting custom cursor", (Throwable)e);
+                    this.clientUI.resetCursor();
+                }
+            } else {
+                this.clientUI.resetCursor();
+            }
+        } else if (selectedCursor == CustomCursor.EQUIPPED_WEAPON) {
+            this.clientThread.invokeLater(() -> {
+                ItemContainer equipment = this.client.getItemContainer(InventoryID.EQUIPMENT);
+                if (equipment == null) {
+                    this.clientUI.resetCursor();
+                    return;
+                }
+                Item weapon = equipment.getItem(EquipmentInventorySlot.WEAPON.getSlotIdx());
+                if (weapon == null) {
+                    this.clientUI.resetCursor();
+                    return;
+                }
+                AsyncBufferedImage image = this.itemManager.getImage(weapon.getId());
+                if (weapon.getQuantity() > 0) {
+                    this.clientUI.setCursor(image, selectedCursor.getName());
+                } else {
+                    this.clientUI.resetCursor();
+                }
+            });
+        } else {
+            assert (selectedCursor.getCursorImage() != null);
+            this.clientUI.setCursor(selectedCursor.getCursorImage(), selectedCursor.getName());
+        }
+    }
 }
+

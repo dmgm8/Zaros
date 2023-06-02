@@ -1,36 +1,55 @@
 /*
- * Copyright (c) 2018, Rheon <https://github.com/Rheon-D>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *     list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.friendnotes;
 
-import lombok.Value;
+final class HoveredFriend {
+    private final String friendName;
+    private final String note;
 
-@Value
-class HoveredFriend
-{
-	private String friendName;
-	private String note;
+    public HoveredFriend(String friendName, String note) {
+        this.friendName = friendName;
+        this.note = note;
+    }
+
+    public String getFriendName() {
+        return this.friendName;
+    }
+
+    public String getNote() {
+        return this.note;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof HoveredFriend)) {
+            return false;
+        }
+        HoveredFriend other = (HoveredFriend)o;
+        String this$friendName = this.getFriendName();
+        String other$friendName = other.getFriendName();
+        if (this$friendName == null ? other$friendName != null : !this$friendName.equals(other$friendName)) {
+            return false;
+        }
+        String this$note = this.getNote();
+        String other$note = other.getNote();
+        return !(this$note == null ? other$note != null : !this$note.equals(other$note));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        String $friendName = this.getFriendName();
+        result = result * 59 + ($friendName == null ? 43 : $friendName.hashCode());
+        String $note = this.getNote();
+        result = result * 59 + ($note == null ? 43 : $note.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "HoveredFriend(friendName=" + this.getFriendName() + ", note=" + this.getNote() + ")";
+    }
 }
+

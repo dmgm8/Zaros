@@ -1,130 +1,106 @@
 /*
- * Copyright (c) 2018 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.Client
+ *  net.runelite.api.VarPlayer
  */
 package net.runelite.client.plugins.slayer;
 
 import net.runelite.api.Client;
 import net.runelite.api.VarPlayer;
-import net.runelite.api.Varbits;
-import net.runelite.api.annotations.Varbit;
 
-/**
- * Unlockables in the slayer interface
- */
-enum SlayerUnlock
-{
-	// Copied from enum 834 in the cache
-	// enum 854 contains if you can disable the unlock
-	GARGOYLE_SMASHER(0),
-	SLUG_SALTER(1),
-	REPTILE_FREEZER(2),
-	SHROOM_SPRAYER(3),
-	DARK_BEAST_EXTEND(4),
-	SLAYER_HELMET(5),
-	SLAYER_RINGS(6),
-	BROADER_FLETCHING(7),
-	ANKOU_EXTEND(8),
-	SUQAH_EXTEND(9),
-	BLACK_DRAGON_EXTEND(10),
-	METAL_DRAGON_EXTEND(11),
-	SPIRITUAL_MAGE_EXTEND(12),
-	ABYSSAL_DEMON_EXTEND(13),
-	BLACK_DEMON_EXTEND(14),
-	GREATER_DEMON_EXTEND(15),
-	MITHRIL_DRAGON_UNLOCK(16),
-	AVIANSIES_ENABLE(17),
-	TZHAAR_ENABLE(18),
-	BOSS_ENABLE(19),
-	BLOODVELD_EXTEND(20),
-	ABERRANT_SPECTRE_EXTEND(21),
-	AVIANSIES_EXTEND(22),
-	MITHRIL_DRAGON_EXTEND(23),
-	CAVE_HORROR_EXTEND(24),
-	DUST_DEVIL_EXTEND(25),
-	SKELETAL_WYVERN_EXTEND(26),
-	GARGOYLE_EXTEND(27),
-	NECHRYAEL_EXTEND(28),
-	CAVE_KRAKEN_EXTEND(29),
-	LIZARDMEN_ENABLE(30),
-	KBD_SLAYER_HELM(31),
-	KALPHITE_QUEEN_SLAYER_HELM(32),
-	ABYSSAL_DEMON_SAYER_HELM(33),
-	RED_DRAGON_ENABLE(34),
-	SUPERIOR_ENABLE(35, Varbits.SUPERIOR_ENABLED),
-	SCABARITE_EXTEND(36),
-	MITHRIL_DRAGON_NOTES(37),
-	SKOTIZO_SLAYER_HELM(38),
-	FOSSIL_ISLAND_WYVERN_EXTEND(39),
-	ADAMANT_DRAGON_EXTEND(40),
-	RUNE_DRAGON_EXTEND(41),
-	VORKATH_SLAYER_HELM(42),
-	FOSSIL_ISLAND_WYVERN_DISABLE(43, Varbits.FOSSIL_ISLAND_WYVERN_DISABLE),
-	GROTESQUE_GUARDIAN_DOUBLE_COUNT(44),
-	HYDRA_SLAYER_HELM(45),
-	BASILISK_EXTEND(46),
-	BASILISK_UNLOCK(47),
-	OLM_SLAYER_HELM(48),
-	VAMPYRE_EXTEND(49),
-	VAMPYRE_UNLOCK(50);
+final class SlayerUnlock
+extends Enum<SlayerUnlock> {
+    public static final /* enum */ SlayerUnlock GARGOYLE_SMASHER = new SlayerUnlock(0);
+    public static final /* enum */ SlayerUnlock SLUG_SALTER = new SlayerUnlock(1);
+    public static final /* enum */ SlayerUnlock REPTILE_FREEZER = new SlayerUnlock(2);
+    public static final /* enum */ SlayerUnlock SHROOM_SPRAYER = new SlayerUnlock(3);
+    public static final /* enum */ SlayerUnlock DARK_BEAST_EXTEND = new SlayerUnlock(4);
+    public static final /* enum */ SlayerUnlock SLAYER_HELMET = new SlayerUnlock(5);
+    public static final /* enum */ SlayerUnlock SLAYER_RINGS = new SlayerUnlock(6);
+    public static final /* enum */ SlayerUnlock BROADER_FLETCHING = new SlayerUnlock(7);
+    public static final /* enum */ SlayerUnlock ANKOU_EXTEND = new SlayerUnlock(8);
+    public static final /* enum */ SlayerUnlock SUQAH_EXTEND = new SlayerUnlock(9);
+    public static final /* enum */ SlayerUnlock BLACK_DRAGON_EXTEND = new SlayerUnlock(10);
+    public static final /* enum */ SlayerUnlock METAL_DRAGON_EXTEND = new SlayerUnlock(11);
+    public static final /* enum */ SlayerUnlock SPIRITUAL_MAGE_EXTEND = new SlayerUnlock(12);
+    public static final /* enum */ SlayerUnlock ABYSSAL_DEMON_EXTEND = new SlayerUnlock(13);
+    public static final /* enum */ SlayerUnlock BLACK_DEMON_EXTEND = new SlayerUnlock(14);
+    public static final /* enum */ SlayerUnlock GREATER_DEMON_EXTEND = new SlayerUnlock(15);
+    public static final /* enum */ SlayerUnlock MITHRIL_DRAGON_UNLOCK = new SlayerUnlock(16);
+    public static final /* enum */ SlayerUnlock AVIANSIES_ENABLE = new SlayerUnlock(17);
+    public static final /* enum */ SlayerUnlock TZHAAR_ENABLE = new SlayerUnlock(18);
+    public static final /* enum */ SlayerUnlock BOSS_ENABLE = new SlayerUnlock(19);
+    public static final /* enum */ SlayerUnlock BLOODVELD_EXTEND = new SlayerUnlock(20);
+    public static final /* enum */ SlayerUnlock ABERRANT_SPECTRE_EXTEND = new SlayerUnlock(21);
+    public static final /* enum */ SlayerUnlock AVIANSIES_EXTEND = new SlayerUnlock(22);
+    public static final /* enum */ SlayerUnlock MITHRIL_DRAGON_EXTEND = new SlayerUnlock(23);
+    public static final /* enum */ SlayerUnlock CAVE_HORROR_EXTEND = new SlayerUnlock(24);
+    public static final /* enum */ SlayerUnlock DUST_DEVIL_EXTEND = new SlayerUnlock(25);
+    public static final /* enum */ SlayerUnlock SKELETAL_WYVERN_EXTEND = new SlayerUnlock(26);
+    public static final /* enum */ SlayerUnlock GARGOYLE_EXTEND = new SlayerUnlock(27);
+    public static final /* enum */ SlayerUnlock NECHRYAEL_EXTEND = new SlayerUnlock(28);
+    public static final /* enum */ SlayerUnlock CAVE_KRAKEN_EXTEND = new SlayerUnlock(29);
+    public static final /* enum */ SlayerUnlock LIZARDMEN_ENABLE = new SlayerUnlock(30);
+    public static final /* enum */ SlayerUnlock KBD_SLAYER_HELM = new SlayerUnlock(31);
+    public static final /* enum */ SlayerUnlock KALPHITE_QUEEN_SLAYER_HELM = new SlayerUnlock(32);
+    public static final /* enum */ SlayerUnlock ABYSSAL_DEMON_SAYER_HELM = new SlayerUnlock(33);
+    public static final /* enum */ SlayerUnlock RED_DRAGON_ENABLE = new SlayerUnlock(34);
+    public static final /* enum */ SlayerUnlock SUPERIOR_ENABLE = new SlayerUnlock(35, 5362);
+    public static final /* enum */ SlayerUnlock SCABARITE_EXTEND = new SlayerUnlock(36);
+    public static final /* enum */ SlayerUnlock MITHRIL_DRAGON_NOTES = new SlayerUnlock(37);
+    public static final /* enum */ SlayerUnlock SKOTIZO_SLAYER_HELM = new SlayerUnlock(38);
+    public static final /* enum */ SlayerUnlock FOSSIL_ISLAND_WYVERN_EXTEND = new SlayerUnlock(39);
+    public static final /* enum */ SlayerUnlock ADAMANT_DRAGON_EXTEND = new SlayerUnlock(40);
+    public static final /* enum */ SlayerUnlock RUNE_DRAGON_EXTEND = new SlayerUnlock(41);
+    public static final /* enum */ SlayerUnlock VORKATH_SLAYER_HELM = new SlayerUnlock(42);
+    public static final /* enum */ SlayerUnlock FOSSIL_ISLAND_WYVERN_DISABLE = new SlayerUnlock(43, 6251);
+    public static final /* enum */ SlayerUnlock GROTESQUE_GUARDIAN_DOUBLE_COUNT = new SlayerUnlock(44);
+    public static final /* enum */ SlayerUnlock HYDRA_SLAYER_HELM = new SlayerUnlock(45);
+    public static final /* enum */ SlayerUnlock BASILISK_EXTEND = new SlayerUnlock(46);
+    public static final /* enum */ SlayerUnlock BASILISK_UNLOCK = new SlayerUnlock(47);
+    public static final /* enum */ SlayerUnlock OLM_SLAYER_HELM = new SlayerUnlock(48);
+    public static final /* enum */ SlayerUnlock VAMPYRE_EXTEND = new SlayerUnlock(49);
+    public static final /* enum */ SlayerUnlock VAMPYRE_UNLOCK = new SlayerUnlock(50);
+    private final int toggleVarbit;
+    private static final /* synthetic */ SlayerUnlock[] $VALUES;
 
-	@Varbit
-	private final int toggleVarbit;
+    public static SlayerUnlock[] values() {
+        return (SlayerUnlock[])$VALUES.clone();
+    }
 
-	SlayerUnlock(int index)
-	{
-		assert index == ordinal();
-		this.toggleVarbit = -1;
-	}
+    public static SlayerUnlock valueOf(String name) {
+        return Enum.valueOf(SlayerUnlock.class, name);
+    }
 
-	SlayerUnlock(int index, @Varbit int varbit)
-	{
-		assert index == ordinal();
-		this.toggleVarbit = varbit;
-	}
+    private SlayerUnlock(int index) {
+        assert (index == this.ordinal());
+        this.toggleVarbit = -1;
+    }
 
-	/**
-	 * @return true if this unlock is bought
-	 */
-	public boolean isOwned(Client client)
-	{
-		VarPlayer varp = ordinal() > 32 ? VarPlayer.SLAYER_UNLOCK_2 : VarPlayer.SLAYER_UNLOCK_1;
-		return (client.getVar(varp) & (1 << (ordinal() % 32))) != 0;
-	}
+    private SlayerUnlock(int index, int varbit) {
+        assert (index == this.ordinal());
+        this.toggleVarbit = varbit;
+    }
 
-	/**
-	 * @return true if this unlock is bought and enabled
-	 */
-	public boolean isEnabled(Client client)
-	{
-		if (isOwned(client))
-		{
-			if (toggleVarbit == -1)
-			{
-				return true;
-			}
-			return client.getVarbitValue(toggleVarbit) == 0;
-		}
-		return false;
-	}
+    public boolean isOwned(Client client) {
+        VarPlayer varp = this.ordinal() > 32 ? VarPlayer.SLAYER_UNLOCK_2 : VarPlayer.SLAYER_UNLOCK_1;
+        return (client.getVarpValue(varp) & 1 << this.ordinal() % 32) != 0;
+    }
+
+    public boolean isEnabled(Client client) {
+        if (this.isOwned(client)) {
+            if (this.toggleVarbit == -1) {
+                return true;
+            }
+            return client.getVarbitValue(this.toggleVarbit) == 0;
+        }
+        return false;
+    }
+
+    static {
+        $VALUES = new SlayerUnlock[]{GARGOYLE_SMASHER, SLUG_SALTER, REPTILE_FREEZER, SHROOM_SPRAYER, DARK_BEAST_EXTEND, SLAYER_HELMET, SLAYER_RINGS, BROADER_FLETCHING, ANKOU_EXTEND, SUQAH_EXTEND, BLACK_DRAGON_EXTEND, METAL_DRAGON_EXTEND, SPIRITUAL_MAGE_EXTEND, ABYSSAL_DEMON_EXTEND, BLACK_DEMON_EXTEND, GREATER_DEMON_EXTEND, MITHRIL_DRAGON_UNLOCK, AVIANSIES_ENABLE, TZHAAR_ENABLE, BOSS_ENABLE, BLOODVELD_EXTEND, ABERRANT_SPECTRE_EXTEND, AVIANSIES_EXTEND, MITHRIL_DRAGON_EXTEND, CAVE_HORROR_EXTEND, DUST_DEVIL_EXTEND, SKELETAL_WYVERN_EXTEND, GARGOYLE_EXTEND, NECHRYAEL_EXTEND, CAVE_KRAKEN_EXTEND, LIZARDMEN_ENABLE, KBD_SLAYER_HELM, KALPHITE_QUEEN_SLAYER_HELM, ABYSSAL_DEMON_SAYER_HELM, RED_DRAGON_ENABLE, SUPERIOR_ENABLE, SCABARITE_EXTEND, MITHRIL_DRAGON_NOTES, SKOTIZO_SLAYER_HELM, FOSSIL_ISLAND_WYVERN_EXTEND, ADAMANT_DRAGON_EXTEND, RUNE_DRAGON_EXTEND, VORKATH_SLAYER_HELM, FOSSIL_ISLAND_WYVERN_DISABLE, GROTESQUE_GUARDIAN_DOUBLE_COUNT, HYDRA_SLAYER_HELM, BASILISK_EXTEND, BASILISK_UNLOCK, OLM_SLAYER_HELM, VAMPYRE_EXTEND, VAMPYRE_UNLOCK};
+    }
 }
+

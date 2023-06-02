@@ -1,26 +1,18 @@
 /*
- * Copyright (c) 2018, Unmoon <https://github.com/Unmoon>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameObject
+ *  net.runelite.api.GameState
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.GameObjectSpawned
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.plugins.blastmine;
 
@@ -28,7 +20,6 @@ import com.google.inject.Provides;
 import java.util.HashMap;
 import java.util.Map;
 import javax.inject.Inject;
-import lombok.Getter;
 import net.runelite.api.Client;
 import net.runelite.api.GameObject;
 import net.runelite.api.GameState;
@@ -42,94 +33,78 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.blastmine.BlastMineOreCountOverlay;
+import net.runelite.client.plugins.blastmine.BlastMinePluginConfig;
+import net.runelite.client.plugins.blastmine.BlastMineRock;
+import net.runelite.client.plugins.blastmine.BlastMineRockOverlay;
+import net.runelite.client.plugins.blastmine.BlastMineRockType;
 import net.runelite.client.ui.overlay.OverlayManager;
 
-@PluginDescriptor(
-	name = "Blast Mine",
-	description = "Show helpful information for the Blast Mine minigame",
-	tags = {"explode", "explosive", "mining", "minigame", "skilling"}
-)
-public class BlastMinePlugin extends Plugin
-{
-	@Getter
-	private final Map<WorldPoint, BlastMineRock> rocks = new HashMap<>();
+@PluginDescriptor(name="Blast Mine", description="Show helpful information for the Blast Mine minigame", tags={"explode", "explosive", "mining", "minigame", "skilling"}, forceDisabled=true)
+public class BlastMinePlugin
+extends Plugin {
+    private final Map<WorldPoint, BlastMineRock> rocks = new HashMap<WorldPoint, BlastMineRock>();
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private Client client;
+    @Inject
+    private BlastMineRockOverlay blastMineRockOverlay;
+    @Inject
+    private BlastMineOreCountOverlay blastMineOreCountOverlay;
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Provides
+    BlastMinePluginConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(BlastMinePluginConfig.class);
+    }
 
-	@Inject
-	private Client client;
+    @Override
+    protected void startUp() throws Exception {
+        this.overlayManager.add(this.blastMineRockOverlay);
+        this.overlayManager.add(this.blastMineOreCountOverlay);
+    }
 
-	@Inject
-	private BlastMineRockOverlay blastMineRockOverlay;
+    @Override
+    protected void shutDown() throws Exception {
+        this.overlayManager.remove(this.blastMineRockOverlay);
+        this.overlayManager.remove(this.blastMineOreCountOverlay);
+        Widget blastMineWidget = this.client.getWidget(WidgetInfo.BLAST_MINE);
+        if (blastMineWidget != null) {
+            blastMineWidget.setHidden(false);
+        }
+    }
 
-	@Inject
-	private BlastMineOreCountOverlay blastMineOreCountOverlay;
+    @Subscribe
+    public void onGameObjectSpawned(GameObjectSpawned event) {
+        GameObject gameObject = event.getGameObject();
+        BlastMineRockType blastMineRockType = BlastMineRockType.getRockType(gameObject.getId());
+        if (blastMineRockType == null) {
+            return;
+        }
+        BlastMineRock newRock = new BlastMineRock(gameObject, blastMineRockType);
+        BlastMineRock oldRock = this.rocks.get((Object)gameObject.getWorldLocation());
+        if (oldRock == null || oldRock.getType() != newRock.getType()) {
+            this.rocks.put(gameObject.getWorldLocation(), newRock);
+        }
+    }
 
-	@Provides
-	BlastMinePluginConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(BlastMinePluginConfig.class);
-	}
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        if (event.getGameState() == GameState.LOADING) {
+            this.rocks.clear();
+        }
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		overlayManager.add(blastMineRockOverlay);
-		overlayManager.add(blastMineOreCountOverlay);
-	}
+    @Subscribe
+    public void onGameTick(GameTick gameTick) {
+        if (this.rocks.isEmpty()) {
+            return;
+        }
+        this.rocks.values().removeIf(rock -> rock.getRemainingTimeRelative() == 1.0 && rock.getType() != BlastMineRockType.NORMAL || rock.getRemainingFuseTimeRelative() == 1.0 && rock.getType() == BlastMineRockType.LIT);
+    }
 
-	@Override
-	protected void shutDown() throws Exception
-	{
-		overlayManager.remove(blastMineRockOverlay);
-		overlayManager.remove(blastMineOreCountOverlay);
-		final Widget blastMineWidget = client.getWidget(WidgetInfo.BLAST_MINE);
-
-		if (blastMineWidget != null)
-		{
-			blastMineWidget.setHidden(false);
-		}
-	}
-
-	@Subscribe
-	public void onGameObjectSpawned(GameObjectSpawned event)
-	{
-		final GameObject gameObject = event.getGameObject();
-		BlastMineRockType blastMineRockType = BlastMineRockType.getRockType(gameObject.getId());
-		if (blastMineRockType == null)
-		{
-			return;
-		}
-
-		final BlastMineRock newRock = new BlastMineRock(gameObject, blastMineRockType);
-		final BlastMineRock oldRock = rocks.get(gameObject.getWorldLocation());
-
-		if (oldRock == null || oldRock.getType() != newRock.getType())
-		{
-			rocks.put(gameObject.getWorldLocation(), newRock);
-		}
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		if (event.getGameState() == GameState.LOADING)
-		{
-			rocks.clear();
-		}
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick gameTick)
-	{
-		if (rocks.isEmpty())
-		{
-			return;
-		}
-
-		rocks.values().removeIf(rock ->
-			(rock.getRemainingTimeRelative() == 1 && rock.getType() != BlastMineRockType.NORMAL) ||
-				(rock.getRemainingFuseTimeRelative() == 1 && rock.getType() == BlastMineRockType.LIT));
-	}
+    public Map<WorldPoint, BlastMineRock> getRocks() {
+        return this.rocks;
+    }
 }
+

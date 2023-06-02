@@ -1,26 +1,11 @@
 /*
- * Copyright (c) 2018, Seth <https://github.com/sethtroll>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.coords.LocalPoint
+ *  net.runelite.api.coords.WorldPoint
  */
 package net.runelite.client.plugins.devtools;
 
@@ -29,90 +14,53 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import javax.inject.Inject;
 import net.runelite.api.Client;
-import static net.runelite.api.Constants.CHUNK_SIZE;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.plugins.devtools.DevToolsPlugin;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.LineComponent;
 
-public class LocationOverlay extends OverlayPanel
-{
-	private final Client client;
-	private final DevToolsPlugin plugin;
+public class LocationOverlay
+extends OverlayPanel {
+    private final Client client;
+    private final DevToolsPlugin plugin;
 
-	@Inject
-	LocationOverlay(Client client, DevToolsPlugin plugin)
-	{
-		this.client = client;
-		this.plugin = plugin;
-		setPosition(OverlayPosition.TOP_LEFT);
-	}
+    @Inject
+    LocationOverlay(Client client, DevToolsPlugin plugin) {
+        this.client = client;
+        this.plugin = plugin;
+        this.setPosition(OverlayPosition.TOP_LEFT);
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		if (!plugin.getLocation().isActive())
-		{
-			return null;
-		}
-
-		WorldPoint localWorld = client.getLocalPlayer().getWorldLocation();
-		LocalPoint localPoint = client.getLocalPlayer().getLocalLocation();
-
-		int regionID = localWorld.getRegionID();
-
-		if (client.isInInstancedRegion())
-		{
-			panelComponent.getChildren().add(LineComponent.builder()
-				.left("Instance")
-				.build());
-
-			int[][][] instanceTemplateChunks = client.getInstanceTemplateChunks();
-			int z = client.getPlane();
-			int chunkData = instanceTemplateChunks[z][localPoint.getSceneX() / CHUNK_SIZE][localPoint.getSceneY() / CHUNK_SIZE];
-
-			int rotation = chunkData >> 1 & 0x3;
-			int chunkY = (chunkData >> 3 & 0x7FF) * CHUNK_SIZE;
-			int chunkX = (chunkData >> 14 & 0x3FF) * CHUNK_SIZE;
-
-			panelComponent.getChildren().add(LineComponent.builder()
-				.left("Chunk " + localPoint.getSceneX() / CHUNK_SIZE + "," + localPoint.getSceneY() / CHUNK_SIZE)
-				.right(rotation + " " + chunkX + " " + chunkY)
-				.build());
-		}
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("Base")
-				.right(client.getBaseX() + ", " + client.getBaseY())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("Local")
-				.right(localPoint.getX() + ", " + localPoint.getY())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("Scene")
-				.right(localPoint.getSceneX() + ", " + localPoint.getSceneY())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-			.left("Tile")
-			.right(localWorld.getX() + ", " + localWorld.getY() + ", " + client.getPlane())
-			.build());
-
-		for (int i = 0; i < client.getMapRegions().length; i++)
-		{
-			int region = client.getMapRegions()[i];
-
-			panelComponent.getChildren().add(LineComponent.builder()
-				.left((i == 0) ? "Map regions" : " ")
-				.right(String.valueOf(region))
-				.rightColor((region == regionID) ? Color.GREEN : Color.WHITE)
-				.build());
-		}
-
-		return super.render(graphics);
-	}
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        if (!this.plugin.getLocation().isActive()) {
+            return null;
+        }
+        WorldPoint localWorld = this.client.getLocalPlayer().getWorldLocation();
+        LocalPoint localPoint = this.client.getLocalPlayer().getLocalLocation();
+        int regionID = localWorld.getRegionID();
+        if (this.client.isInInstancedRegion()) {
+            regionID = WorldPoint.fromLocalInstance((Client)this.client, (LocalPoint)localPoint).getRegionID();
+            this.panelComponent.getChildren().add(LineComponent.builder().left("Instance").build());
+            int[][][] instanceTemplateChunks = this.client.getInstanceTemplateChunks();
+            int z = this.client.getPlane();
+            int chunkData = instanceTemplateChunks[z][localPoint.getSceneX() / 8][localPoint.getSceneY() / 8];
+            int rotation = chunkData >> 1 & 3;
+            int chunkY = (chunkData >> 3 & 0x7FF) * 8;
+            int chunkX = (chunkData >> 14 & 0x3FF) * 8;
+            this.panelComponent.getChildren().add(LineComponent.builder().left("Chunk " + localPoint.getSceneX() / 8 + "," + localPoint.getSceneY() / 8).right(rotation + " " + chunkX + " " + chunkY).build());
+        }
+        this.panelComponent.getChildren().add(LineComponent.builder().left("Base").right(this.client.getBaseX() + ", " + this.client.getBaseY()).build());
+        this.panelComponent.getChildren().add(LineComponent.builder().left("Local").right(localPoint.getX() + ", " + localPoint.getY()).build());
+        this.panelComponent.getChildren().add(LineComponent.builder().left("Scene").right(localPoint.getSceneX() + ", " + localPoint.getSceneY()).build());
+        this.panelComponent.getChildren().add(LineComponent.builder().left("Tile").right(localWorld.getX() + ", " + localWorld.getY() + ", " + this.client.getPlane()).build());
+        for (int i = 0; i < this.client.getMapRegions().length; ++i) {
+            int region = this.client.getMapRegions()[i];
+            this.panelComponent.getChildren().add(LineComponent.builder().left(i == 0 ? "Map regions" : " ").right(String.valueOf(region)).rightColor(region == regionID ? Color.GREEN : Color.WHITE).build());
+        }
+        return super.render(graphics);
+    }
 }
+

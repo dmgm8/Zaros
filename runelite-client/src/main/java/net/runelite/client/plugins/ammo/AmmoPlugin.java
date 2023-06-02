@@ -1,30 +1,18 @@
 /*
- * Copyright (c) 2019 Hydrox6 <ikada@protonmail.ch>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.EquipmentInventorySlot
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.Item
+ *  net.runelite.api.ItemComposition
+ *  net.runelite.api.ItemContainer
+ *  net.runelite.api.events.ItemContainerChanged
  */
 package net.runelite.client.plugins.ammo;
 
-import java.awt.image.BufferedImage;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.EquipmentInventorySlot;
@@ -38,111 +26,81 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.ammo.AmmoCounter;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
+import net.runelite.client.util.AsyncBufferedImage;
 
-@PluginDescriptor(
-	name = "Ammo",
-	description = "Shows the current ammo the player has equipped",
-	tags = {"bolts", "darts", "chinchompa", "equipment"}
-)
-public class AmmoPlugin extends Plugin
-{
-	@Inject
-	private Client client;
+@PluginDescriptor(name="Ammo", description="Shows the current ammo the player has equipped", tags={"bolts", "darts", "chinchompa", "equipment"})
+public class AmmoPlugin
+extends Plugin {
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private InfoBoxManager infoBoxManager;
+    @Inject
+    private ItemManager itemManager;
+    private AmmoCounter counterBox;
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    protected void startUp() throws Exception {
+        this.clientThread.invokeLater(() -> {
+            ItemContainer container = this.client.getItemContainer(InventoryID.EQUIPMENT);
+            if (container != null) {
+                this.checkInventory(container.getItems());
+            }
+        });
+    }
 
-	@Inject
-	private InfoBoxManager infoBoxManager;
+    @Override
+    protected void shutDown() throws Exception {
+        this.infoBoxManager.removeInfoBox(this.counterBox);
+        this.counterBox = null;
+    }
 
-	@Inject
-	private ItemManager itemManager;
+    @Subscribe
+    public void onItemContainerChanged(ItemContainerChanged event) {
+        if (event.getItemContainer() != this.client.getItemContainer(InventoryID.EQUIPMENT)) {
+            return;
+        }
+        this.checkInventory(event.getItemContainer().getItems());
+    }
 
-	private AmmoCounter counterBox;
+    private void checkInventory(Item[] items) {
+        Item weapon;
+        ItemComposition weaponComp;
+        if (items.length > EquipmentInventorySlot.WEAPON.getSlotIdx() && (weaponComp = this.itemManager.getItemComposition((weapon = items[EquipmentInventorySlot.WEAPON.getSlotIdx()]).getId())).isStackable()) {
+            this.updateInfobox(weapon, weaponComp);
+            return;
+        }
+        if (items.length <= EquipmentInventorySlot.AMMO.getSlotIdx()) {
+            this.removeInfobox();
+            return;
+        }
+        Item ammo = items[EquipmentInventorySlot.AMMO.getSlotIdx()];
+        ItemComposition comp = this.itemManager.getItemComposition(ammo.getId());
+        if (!comp.isStackable()) {
+            this.removeInfobox();
+            return;
+        }
+        this.updateInfobox(ammo, comp);
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		clientThread.invokeLater(() ->
-		{
-			final ItemContainer container = client.getItemContainer(InventoryID.EQUIPMENT);
+    private void updateInfobox(Item item, ItemComposition comp) {
+        if (this.counterBox != null && this.counterBox.getItemID() == item.getId()) {
+            this.counterBox.setCount(item.getQuantity());
+            return;
+        }
+        this.removeInfobox();
+        AsyncBufferedImage image = this.itemManager.getImage(item.getId(), 5, false);
+        this.counterBox = new AmmoCounter(this, item.getId(), item.getQuantity(), comp.getName(), image);
+        this.infoBoxManager.addInfoBox(this.counterBox);
+    }
 
-			if (container != null)
-			{
-				checkInventory(container.getItems());
-			}
-		});
-	}
-
-	@Override
-	protected void shutDown() throws Exception
-	{
-		infoBoxManager.removeInfoBox(counterBox);
-		counterBox = null;
-	}
-
-	@Subscribe
-	public void onItemContainerChanged(ItemContainerChanged event)
-	{
-		if (event.getItemContainer() != client.getItemContainer(InventoryID.EQUIPMENT))
-		{
-			return;
-		}
-
-		checkInventory(event.getItemContainer().getItems());
-	}
-
-	private void checkInventory(final Item[] items)
-	{
-		// Check for weapon slot items. This overrides the ammo slot,
-		// as the player will use the thrown weapon (eg. chinchompas, knives, darts)
-		if (items.length > EquipmentInventorySlot.WEAPON.getSlotIdx())
-		{
-			final Item weapon = items[EquipmentInventorySlot.WEAPON.getSlotIdx()];
-			final ItemComposition weaponComp = itemManager.getItemComposition(weapon.getId());
-			if (weaponComp.isStackable())
-			{
-				updateInfobox(weapon, weaponComp);
-				return;
-			}
-		}
-
-		if (items.length <= EquipmentInventorySlot.AMMO.getSlotIdx())
-		{
-			removeInfobox();
-			return;
-		}
-
-		final Item ammo = items[EquipmentInventorySlot.AMMO.getSlotIdx()];
-		final ItemComposition comp = itemManager.getItemComposition(ammo.getId());
-
-		if (!comp.isStackable())
-		{
-			removeInfobox();
-			return;
-		}
-
-		updateInfobox(ammo, comp);
-	}
-
-	private void updateInfobox(final Item item, final ItemComposition comp)
-	{
-		if (counterBox != null && counterBox.getItemID() == item.getId())
-		{
-			counterBox.setCount(item.getQuantity());
-			return;
-		}
-
-		removeInfobox();
-		final BufferedImage image = itemManager.getImage(item.getId(), 5, false);
-		counterBox = new AmmoCounter(this, item.getId(), item.getQuantity(), comp.getName(), image);
-		infoBoxManager.addInfoBox(counterBox);
-	}
-
-	private void removeInfobox()
-	{
-		infoBoxManager.removeInfoBox(counterBox);
-		counterBox = null;
-	}
+    private void removeInfobox() {
+        this.infoBoxManager.removeInfoBox(this.counterBox);
+        this.counterBox = null;
+    }
 }
+

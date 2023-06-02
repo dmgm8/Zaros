@@ -1,332 +1,216 @@
 /*
- * Copyright (c) 2017, Cameron <moberg@tuta.io>
- * Copyright (c) 2018, Levi <me@levischuck.com>
- * Copyright (c) 2020, Anthony <https://github.com/while-loop>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.Experience
+ *  net.runelite.api.Skill
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.xptracker;
 
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Map;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Experience;
 import net.runelite.api.Skill;
+import net.runelite.client.plugins.xptracker.XpAction;
+import net.runelite.client.plugins.xptracker.XpActionType;
+import net.runelite.client.plugins.xptracker.XpGoalTimeType;
+import net.runelite.client.plugins.xptracker.XpSnapshotSingle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
-class XpStateSingle
-{
-	private final Skill skill;
-	private final Map<XpActionType, XpAction> actions = new EnumMap<>(XpActionType.class);
+class XpStateSingle {
+    private static final Logger log = LoggerFactory.getLogger(XpStateSingle.class);
+    private final Skill skill;
+    private final Map<XpActionType, XpAction> actions = new EnumMap<XpActionType, XpAction>(XpActionType.class);
+    private long startXp;
+    private int xpGainedSinceReset = 0;
+    private int xpGainedBeforeReset = 0;
+    private XpActionType actionType = XpActionType.EXPERIENCE;
+    private long skillTime = 0L;
+    private long lastChangeMillis;
+    private int startLevelExp = 0;
+    private int endLevelExp = 0;
 
-	@Getter
-	@Setter
-	private long startXp;
+    XpStateSingle(Skill skill, long startXp) {
+        this.skill = skill;
+        this.startXp = startXp;
+    }
 
-	@Getter
-	private int xpGainedSinceReset = 0;
+    XpAction getXpAction(XpActionType type) {
+        return this.actions.computeIfAbsent(type, k -> new XpAction());
+    }
 
-	private int xpGainedBeforeReset = 0;
+    long getCurrentXp() {
+        return this.startXp + (long)this.getTotalXpGained();
+    }
 
-	@Setter
-	private XpActionType actionType = XpActionType.EXPERIENCE;
+    void setXpGainedSinceReset(int xpGainedSinceReset) {
+        this.xpGainedSinceReset = xpGainedSinceReset;
+        this.lastChangeMillis = System.currentTimeMillis();
+    }
 
-	@Setter
-	private long skillTime = 0;
-	@Getter
-	private long lastChangeMillis;
+    int getTotalXpGained() {
+        return this.xpGainedBeforeReset + this.xpGainedSinceReset;
+    }
 
-	private int startLevelExp = 0;
-	private int endLevelExp = 0;
+    private int getActionsHr() {
+        return this.toHourly(this.getXpAction(this.actionType).getActionsSinceReset());
+    }
 
-	XpStateSingle(Skill skill, long startXp)
-	{
-		this.skill = skill;
-		this.startXp = startXp;
-	}
+    private int toHourly(int value) {
+        return (int)(1.0 / ((double)this.getTimeElapsedInSeconds() / 3600.0) * (double)value);
+    }
 
-	XpAction getXpAction(final XpActionType type)
-	{
-		return actions.computeIfAbsent(type, k -> new XpAction());
-	}
+    private long getTimeElapsedInSeconds() {
+        return Math.max(60L, this.skillTime / 1000L);
+    }
 
-	long getCurrentXp()
-	{
-		return startXp + getTotalXpGained();
-	}
+    private int getXpRemaining() {
+        return this.endLevelExp - (int)this.getCurrentXp();
+    }
 
-	void setXpGainedSinceReset(int xpGainedSinceReset)
-	{
-		this.xpGainedSinceReset = xpGainedSinceReset;
-		lastChangeMillis = System.currentTimeMillis();
-	}
+    private int getActionsRemaining() {
+        XpAction action = this.getXpAction(this.actionType);
+        if (action.isActionsHistoryInitialized()) {
+            long xpRemaining = this.getXpRemaining() * action.getActionExps().length;
+            long totalActionXp = 0L;
+            for (int actionXp : action.getActionExps()) {
+                totalActionXp += (long)actionXp;
+            }
+            if (totalActionXp > 0L) {
+                long remainder = xpRemaining % totalActionXp;
+                long quotient = xpRemaining / totalActionXp;
+                return Math.toIntExact(quotient + (long)(remainder > 0L ? 1 : 0));
+            }
+        }
+        return Integer.MAX_VALUE;
+    }
 
-	int getTotalXpGained()
-	{
-		return xpGainedBeforeReset + xpGainedSinceReset;
-	}
+    private double getSkillProgress() {
+        double xpGained = this.getCurrentXp() - (long)this.startLevelExp;
+        double xpGoal = this.endLevelExp - this.startLevelExp;
+        return xpGained / xpGoal * 100.0;
+    }
 
-	private int getActionsHr()
-	{
-		return toHourly(getXpAction(actionType).getActionsSinceReset());
-	}
+    private long getSecondsTillLevel() {
+        long seconds = this.getTimeElapsedInSeconds();
+        if (seconds <= 0L || this.xpGainedSinceReset <= 0) {
+            return -1L;
+        }
+        return (long)this.getXpRemaining() * seconds / (long)this.xpGainedSinceReset;
+    }
 
-	private int toHourly(int value)
-	{
-		return (int) ((1.0 / (getTimeElapsedInSeconds() / 3600.0)) * value);
-	}
+    private String getTimeTillLevel(XpGoalTimeType goalTimeType) {
+        long remainingSeconds = this.getSecondsTillLevel();
+        if (remainingSeconds < 0L) {
+            return "\u221e";
+        }
+        long durationDays = remainingSeconds / 86400L;
+        long durationHours = remainingSeconds % 86400L / 3600L;
+        long durationHoursTotal = remainingSeconds / 3600L;
+        long durationMinutes = remainingSeconds % 3600L / 60L;
+        long durationSeconds = remainingSeconds % 60L;
+        switch (goalTimeType) {
+            case DAYS: {
+                if (durationDays > 1L) {
+                    return String.format("%d days %02d:%02d:%02d", durationDays, durationHours, durationMinutes, durationSeconds);
+                }
+                if (durationDays == 1L) {
+                    return String.format("1 day %02d:%02d:%02d", durationHours, durationMinutes, durationSeconds);
+                }
+            }
+            case HOURS: {
+                if (durationHoursTotal > 1L) {
+                    return String.format("%d hours %02d:%02d", durationHoursTotal, durationMinutes, durationSeconds);
+                }
+                if (durationHoursTotal != 1L) break;
+                return String.format("1 hour %02d:%02d", durationMinutes, durationSeconds);
+            }
+        }
+        if (durationHoursTotal > 0L) {
+            return String.format("%d:%02d:%02d", durationHoursTotal, durationMinutes, durationSeconds);
+        }
+        return String.format("%02d:%02d", durationMinutes, durationSeconds);
+    }
 
-	private long getTimeElapsedInSeconds()
-	{
-		// If the skill started just now, we can divide by near zero, this results in odd behavior.
-		// To prevent that, pretend the skill has been active for a minute (60 seconds)
-		// This will create a lower estimate for the first minute,
-		// but it isn't ridiculous like saying 2 billion XP per hour.
-		return Math.max(60, skillTime / 1000);
-	}
+    int getXpHr() {
+        return this.toHourly(this.xpGainedSinceReset);
+    }
 
-	private int getXpRemaining()
-	{
-		return endLevelExp - (int) getCurrentXp();
-	}
+    void resetPerHour() {
+        for (XpAction action : this.actions.values()) {
+            action.setActions(action.getActions() + action.getActionsSinceReset());
+            action.setActionsSinceReset(0);
+        }
+        this.xpGainedBeforeReset += this.xpGainedSinceReset;
+        this.setXpGainedSinceReset(0);
+        this.setSkillTime(0L);
+    }
 
-	private int getActionsRemaining()
-	{
-		final XpAction action = getXpAction(actionType);
+    boolean update(long currentXp, int goalStartXp, int goalEndXp) {
+        if (this.startXp == -1L) {
+            log.warn("Attempted to update skill state {} but was not initialized with current xp", (Object)this.skill);
+            return false;
+        }
+        long originalXp = (long)this.getTotalXpGained() + this.startXp;
+        int actionExp = (int)(currentXp - originalXp);
+        if (actionExp == 0) {
+            return false;
+        }
+        XpAction action = this.getXpAction(XpActionType.EXPERIENCE);
+        if (action.isActionsHistoryInitialized()) {
+            action.getActionExps()[action.getActionExpIndex()] = actionExp;
+        } else {
+            Arrays.fill(action.getActionExps(), actionExp);
+            action.setActionsHistoryInitialized(true);
+        }
+        action.setActionExpIndex((action.getActionExpIndex() + 1) % action.getActionExps().length);
+        action.setActionsSinceReset(action.getActionsSinceReset() + 1);
+        this.setXpGainedSinceReset((int)(currentXp - (this.startXp + (long)this.xpGainedBeforeReset)));
+        if (this.skill != Skill.OVERALL) {
+            int currentLevel;
+            this.startLevelExp = goalStartXp < 0 || currentXp > (long)goalEndXp ? Experience.getXpForLevel((int)Experience.getLevelForXp((int)((int)currentXp))) : goalStartXp;
+            this.endLevelExp = goalEndXp <= 0 || currentXp > (long)goalEndXp ? ((currentLevel = Experience.getLevelForXp((int)((int)currentXp))) + 1 <= 126 ? Experience.getXpForLevel((int)(currentLevel + 1)) : 200000000) : goalEndXp;
+        }
+        return true;
+    }
 
-		if (action.isActionsHistoryInitialized())
-		{
-			long xpRemaining = getXpRemaining() * action.getActionExps().length;
-			long totalActionXp = 0;
+    public void tick(long delta) {
+        if (this.xpGainedSinceReset <= 0) {
+            return;
+        }
+        this.skillTime += delta;
+    }
 
-			for (int actionXp : action.getActionExps())
-			{
-				totalActionXp += actionXp;
-			}
+    XpSnapshotSingle snapshot() {
+        return XpSnapshotSingle.builder().startLevel(Experience.getLevelForXp((int)this.startLevelExp)).endLevel(Experience.getLevelForXp((int)this.endLevelExp)).xpGainedInSession(this.getTotalXpGained()).xpRemainingToGoal(this.getXpRemaining()).xpPerHour(this.getXpHr()).skillProgressToGoal(this.getSkillProgress()).actionType(this.actionType).actionsInSession(this.getXpAction(this.actionType).getActions() + this.getXpAction(this.actionType).getActionsSinceReset()).actionsRemainingToGoal(this.getActionsRemaining()).actionsPerHour(this.getActionsHr()).timeTillGoal(this.getTimeTillLevel(XpGoalTimeType.DAYS)).timeTillGoalHours(this.getTimeTillLevel(XpGoalTimeType.HOURS)).timeTillGoalShort(this.getTimeTillLevel(XpGoalTimeType.SHORT)).startGoalXp(this.startLevelExp).endGoalXp(this.endLevelExp).build();
+    }
 
-			// Let's not divide by zero (or negative)
-			if (totalActionXp > 0)
-			{
-				// Make sure to account for the very last action at the end
-				long remainder = xpRemaining % totalActionXp;
-				long quotient = xpRemaining / totalActionXp;
-				return Math.toIntExact(quotient + (remainder > 0 ? 1 : 0));
-			}
-		}
+    public long getStartXp() {
+        return this.startXp;
+    }
 
-		return Integer.MAX_VALUE;
-	}
+    public void setStartXp(long startXp) {
+        this.startXp = startXp;
+    }
 
-	private double getSkillProgress()
-	{
-		double xpGained = getCurrentXp() - startLevelExp;
-		double xpGoal = endLevelExp - startLevelExp;
-		return (xpGained / xpGoal) * 100;
-	}
+    public int getXpGainedSinceReset() {
+        return this.xpGainedSinceReset;
+    }
 
-	private long getSecondsTillLevel()
-	{
-		long seconds = getTimeElapsedInSeconds();
+    public void setActionType(XpActionType actionType) {
+        this.actionType = actionType;
+    }
 
-		if (seconds <= 0 || xpGainedSinceReset <= 0)
-		{
-			return -1;
-		}
+    public void setSkillTime(long skillTime) {
+        this.skillTime = skillTime;
+    }
 
-		// formula is xpRemaining / xpPerSecond
-		// xpPerSecond being xpGained / seconds
-		// This can be simplified so division is only done once and we can work in whole numbers!
-		return (getXpRemaining() * seconds) / xpGainedSinceReset;
-	}
-
-	private String getTimeTillLevel(XpGoalTimeType goalTimeType)
-	{
-		long remainingSeconds = getSecondsTillLevel();
-		if (remainingSeconds < 0)
-		{
-			return "\u221e";
-		}
-
-		// Java 8 doesn't have good duration / period objects to represent spans of time that can be formatted
-		// Rather than importing another dependency like joda time (which is practically built into java 10)
-		// below will be a custom formatter that handles spans larger than 1 day
-		long durationDays = remainingSeconds / (24 * 60 * 60);
-		long durationHours = (remainingSeconds % (24 * 60 * 60)) / (60 * 60);
-		long durationHoursTotal = remainingSeconds / (60 * 60);
-		long durationMinutes = (remainingSeconds % (60 * 60)) / 60;
-		long durationSeconds = remainingSeconds % 60;
-
-		switch (goalTimeType)
-		{
-			case DAYS:
-				if (durationDays > 1)
-				{
-					return String.format("%d days %02d:%02d:%02d", durationDays, durationHours, durationMinutes, durationSeconds);
-				}
-				else if (durationDays == 1)
-				{
-					return String.format("1 day %02d:%02d:%02d", durationHours, durationMinutes, durationSeconds);
-				}
-			case HOURS:
-				if (durationHoursTotal > 1)
-				{
-					return String.format("%d hours %02d:%02d", durationHoursTotal, durationMinutes, durationSeconds);
-				}
-				else if (durationHoursTotal == 1)
-				{
-					return String.format("1 hour %02d:%02d", durationMinutes, durationSeconds);
-				}
-			case SHORT:
-			default:
-				// durationDays = 0 or durationHoursTotal = 0 or goalTimeType = SHORT if we got here.
-				// return time remaining in hh:mm:ss or mm:ss format where hh can be > 24
-				if (durationHoursTotal > 0)
-				{
-					return String.format("%d:%02d:%02d", durationHoursTotal, durationMinutes, durationSeconds);
-				}
-
-				// Minutes and seconds will always be present
-				return String.format("%02d:%02d", durationMinutes, durationSeconds);
-		}
-	}
-
-	int getXpHr()
-	{
-		return toHourly(xpGainedSinceReset);
-	}
-
-	void resetPerHour()
-	{
-		//reset actions per hour
-		for (XpAction action : actions.values())
-		{
-			action.setActions(action.getActions() + action.getActionsSinceReset());
-			action.setActionsSinceReset(0);
-		}
-
-		//reset xp per hour
-		xpGainedBeforeReset += xpGainedSinceReset;
-		setXpGainedSinceReset(0);
-		setSkillTime(0);
-	}
-
-	boolean update(long currentXp, int goalStartXp, int goalEndXp)
-	{
-		if (startXp == -1)
-		{
-			log.warn("Attempted to update skill state {} but was not initialized with current xp", skill);
-			return false;
-		}
-
-		long originalXp = getTotalXpGained() + startXp;
-		int actionExp = (int) (currentXp - originalXp);
-
-		// No experience gained
-		if (actionExp == 0)
-		{
-			return false;
-		}
-
-		// Update EXPERIENCE action
-		final XpAction action = getXpAction(XpActionType.EXPERIENCE);
-
-		if (action.isActionsHistoryInitialized())
-		{
-			action.getActionExps()[action.getActionExpIndex()] = actionExp;
-		}
-		else
-		{
-			// populate all values in our action history array with this first value that we see
-			// so the average value of our action history starts out as this first value we see
-			Arrays.fill(action.getActionExps(), actionExp);
-
-			action.setActionsHistoryInitialized(true);
-		}
-
-		action.setActionExpIndex((action.getActionExpIndex() + 1) % action.getActionExps().length);
-		action.setActionsSinceReset(action.getActionsSinceReset() + 1);
-
-		// Calculate experience gained
-		setXpGainedSinceReset((int) (currentXp - (startXp + xpGainedBeforeReset)));
-
-		// Determine XP goals, overall has no goals
-		if (skill != Skill.OVERALL)
-		{
-			if (goalStartXp < 0 || currentXp > goalEndXp)
-			{
-				startLevelExp = Experience.getXpForLevel(Experience.getLevelForXp((int) currentXp));
-			}
-			else
-			{
-				startLevelExp = goalStartXp;
-			}
-
-			if (goalEndXp <= 0 || currentXp > goalEndXp)
-			{
-				int currentLevel = Experience.getLevelForXp((int) currentXp);
-				endLevelExp = currentLevel + 1 <= Experience.MAX_VIRT_LEVEL
-					? Experience.getXpForLevel(currentLevel + 1)
-					: Experience.MAX_SKILL_XP;
-			}
-			else
-			{
-				endLevelExp = goalEndXp;
-			}
-		}
-
-		return true;
-	}
-
-	public void tick(long delta)
-	{
-		// Don't tick skills that have not gained XP or have been reset.
-		if (xpGainedSinceReset <= 0)
-		{
-			return;
-		}
-		skillTime += delta;
-	}
-
-	XpSnapshotSingle snapshot()
-	{
-		return XpSnapshotSingle.builder()
-			.startLevel(Experience.getLevelForXp(startLevelExp))
-			.endLevel(Experience.getLevelForXp(endLevelExp))
-			.xpGainedInSession(getTotalXpGained())
-			.xpRemainingToGoal(getXpRemaining())
-			.xpPerHour(getXpHr())
-			.skillProgressToGoal(getSkillProgress())
-			.actionType(actionType)
-			.actionsInSession(getXpAction(actionType).getActions() + getXpAction(actionType).getActionsSinceReset())
-			.actionsRemainingToGoal(getActionsRemaining())
-			.actionsPerHour(getActionsHr())
-			.timeTillGoal(getTimeTillLevel(XpGoalTimeType.DAYS))
-			.timeTillGoalHours(getTimeTillLevel(XpGoalTimeType.HOURS))
-			.timeTillGoalShort(getTimeTillLevel(XpGoalTimeType.SHORT))
-			.startGoalXp(startLevelExp)
-			.endGoalXp(endLevelExp)
-			.build();
-	}
+    public long getLastChangeMillis() {
+        return this.lastChangeMillis;
+    }
 }
+

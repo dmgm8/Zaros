@@ -1,79 +1,74 @@
 /*
- * Copyright (c) 2016-2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api;
 
-/**
- * Represents the model of an object.
- */
-public interface Model extends Mesh, Renderable
-{
-	int[] getFaceColors1();
+import net.runelite.api.Mesh;
+import net.runelite.api.Renderable;
 
-	int[] getFaceColors2();
+public interface Model
+extends Mesh<Model>,
+Renderable {
+    public int[] getFaceColors1();
 
-	int[] getFaceColors3();
+    public int[] getFaceColors2();
 
-	int getSceneId();
-	void setSceneId(int sceneId);
+    public int[] getFaceColors3();
 
-	int getBufferOffset();
-	void setBufferOffset(int bufferOffset);
+    public int getSceneId();
 
-	int getUvBufferOffset();
-	void setUvBufferOffset(int bufferOffset);
+    public void setSceneId(int var1);
 
-	int getBottomY();
+    public int getBufferOffset();
 
-	void calculateBoundsCylinder();
+    public void setBufferOffset(int var1);
 
-	byte[] getFaceRenderPriorities();
+    public int getUvBufferOffset();
 
-	int getRadius();
+    public void setUvBufferOffset(int var1);
 
-	float[] getFaceTextureUVCoordinates();
+    public int getBottomY();
 
-	void calculateExtreme(int orientation);
+    public void calculateBoundsCylinder();
 
-	int getCenterX();
-	int getCenterY();
-	int getCenterZ();
-	int getExtremeX();
-	int getExtremeY();
-	int getExtremeZ();
+    public byte[] getFaceRenderPriorities();
 
-	int getXYZMag();
-	boolean isClickable();
-	
-	void drawFace(int face);
+    public int getRadius();
 
-	int[] getVertexNormalsX();
-	int[] getVertexNormalsY();
-	int[] getVertexNormalsZ();
+    public int getDiameter();
 
-	byte getOverrideAmount();
-	byte getOverrideHue();
-	byte getOverrideSaturation();
-	byte getOverrideLuminance();
+    public float[] getFaceTextureUVCoordinates();
+
+    public void calculateExtreme(int var1);
+
+    public int getCenterX();
+
+    public int getCenterY();
+
+    public int getCenterZ();
+
+    public int getExtremeX();
+
+    public int getExtremeY();
+
+    public int getExtremeZ();
+
+    public int getXYZMag();
+
+    public boolean isClickable();
+
+    public int[] getVertexNormalsX();
+
+    public int[] getVertexNormalsY();
+
+    public int[] getVertexNormalsZ();
+
+    public byte getOverrideAmount();
+
+    public byte getOverrideHue();
+
+    public byte getOverrideSaturation();
+
+    public byte getOverrideLuminance();
 }
+

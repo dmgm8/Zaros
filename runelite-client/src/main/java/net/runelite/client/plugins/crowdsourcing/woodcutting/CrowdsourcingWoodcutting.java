@@ -1,28 +1,20 @@
 /*
- * Copyright (c) 2019, Weird Gloop <admin@weirdgloop.org>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ImmutableMap$Builder
+ *  com.google.common.collect.ImmutableSet$Builder
+ *  javax.inject.Inject
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.Client
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.Skill
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.ChatMessage
+ *  net.runelite.api.events.GameObjectDespawned
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.MenuOptionClicked
  */
-
 package net.runelite.client.plugins.crowdsourcing.woodcutting;
 
 import com.google.common.collect.ImmutableMap;
@@ -32,12 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
-import net.runelite.api.AnimationID;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.ItemID;
 import net.runelite.api.MenuAction;
-import net.runelite.api.ObjectID;
 import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.ChatMessage;
@@ -48,252 +37,97 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.crowdsourcing.CrowdsourcingManager;
 import net.runelite.client.plugins.crowdsourcing.skilling.SkillingEndReason;
 import net.runelite.client.plugins.crowdsourcing.skilling.SkillingState;
+import net.runelite.client.plugins.crowdsourcing.woodcutting.WoodcuttingData;
 
-public class CrowdsourcingWoodcutting
-{
-	private static final String CHOPPING_MESSAGE = "You swing your axe at the tree.";
-	private static final String INVENTORY_FULL_MESSAGE = "Your inventory is too full to hold any more logs.";
-	private static final String NEST_MESSAGE = "A bird's nest falls out of the tree";
-	private static final Set<Integer> TREE_OBJECTS = new ImmutableSet.Builder<Integer>().
-		add(ObjectID.OAK).
-		add(ObjectID.OAK_10820).
-		add(ObjectID.OAK_8467).
-		add(ObjectID.OAK_9734).
+public class CrowdsourcingWoodcutting {
+    private static final String CHOPPING_MESSAGE = "You swing your axe at the tree.";
+    private static final String INVENTORY_FULL_MESSAGE = "Your inventory is too full to hold any more logs.";
+    private static final String NEST_MESSAGE = "A bird's nest falls out of the tree";
+    private static final Set<Integer> TREE_OBJECTS = new ImmutableSet.Builder().add((Object)8462).add((Object)10820).add((Object)8467).add((Object)9734).add((Object)10822).add((Object)8513).add((Object)1276).add((Object)1277).add((Object)1278).add((Object)1279).add((Object)1280).add((Object)1282).add((Object)1283).add((Object)1284).add((Object)1285).add((Object)1286).add((Object)1289).add((Object)1290).add((Object)1291).add((Object)1318).add((Object)1319).add((Object)1330).add((Object)1331).add((Object)1332).add((Object)1365).add((Object)1383).add((Object)1384).add((Object)2091).add((Object)2092).add((Object)2409).add((Object)3879).add((Object)3881).add((Object)3882).add((Object)3883).add((Object)5902).add((Object)5903).add((Object)5904).add((Object)9730).add((Object)9731).add((Object)9732).add((Object)9733).add((Object)10041).add((Object)14308).add((Object)14309).add((Object)16264).add((Object)16265).add((Object)27060).add((Object)30852).add((Object)30854).add((Object)27499).add((Object)10819).add((Object)10829).add((Object)10831).add((Object)10833).add((Object)8488).add((Object)15970).add((Object)15951).add((Object)15954).add((Object)15948).add((Object)10832).add((Object)4674).add((Object)8444).add((Object)9034).add((Object)9036).add((Object)15062).add((Object)10834).add((Object)8409).add((Object)10821).add((Object)10830).add((Object)2023).add((Object)29668).add((Object)29670).add((Object)29311).add((Object)3037).add((Object)30602).build();
+    private static final Map<Integer, Integer> AXE_ANIMS = new ImmutableMap.Builder().put((Object)879, (Object)1351).put((Object)877, (Object)1349).put((Object)875, (Object)1353).put((Object)873, (Object)1361).put((Object)871, (Object)1355).put((Object)869, (Object)1357).put((Object)867, (Object)1359).put((Object)2846, (Object)6739).put((Object)24, (Object)25378).put((Object)2117, (Object)13241).put((Object)7264, (Object)20011).put((Object)8324, (Object)23673).put((Object)8778, (Object)25066).build();
+    private static final Set<String> SUCCESS_MESSAGES = new ImmutableSet.Builder().add((Object)"You get some logs.").add((Object)"You get some oak logs.").add((Object)"You get some willow logs.").add((Object)"You get some teak logs.").add((Object)"You get some teak logs and give them to Carpenter Kjallak.").add((Object)"You get some maple logs.").add((Object)"You get some maple logs and give them to Lumberjack Leif.").add((Object)"You get some mahogany logs.").add((Object)"You get some mahogany logs and give them to Carpenter Kjallak.").add((Object)"You get some yew logs.").add((Object)"You get some magic logs.").add((Object)"You get some redwood logs.").add((Object)"You get some scrapey tree logs.").add((Object)"You get some bark.").add((Object)"You get a bruma root.").add((Object)"You get an arctic pine log").add((Object)"You get some juniper logs.").add((Object)"You get some mushrooms.").build();
+    @Inject
+    private CrowdsourcingManager manager;
+    @Inject
+    private Client client;
+    private SkillingState state = SkillingState.RECOVERING;
+    private int lastExperimentEnd = 0;
+    private WorldPoint treeLocation;
+    private int treeId;
+    private int startTick;
+    private int axe;
+    private List<Integer> chopTicks = new ArrayList<Integer>();
+    private List<Integer> nestTicks = new ArrayList<Integer>();
 
-		add(ObjectID.YEW).
-		add(ObjectID.YEW_TREE_8513).
+    private void endExperiment(SkillingEndReason reason) {
+        if (this.state == SkillingState.CUTTING) {
+            int endTick = this.client.getTickCount();
+            int woodcuttingLevel = this.client.getBoostedSkillLevel(Skill.WOODCUTTING);
+            WoodcuttingData data = new WoodcuttingData(woodcuttingLevel, this.startTick, endTick, this.chopTicks, this.nestTicks, this.axe, this.treeId, this.treeLocation, reason);
+            this.manager.storeEvent(data);
+            this.chopTicks = new ArrayList<Integer>();
+            this.nestTicks = new ArrayList<Integer>();
+        }
+        this.state = SkillingState.RECOVERING;
+        this.lastExperimentEnd = this.client.getTickCount();
+    }
 
-		add(ObjectID.TREE).
-		add(ObjectID.TREE_1277).
-		add(ObjectID.TREE_1278).
-		add(ObjectID.TREE_1279).
-		add(ObjectID.TREE_1280).
-		add(ObjectID.DEAD_TREE).
-		add(ObjectID.DEAD_TREE_1283).
-		add(ObjectID.DEAD_TREE_1284).
-		add(ObjectID.DEAD_TREE_1285).
-		add(ObjectID.DEAD_TREE_1286).
-		add(ObjectID.DEAD_TREE_1289).
-		add(ObjectID.DEAD_TREE_1290).
-		add(ObjectID.DEAD_TREE_1291).
-		add(ObjectID.EVERGREEN).
-		add(ObjectID.EVERGREEN_1319).
-		add(ObjectID.TREE_1330).
-		add(ObjectID.TREE_1331).
-		add(ObjectID.TREE_1332).
-		add(ObjectID.DEAD_TREE_1365).
-		add(ObjectID.DEAD_TREE_1383).
-		add(ObjectID.DEAD_TREE_1384).
-		add(ObjectID.EVERGREEN_2091).
-		add(ObjectID.EVERGREEN_2092).
-		add(ObjectID.TREE_2409).
-		add(ObjectID.TREE_3879).
-		add(ObjectID.TREE_3881).
-		add(ObjectID.TREE_3882).
-		add(ObjectID.TREE_3883).
-		add(ObjectID.DEAD_TREE_5902).
-		add(ObjectID.DEAD_TREE_5903).
-		add(ObjectID.DEAD_TREE_5904).
-		add(ObjectID.TREE_9730).
-		add(ObjectID.TREE_9731).
-		add(ObjectID.TREE_9732).
-		add(ObjectID.TREE_9733).
-		add(ObjectID.TREE_10041).
-		add(ObjectID.TREE_14308).
-		add(ObjectID.TREE_14309).
-		add(ObjectID.TREE_16264).
-		add(ObjectID.TREE_16265).
-		add(ObjectID.EVERGREEN_27060).
-		add(ObjectID.BURNT_TREE).
-		add(ObjectID.BURNT_TREE_30854).
+    @Subscribe
+    public void onChatMessage(ChatMessage event) {
+        String message = event.getMessage();
+        ChatMessageType type = event.getType();
+        if (this.state == SkillingState.CLICKED && type == ChatMessageType.SPAM && message.equals(CHOPPING_MESSAGE)) {
+            this.startTick = this.client.getTickCount();
+            this.state = SkillingState.CUTTING;
+        } else if (this.state == SkillingState.CUTTING && type == ChatMessageType.SPAM && SUCCESS_MESSAGES.contains(message)) {
+            this.chopTicks.add(this.client.getTickCount());
+        } else if (this.state == SkillingState.CUTTING && type == ChatMessageType.GAMEMESSAGE && message.equals(INVENTORY_FULL_MESSAGE)) {
+            this.endExperiment(SkillingEndReason.INVENTORY_FULL);
+        } else if (this.state == SkillingState.CUTTING && type == ChatMessageType.GAMEMESSAGE && message.contains(NEST_MESSAGE)) {
+            this.nestTicks.add(this.client.getTickCount());
+        }
+    }
 
-		add(ObjectID.MATURE_JUNIPER_TREE).
+    @Subscribe
+    public void onGameTick(GameTick tick) {
+        int animId = this.client.getLocalPlayer().getAnimation();
+        if (this.state == SkillingState.CUTTING) {
+            if (AXE_ANIMS.containsKey(animId)) {
+                this.axe = AXE_ANIMS.get(animId);
+            } else {
+                this.endExperiment(SkillingEndReason.INTERRUPTED);
+            }
+        } else if (animId != -1) {
+            this.endExperiment(SkillingEndReason.INTERRUPTED);
+        } else if (this.state == SkillingState.RECOVERING && this.client.getTickCount() - this.lastExperimentEnd >= 4) {
+            this.state = SkillingState.READY;
+        } else if (this.state == SkillingState.CLICKED && this.client.getTickCount() - this.lastExperimentEnd >= 20) {
+            this.state = SkillingState.READY;
+        }
+    }
 
-		add(ObjectID.WILLOW).
-		add(ObjectID.WILLOW_10829).
-		add(ObjectID.WILLOW_10831).
-		add(ObjectID.WILLOW_10833).
-		add(ObjectID.WILLOW_TREE_8488).
-		add(ObjectID.SCRAPEY_TREE).
-		add(ObjectID.JUNGLE_TREE_15951).
-		add(ObjectID.JUNGLE_TREE_15954).
-		add(ObjectID.JUNGLE_TREE_15948).
-		add(ObjectID.MAPLE_TREE_10832).
-		add(ObjectID.MAPLE_TREE_4674).
-		add(ObjectID.MAPLE_TREE_8444).
-		add(ObjectID.MAHOGANY).
-		add(ObjectID.TEAK).
-		add(ObjectID.TEAK_15062).
-		add(ObjectID.MAGIC_TREE_10834).
-		add(ObjectID.MAGIC_TREE_8409).
-		add(ObjectID.HOLLOW_TREE_10821).
-		add(ObjectID.HOLLOW_TREE_10830).
-		add(ObjectID.ACHEY_TREE).
-		add(ObjectID.REDWOOD).
-		add(ObjectID.REDWOOD_29670).
-		add(ObjectID.BRUMA_ROOTS).
-		add(ObjectID.ARCTIC_PINE).
-		add(ObjectID.SULLIUSCEP).
-		build();
+    @Subscribe
+    public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked) {
+        MenuAction menuAction = menuOptionClicked.getMenuAction();
+        int id = menuOptionClicked.getId();
+        if (this.state == SkillingState.READY && menuAction == MenuAction.GAME_OBJECT_FIRST_OPTION && TREE_OBJECTS.contains(id)) {
+            this.state = SkillingState.CLICKED;
+            this.lastExperimentEnd = this.client.getTickCount();
+            this.treeId = id;
+            this.treeLocation = WorldPoint.fromScene((Client)this.client, (int)menuOptionClicked.getParam0(), (int)menuOptionClicked.getParam1(), (int)this.client.getPlane());
+        } else {
+            this.endExperiment(SkillingEndReason.INTERRUPTED);
+        }
+    }
 
-	private static final Map<Integer, Integer> AXE_ANIMS = new ImmutableMap.Builder<Integer, Integer>().
-		put(AnimationID.WOODCUTTING_BRONZE, ItemID.BRONZE_AXE).
-		put(AnimationID.WOODCUTTING_IRON, ItemID.IRON_AXE).
-		put(AnimationID.WOODCUTTING_STEEL, ItemID.STEEL_AXE).
-		put(AnimationID.WOODCUTTING_BLACK, ItemID.BLACK_AXE).
-		put(AnimationID.WOODCUTTING_MITHRIL, ItemID.MITHRIL_AXE).
-		put(AnimationID.WOODCUTTING_ADAMANT, ItemID.ADAMANT_AXE).
-		put(AnimationID.WOODCUTTING_RUNE, ItemID.RUNE_AXE).
-		put(AnimationID.WOODCUTTING_DRAGON, ItemID.DRAGON_AXE).
-		put(AnimationID.WOODCUTTING_DRAGON_OR, ItemID.DRAGON_AXE_OR).
-		put(AnimationID.WOODCUTTING_INFERNAL, ItemID.INFERNAL_AXE).
-		put(AnimationID.WOODCUTTING_3A_AXE, ItemID._3RD_AGE_AXE).
-		put(AnimationID.WOODCUTTING_CRYSTAL, ItemID.CRYSTAL_AXE).
-		put(AnimationID.WOODCUTTING_TRAILBLAZER, ItemID.INFERNAL_AXE_OR).build();
-
-	private static final Set<String> SUCCESS_MESSAGES = new ImmutableSet.Builder<String>().
-		add("You get some logs.").
-		add("You get some oak logs.").
-		add("You get some willow logs.").
-		add("You get some teak logs.").
-		add("You get some teak logs and give them to Carpenter Kjallak.").
-		add("You get some maple logs.").
-		add("You get some maple logs and give them to Lumberjack Leif.").
-		add("You get some mahogany logs.").
-		add("You get some mahogany logs and give them to Carpenter Kjallak.").
-		add("You get some yew logs.").
-		add("You get some magic logs.").
-		add("You get some redwood logs.").
-		add("You get some scrapey tree logs.").
-		add("You get some bark.").
-		add("You get a bruma root.").
-		add("You get an arctic pine log").
-		add("You get some juniper logs.").
-		add("You get some mushrooms.").
-		build();
-
-	@Inject
-	private CrowdsourcingManager manager;
-
-	@Inject
-	private Client client;
-
-	private SkillingState state = SkillingState.RECOVERING;
-	private int lastExperimentEnd = 0;
-	private WorldPoint treeLocation;
-	private int treeId;
-	private int startTick;
-	private int axe;
-	private List<Integer> chopTicks = new ArrayList<>();
-	private List<Integer> nestTicks = new ArrayList<>();
-
-	private void endExperiment(SkillingEndReason reason)
-	{
-		if (state == SkillingState.CUTTING)
-		{
-			int endTick = client.getTickCount();
-			int woodcuttingLevel = client.getBoostedSkillLevel(Skill.WOODCUTTING);
-			WoodcuttingData data = new WoodcuttingData(
-				woodcuttingLevel,
-				startTick,
-				endTick,
-				chopTicks,
-				nestTicks,
-				axe,
-				treeId,
-				treeLocation,
-				reason
-			);
-			manager.storeEvent(data);
-
-			chopTicks = new ArrayList<>();
-			nestTicks = new ArrayList<>();
-		}
-		state = SkillingState.RECOVERING;
-		lastExperimentEnd = client.getTickCount();
-	}
-
-	@Subscribe
-	public void onChatMessage(ChatMessage event)
-	{
-		final String message = event.getMessage();
-		final ChatMessageType type = event.getType();
-		if (state == SkillingState.CLICKED && type == ChatMessageType.SPAM && message.equals(CHOPPING_MESSAGE))
-		{
-			startTick = client.getTickCount();
-			state = SkillingState.CUTTING;
-		}
-		else if (state == SkillingState.CUTTING && type == ChatMessageType.SPAM && SUCCESS_MESSAGES.contains(message))
-		{
-			chopTicks.add(client.getTickCount());
-		}
-		else if (state == SkillingState.CUTTING && type == ChatMessageType.GAMEMESSAGE && message.equals(INVENTORY_FULL_MESSAGE))
-		{
-			endExperiment(SkillingEndReason.INVENTORY_FULL);
-		}
-		else if (state == SkillingState.CUTTING && type == ChatMessageType.GAMEMESSAGE && message.contains(NEST_MESSAGE))
-		{
-			nestTicks.add(client.getTickCount());
-		}
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick tick)
-	{
-		int animId = client.getLocalPlayer().getAnimation();
-		if (state == SkillingState.CUTTING)
-		{
-			if (AXE_ANIMS.containsKey(animId))
-			{
-				axe = AXE_ANIMS.get(animId);
-			}
-			else
-			{
-				endExperiment(SkillingEndReason.INTERRUPTED);
-			}
-		}
-		else if (animId != -1)
-		{
-			endExperiment(SkillingEndReason.INTERRUPTED);
-		}
-		else if (state == SkillingState.RECOVERING && client.getTickCount() - lastExperimentEnd >= 4)
-		{
-			state = SkillingState.READY;
-		}
-		else if (state == SkillingState.CLICKED && client.getTickCount() - lastExperimentEnd >= 20)
-		{
-			state = SkillingState.READY;
-		}
-	}
-
-	@Subscribe
-	public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked)
-	{
-		MenuAction menuAction = menuOptionClicked.getMenuAction();
-		int id = menuOptionClicked.getId();
-		if (state == SkillingState.READY && menuAction == MenuAction.GAME_OBJECT_FIRST_OPTION && TREE_OBJECTS.contains(id))
-		{
-			state = SkillingState.CLICKED;
-			lastExperimentEnd = client.getTickCount();
-			treeId = id;
-			treeLocation = WorldPoint.fromScene(client, menuOptionClicked.getParam0(), menuOptionClicked.getParam1(), client.getPlane());
-		}
-		else
-		{
-			endExperiment(SkillingEndReason.INTERRUPTED);
-		}
-	}
-
-	@Subscribe
-	public void onGameObjectDespawned(GameObjectDespawned event)
-	{
-		if (state != SkillingState.CUTTING)
-		{
-			return;
-		}
-		if (treeId == event.getGameObject().getId() && treeLocation.equals(event.getTile().getWorldLocation()))
-		{
-			endExperiment(SkillingEndReason.DEPLETED);
-		}
-	}
+    @Subscribe
+    public void onGameObjectDespawned(GameObjectDespawned event) {
+        if (this.state != SkillingState.CUTTING) {
+            return;
+        }
+        if (this.treeId == event.getGameObject().getId() && this.treeLocation.equals((Object)event.getTile().getWorldLocation())) {
+            this.endExperiment(SkillingEndReason.DEPLETED);
+        }
+    }
 }
+

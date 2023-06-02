@@ -1,26 +1,12 @@
 /*
- * Copyright (c) 2018, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.events.BeforeRender
  */
 package net.runelite.client.plugins.lowmemory;
 
@@ -35,74 +21,53 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.lowmemory.LowMemoryConfig;
 
-@PluginDescriptor(
-	name = "Low Detail",
-	description = "Turn off ground decorations and certain textures, reducing memory usage",
-	tags = {"memory", "usage", "ground", "decorations"},
-	enabledByDefault = false
-)
-public class LowMemoryPlugin extends Plugin
-{
-	@Inject
-	private Client client;
+@PluginDescriptor(name="Low Detail", description="Turn off ground decorations and certain textures, reducing memory usage", tags={"memory", "usage", "ground", "decorations"}, enabledByDefault=false)
+public class LowMemoryPlugin
+extends Plugin {
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private LowMemoryConfig config;
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    protected void startUp() {
+        this.clientThread.invoke(() -> {
+            if (this.client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState()) {
+                this.client.changeMemoryMode(this.config.lowDetail());
+                return true;
+            }
+            return false;
+        });
+    }
 
-	@Inject
-	private LowMemoryConfig config;
+    @Override
+    protected void shutDown() {
+        this.clientThread.invoke(() -> this.client.changeMemoryMode(false));
+    }
 
-	@Override
-	protected void startUp()
-	{
-		clientThread.invoke(() ->
-		{
-			// When the client starts it initializes the texture size based on the memory mode setting.
-			// Don't set low memory before the login screen is ready to prevent loading the low detail textures,
-			// which breaks the gpu plugin due to it requiring the 128x128px textures
-			if (client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState())
-			{
-				client.changeMemoryMode(config.lowDetail());
-				return true;
-			}
-			return false;
-		});
-	}
+    @Provides
+    LowMemoryConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(LowMemoryConfig.class);
+    }
 
-	@Override
-	protected void shutDown()
-	{
-		clientThread.invoke(() -> client.changeMemoryMode(false));
-	}
+    @Subscribe
+    public void onConfigChanged(ConfigChanged configChanged) {
+        if (configChanged.getGroup().equals("lowmemory")) {
+            this.clientThread.invoke(() -> {
+                if (this.client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState()) {
+                    this.client.changeMemoryMode(this.config.lowDetail());
+                }
+            });
+        }
+    }
 
-	@Provides
-	LowMemoryConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(LowMemoryConfig.class);
-	}
-
-	@Subscribe
-	public void onConfigChanged(ConfigChanged configChanged)
-	{
-		if (configChanged.getGroup().equals(LowMemoryConfig.GROUP))
-		{
-			clientThread.invoke(() ->
-			{
-				if (client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState())
-				{
-					client.changeMemoryMode(config.lowDetail());
-				}
-			});
-		}
-	}
-
-	@Subscribe
-	public void onBeforeRender(BeforeRender beforeRender)
-	{
-		// This needs to be set to the current plane, but there is no event for plane change, so
-		// just set it each render.
-		client.getScene().
-			setMinLevel(config.hideLowerPlanes() ? client.getPlane() : 0);
-	}
+    @Subscribe
+    public void onBeforeRender(BeforeRender beforeRender) {
+        this.client.getScene().setMinLevel(this.config.hideLowerPlanes() ? this.client.getPlane() : 0);
+    }
 }
+

@@ -1,26 +1,20 @@
 /*
- * Copyright (c) 2021 Hydrox6 <ikada@protonmail.ch>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Stopwatch
+ *  com.google.gson.Gson
+ *  com.google.gson.reflect.TypeToken
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.Tile
+ *  net.runelite.api.coords.LocalPoint
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.GameStateChanged
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.roofremoval;
 
@@ -31,6 +25,7 @@ import com.google.inject.Provides;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -39,15 +34,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
-import static net.runelite.api.Constants.ROOF_FLAG_BETWEEN;
-import static net.runelite.api.Constants.ROOF_FLAG_DESTINATION;
-import static net.runelite.api.Constants.ROOF_FLAG_HOVERED;
-import static net.runelite.api.Constants.ROOF_FLAG_POSITION;
 import net.runelite.api.GameState;
 import net.runelite.api.Tile;
+import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.callback.ClientThread;
@@ -56,253 +46,191 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.roofremoval.RoofRemovalConfig;
+import net.runelite.client.plugins.roofremoval.RoofRemovalConfigOverride;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@PluginDescriptor(
-	name = "Roof Removal",
-	description = "Remove only the needed roofs above your player, hovered tile, or destination",
-	enabledByDefault = false
-)
-@Slf4j
-public class RoofRemovalPlugin extends Plugin
-{
-	private static class FlaggedArea
-	{
-		int rx1;
-		int ry1;
-		int rx2;
-		int ry2;
-		int z1;
-		int z2;
-	}
+@PluginDescriptor(name="Roof Removal", description="Remove only the needed roofs above your player, hovered tile, or destination", enabledByDefault=false, forceDisabled=true)
+public class RoofRemovalPlugin
+extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(RoofRemovalPlugin.class);
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private Gson gson;
+    @Inject
+    private RoofRemovalConfig config;
+    private final Map<Integer, long[]> overrides = new HashMap<Integer, long[]>();
+    private final Set<Integer> configOverrideRegions = new HashSet<Integer>();
 
-	@Inject
-	private Client client;
+    @Provides
+    RoofRemovalConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(RoofRemovalConfig.class);
+    }
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    public void startUp() throws IOException {
+        this.buildConfigOverrides();
+        this.loadRoofOverrides();
+        this.clientThread.invoke(() -> {
+            if (this.client.getGameState() == GameState.LOGGED_IN) {
+                this.performRoofRemoval();
+            }
+            this.client.getScene().setRoofRemovalMode(this.buildRoofRemovalFlags());
+        });
+    }
 
-	@Inject
-	private Gson gson;
+    @Override
+    public void shutDown() {
+        this.overrides.clear();
+        this.clientThread.invoke(() -> {
+            this.client.getScene().setRoofRemovalMode(0);
+            if (this.client.getGameState() == GameState.LOGGED_IN) {
+                this.client.setGameState(GameState.LOADING);
+            }
+        });
+    }
 
-	@Inject
-	private RoofRemovalConfig config;
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged e) {
+        if (e.getGameState() == GameState.LOGGED_IN) {
+            this.performRoofRemoval();
+        }
+    }
 
-	private final Map<Integer, long[]> overrides = new HashMap<>();
-	private final Set<Integer> configOverrideRegions = new HashSet<>();
+    @Subscribe
+    public void onConfigChanged(ConfigChanged e) {
+        if (!e.getGroup().equals("roofremoval")) {
+            return;
+        }
+        if (e.getKey().startsWith("remove")) {
+            this.client.getScene().setRoofRemovalMode(this.buildRoofRemovalFlags());
+        } else if (e.getKey().startsWith("override")) {
+            this.buildConfigOverrides();
+            this.clientThread.invoke(() -> {
+                if (this.client.getGameState() == GameState.LOGGED_IN) {
+                    this.client.setGameState(GameState.LOADING);
+                }
+            });
+        }
+    }
 
-	@Provides
-	RoofRemovalConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(RoofRemovalConfig.class);
-	}
+    private int buildRoofRemovalFlags() {
+        int roofRemovalMode = 0;
+        if (this.config.removePosition()) {
+            roofRemovalMode |= 1;
+        }
+        if (this.config.removeHovered()) {
+            roofRemovalMode |= 2;
+        }
+        if (this.config.removeDestination()) {
+            roofRemovalMode |= 4;
+        }
+        if (this.config.removeBetween()) {
+            roofRemovalMode |= 8;
+        }
+        return roofRemovalMode;
+    }
 
-	@Override
-	public void startUp() throws IOException
-	{
-		buildConfigOverrides();
-		loadRoofOverrides();
-		clientThread.invoke(() ->
-		{
-			if (client.getGameState() == GameState.LOGGED_IN)
-			{
-				performRoofRemoval();
-			}
-			client.getScene().setRoofRemovalMode(buildRoofRemovalFlags());
-		});
-	}
+    private void buildConfigOverrides() {
+        this.configOverrideRegions.clear();
+        for (RoofRemovalConfigOverride configOverride : RoofRemovalConfigOverride.values()) {
+            if (!configOverride.getEnabled().test(this.config)) continue;
+            this.configOverrideRegions.addAll(configOverride.getRegions());
+        }
+    }
 
-	@Override
-	public void shutDown()
-	{
-		overrides.clear();
-		clientThread.invoke(() ->
-		{
-			client.getScene().setRoofRemovalMode(0);
-			// Reload the scene to clear roof flag overrides
-			if (client.getGameState() == GameState.LOGGED_IN)
-			{
-				client.setGameState(GameState.LOADING);
-			}
-		});
-	}
+    private void performRoofRemoval() {
+        assert (this.client.isClientThread());
+        this.applyRoofOverrides();
+        Stopwatch sw = Stopwatch.createStarted();
+        this.client.getScene().generateHouses();
+        log.debug("House generation duration: {}", (Object)sw.stop());
+    }
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged e)
-	{
-		if (e.getGameState() == GameState.LOGGED_IN)
-		{
-			performRoofRemoval();
-		}
-	}
+    private void loadRoofOverrides() throws IOException {
+        try (InputStream in = this.getClass().getResourceAsStream("overrides.jsonc");){
+            InputStreamReader data = new InputStreamReader(in, StandardCharsets.UTF_8);
+            Type type = new TypeToken<Map<Integer, List<FlaggedArea>>>(){}.getType();
+            Map parsed = (Map)this.gson.fromJson((Reader)data, type);
+            this.overrides.clear();
+            for (Map.Entry entry : parsed.entrySet()) {
+                for (FlaggedArea fla : (List)entry.getValue()) {
+                    for (int z = fla.z1; z <= fla.z2; ++z) {
+                        int packedRegion = (Integer)entry.getKey() << 2 | z;
+                        long[] regionData = this.overrides.computeIfAbsent(packedRegion, k -> new long[64]);
+                        for (int y = fla.ry1; y <= fla.ry2; ++y) {
+                            long row = regionData[y];
+                            for (int x = fla.rx1; x <= fla.rx2; ++x) {
+                                row |= 1L << x;
+                            }
+                            regionData[y] = row;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-	@Subscribe
-	public void onConfigChanged(ConfigChanged e)
-	{
-		if (!e.getGroup().equals(RoofRemovalConfig.CONFIG_GROUP))
-		{
-			return;
-		}
+    private void applyRoofOverrides() {
+        Stopwatch sw = Stopwatch.createStarted();
+        boolean regionsHaveOverrides = false;
+        block0: for (int regionID : this.client.getMapRegions()) {
+            if (this.configOverrideRegions.contains(regionID)) {
+                regionsHaveOverrides = true;
+                break;
+            }
+            for (int z = 0; z < 4; ++z) {
+                if (!this.overrides.containsKey(regionID << 2 | z)) continue;
+                regionsHaveOverrides = true;
+                break block0;
+            }
+        }
+        if (!regionsHaveOverrides) {
+            return;
+        }
+        Tile[][][] tiles = this.client.getScene().getTiles();
+        byte[][][] settings = this.client.getTileSettings();
+        for (int z = 0; z < 4; ++z) {
+            for (int x = 0; x < 104; ++x) {
+                for (int y = 0; y < 104; ++y) {
+                    Tile tile = tiles[z][x][y];
+                    if (tile == null) continue;
+                    WorldPoint wp = WorldPoint.fromLocalInstance((Client)this.client, (LocalPoint)tile.getLocalLocation(), (int)tile.getPlane());
+                    int regionAndPlane = wp.getRegionID() << 2 | wp.getPlane();
+                    if (this.configOverrideRegions.contains(wp.getRegionID())) {
+                        byte[] arrby = settings[z][x];
+                        int n = y;
+                        arrby[n] = (byte)(arrby[n] | 4);
+                        continue;
+                    }
+                    if (!this.overrides.containsKey(regionAndPlane)) continue;
+                    int rx = wp.getRegionX();
+                    int ry = wp.getRegionY();
+                    long[] region = this.overrides.get(regionAndPlane);
+                    if ((region[ry] & 1L << rx) == 0L) continue;
+                    byte[] arrby = settings[z][x];
+                    int n = y;
+                    arrby[n] = (byte)(arrby[n] | 4);
+                }
+            }
+        }
+        log.debug("Roof override duration: {}", (Object)sw.stop());
+    }
 
-		if (e.getKey().startsWith("remove"))
-		{
-			client.getScene().setRoofRemovalMode(buildRoofRemovalFlags());
-		}
-		else if (e.getKey().startsWith("override"))
-		{
-			buildConfigOverrides();
-			clientThread.invoke(() ->
-			{
-				if (client.getGameState() == GameState.LOGGED_IN)
-				{
-					client.setGameState(GameState.LOADING);
-				}
-			});
-		}
-	}
+    private static class FlaggedArea {
+        int rx1;
+        int ry1;
+        int rx2;
+        int ry2;
+        int z1;
+        int z2;
 
-	private int buildRoofRemovalFlags()
-	{
-		int roofRemovalMode = 0;
-		if (config.removePosition())
-		{
-			roofRemovalMode |= ROOF_FLAG_POSITION;
-		}
-		if (config.removeHovered())
-		{
-			roofRemovalMode |= ROOF_FLAG_HOVERED;
-		}
-		if (config.removeDestination())
-		{
-			roofRemovalMode |= ROOF_FLAG_DESTINATION;
-		}
-		if (config.removeBetween())
-		{
-			roofRemovalMode |= ROOF_FLAG_BETWEEN;
-		}
-		return roofRemovalMode;
-	}
-
-	private void buildConfigOverrides()
-	{
-		configOverrideRegions.clear();
-		for (RoofRemovalConfigOverride configOverride : RoofRemovalConfigOverride.values())
-		{
-			if (configOverride.getEnabled().test(config))
-			{
-				configOverrideRegions.addAll(configOverride.getRegions());
-			}
-		}
-	}
-
-	private void performRoofRemoval()
-	{
-		assert client.isClientThread();
-		applyRoofOverrides();
-
-		Stopwatch sw = Stopwatch.createStarted();
-		client.getScene().generateHouses();
-		log.debug("House generation duration: {}", sw.stop());
-	}
-
-	private void loadRoofOverrides() throws IOException
-	{
-		try (InputStream in = getClass().getResourceAsStream("overrides.jsonc"))
-		{
-			final InputStreamReader data = new InputStreamReader(in, StandardCharsets.UTF_8);
-			//CHECKSTYLE:OFF
-			final Type type = new TypeToken<Map<Integer, List<FlaggedArea>>>() {}.getType();
-			//CHECKSTYLE:ON
-			Map<Integer, List<FlaggedArea>> parsed = gson.fromJson(data, type);
-			overrides.clear();
-			for (Map.Entry<Integer, List<FlaggedArea>> entry : parsed.entrySet())
-			{
-				for (FlaggedArea fla : entry.getValue())
-				{
-					for (int z = fla.z1; z <= fla.z2; z++)
-					{
-						// Given that each region is 64x64, and the override data is a boolean, one of the axis can be stored as
-						// bits in a long. This removes the need for a boolean[64][64] and an extra array lookup in favour of
-						// a bitwise &, and results in a consistently smaller amount of memory required to store the overrides.
-						int packedRegion = entry.getKey() << 2 | z;
-						long[] regionData = overrides.computeIfAbsent(packedRegion, k -> new long[Constants.REGION_SIZE]);
-						for (int y = fla.ry1; y <= fla.ry2; y++)
-						{
-							long row = regionData[y];
-							for (int x = fla.rx1; x <= fla.rx2; x++)
-							{
-								row |= (1L << x);
-							}
-							regionData[y] = row;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	private void applyRoofOverrides()
-	{
-		Stopwatch sw = Stopwatch.createStarted();
-		boolean regionsHaveOverrides = false;
-
-		outer:
-		for (int regionID : client.getMapRegions())
-		{
-			if (configOverrideRegions.contains(regionID))
-			{
-				regionsHaveOverrides = true;
-				break;
-			}
-			for (int z = 0; z < Constants.MAX_Z; z++)
-			{
-				if (overrides.containsKey(regionID << 2 | z))
-				{
-					regionsHaveOverrides = true;
-					break outer;
-				}
-			}
-		}
-		if (!regionsHaveOverrides)
-		{
-			return;
-		}
-
-		Tile[][][] tiles = client.getScene().getTiles();
-		byte[][][] settings = client.getTileSettings();
-
-		for (int z = 0; z < Constants.MAX_Z; z++)
-		{
-			for (int x = 0; x < Constants.SCENE_SIZE; x++)
-			{
-				for (int y = 0; y < Constants.SCENE_SIZE; y++)
-				{
-					Tile tile = tiles[z][x][y];
-					if (tile == null)
-					{
-						continue;
-					}
-
-					// Properly account for instances shifting worldpoints around
-					final WorldPoint wp = WorldPoint.fromLocalInstance(client, tile.getLocalLocation(), tile.getPlane());
-
-					int regionAndPlane = wp.getRegionID() << 2 | wp.getPlane();
-					if (configOverrideRegions.contains(wp.getRegionID()))
-					{
-						settings[z][x][y] |= Constants.TILE_FLAG_UNDER_ROOF;
-					}
-					else if (overrides.containsKey(regionAndPlane))
-					{
-						int rx = wp.getRegionX();
-						int ry = wp.getRegionY();
-						long[] region = overrides.get(regionAndPlane);
-						if ((region[ry] & (1L << rx)) != 0)
-						{
-							settings[z][x][y] |= Constants.TILE_FLAG_UNDER_ROOF;
-						}
-					}
-				}
-			}
-		}
-		log.debug("Roof override duration: {}", sw.stop());
-	}
+        private FlaggedArea() {
+        }
+    }
 }
+

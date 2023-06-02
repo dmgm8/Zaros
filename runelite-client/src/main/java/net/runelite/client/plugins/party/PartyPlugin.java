@@ -1,27 +1,30 @@
 /*
- * Copyright (c) 2019, Tomas Slusny <slusnucky@gmail.com>
- * Copyright (c) 2021, Jonathan Rousseau <https://github.com/JoRouss>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Strings
+ *  com.google.inject.Binder
+ *  com.google.inject.Provides
+ *  javax.annotation.Nullable
+ *  javax.inject.Inject
+ *  javax.inject.Named
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.MenuEntry
+ *  net.runelite.api.Player
+ *  net.runelite.api.Skill
+ *  net.runelite.api.Tile
+ *  net.runelite.api.VarPlayer
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.CommandExecuted
+ *  net.runelite.api.events.FocusChanged
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.MenuOptionClicked
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.party;
 
@@ -30,6 +33,7 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +44,6 @@ import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.swing.SwingUtilities;
-import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -48,8 +51,8 @@ import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
-import net.runelite.api.SoundEffectID;
 import net.runelite.api.Tile;
+import net.runelite.api.VarPlayer;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.FocusChanged;
@@ -74,503 +77,420 @@ import net.runelite.client.party.events.UserPart;
 import net.runelite.client.party.messages.UserSync;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.party.PartyConfig;
+import net.runelite.client.plugins.party.PartyPanel;
+import net.runelite.client.plugins.party.PartyPingOverlay;
+import net.runelite.client.plugins.party.PartyPluginService;
+import net.runelite.client.plugins.party.PartyPluginServiceImpl;
+import net.runelite.client.plugins.party.PartyStatusOverlay;
+import net.runelite.client.plugins.party.PartyWorldMapPoint;
 import net.runelite.client.plugins.party.data.PartyData;
 import net.runelite.client.plugins.party.data.PartyTilePingData;
-import net.runelite.client.plugins.party.messages.CharacterNameUpdate;
 import net.runelite.client.plugins.party.messages.LocationUpdate;
-import net.runelite.client.plugins.party.messages.SkillUpdate;
+import net.runelite.client.plugins.party.messages.StatusUpdate;
 import net.runelite.client.plugins.party.messages.TilePing;
 import net.runelite.client.task.Schedule;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.ui.overlay.worldmap.WorldMapPoint;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
-
-@PluginDescriptor(
-	name = "Party",
-	configName = "PartyPlugin2",
-	description = "Party management and basic info",
-	enabledByDefault = false
-)
-public class PartyPlugin extends Plugin
-{
-	@Inject
-	private Client client;
-
-	@Inject
-	private PartyService party;
-
-	@Inject
-	private OverlayManager overlayManager;
-
-	@Inject
-	private PartyPingOverlay partyPingOverlay;
-
-	@Inject
-	private WSClient wsClient;
-
-	@Inject
-	private WorldMapPointManager worldMapManager;
-
-	@Inject
-	private PartyConfig config;
-
-	@Inject
-	private ChatMessageManager chatMessageManager;
-
-	@Inject
-	private ClientThread clientThread;
-
-	@Inject
-	private ClientToolbar clientToolbar;
-
-	@Inject
-	private KeyManager keyManager;
-
-	@Inject
-	@Named("developerMode")
-	boolean developerMode;
-
-	@Getter
-	private final Map<Long, PartyData> partyDataMap = Collections.synchronizedMap(new HashMap<>());
-
-	@Getter
-	private final List<PartyTilePingData> pendingTilePings = Collections.synchronizedList(new ArrayList<>());
-
-	private PartyPanel panel;
-	private NavigationButton navButton;
-
-	private int lastHp, lastPray;
-	private String lastCharacterName = "";
-	private WorldPoint lastLocation;
-
-	private final HotkeyListener hotkeyListener = new HotkeyListener(() -> config.pingHotkey())
-	{
-		@Override
-		public void hotkeyPressed()
-		{
-			hotkeyPressed = true;
-		}
-
-		@Override
-		public void hotkeyReleased()
-		{
-			hotkeyPressed = false;
-		}
-	};
-
-	private boolean hotkeyPressed = false;
-
-	@Override
-	public void configure(Binder binder)
-	{
-		binder.bind(PartyPluginService.class).to(PartyPluginServiceImpl.class);
-	}
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		panel = injector.getInstance(PartyPanel.class);
-
-		final BufferedImage icon = ImageUtil.loadImageResource(PartyPlugin.class, "panel_icon.png");
-
-		navButton = NavigationButton.builder()
-			.tooltip("Party")
-			.icon(icon)
-			.priority(9)
-			.panel(panel)
-			.build();
-
-		clientToolbar.addNavigation(navButton);
-
-		overlayManager.add(partyPingOverlay);
-		keyManager.registerKeyListener(hotkeyListener);
-		wsClient.registerMessage(SkillUpdate.class);
-		wsClient.registerMessage(TilePing.class);
-		wsClient.registerMessage(LocationUpdate.class);
-		wsClient.registerMessage(CharacterNameUpdate.class);
-		// Delay sync so the eventbus can register prior to the sync response
-		SwingUtilities.invokeLater(this::requestSync);
-	}
-
-	@Override
-	protected void shutDown() throws Exception
-	{
-		clientToolbar.removeNavigation(navButton);
-
-		panel = null;
-
-		partyDataMap.clear();
-		pendingTilePings.clear();
-		worldMapManager.removeIf(PartyWorldMapPoint.class::isInstance);
-		overlayManager.remove(partyPingOverlay);
-		keyManager.unregisterKeyListener(hotkeyListener);
-		wsClient.unregisterMessage(SkillUpdate.class);
-		wsClient.unregisterMessage(TilePing.class);
-		wsClient.unregisterMessage(LocationUpdate.class);
-		wsClient.unregisterMessage(CharacterNameUpdate.class);
-		lastLocation = null;
-	}
-
-	@Provides
-	public PartyConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(PartyConfig.class);
-	}
-
-	@Subscribe
-	public void onFocusChanged(FocusChanged focusChanged)
-	{
-		if (!focusChanged.isFocused())
-		{
-			hotkeyPressed = false;
-		}
-	}
-
-	@Subscribe
-	public void onOverlayMenuClicked(OverlayMenuClicked event)
-	{
-		if (event.getEntry().getMenuAction() == MenuAction.RUNELITE_OVERLAY &&
-			event.getEntry().getTarget().equals("Party") &&
-			event.getEntry().getOption().equals("Leave"))
-		{
-			leaveParty();
-		}
-	}
-
-	void leaveParty()
-	{
-		party.changeParty(null);
-	}
-
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		if (event.getGroup().equals(PartyConfig.GROUP))
-		{
-			// rebuild the panel in the event the "Recolor names" option changes
-			SwingUtilities.invokeLater(panel::updateAll);
-		}
-	}
-
-	@Subscribe
-	public void onMenuOptionClicked(MenuOptionClicked event)
-	{
-		if (!hotkeyPressed || client.isMenuOpen() || party.getMembers().isEmpty() || !config.pings())
-		{
-			return;
-		}
-
-		Tile selectedSceneTile = client.getSelectedSceneTile();
-		if (selectedSceneTile == null)
-		{
-			return;
-		}
-
-		boolean isOnCanvas = false;
-
-		for (MenuEntry menuEntry : client.getMenuEntries())
-		{
-			if (menuEntry == null)
-			{
-				continue;
-			}
-
-			if ("walk here".equalsIgnoreCase(menuEntry.getOption()))
-			{
-				isOnCanvas = true;
-			}
-		}
-
-		if (!isOnCanvas)
-		{
-			return;
-		}
-
-		event.consume();
-		final TilePing tilePing = new TilePing(selectedSceneTile.getWorldLocation());
-		party.send(tilePing);
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		checkStateChanged(false);
-	}
-
-	@Subscribe
-	public void onTilePing(TilePing event)
-	{
-		if (config.pings())
-		{
-			final PartyData partyData = getPartyData(event.getMemberId());
-			final Color color = partyData != null ? partyData.getColor() : Color.RED;
-			pendingTilePings.add(new PartyTilePingData(event.getPoint(), color));
-		}
-
-		if (config.sounds())
-		{
-			WorldPoint point = event.getPoint();
-
-			if (point.getPlane() != client.getPlane() || !WorldPoint.isInScene(client, point.getX(), point.getY()))
-			{
-				return;
-			}
-
-			clientThread.invoke(() -> client.playSoundEffect(SoundEffectID.SMITH_ANVIL_TINK));
-		}
-	}
-
-	@Schedule(
-		period = 10,
-		unit = ChronoUnit.SECONDS
-	)
-	public void shareLocation()
-	{
-		if (client.getGameState() != GameState.LOGGED_IN)
-		{
-			return;
-		}
-
-		final PartyMember localMember = party.getLocalMember();
-
-		if (localMember == null)
-		{
-			return;
-		}
-
-		WorldPoint location = client.getLocalPlayer().getWorldLocation();
-		if (location.equals(lastLocation))
-		{
-			return;
-		}
-
-		lastLocation = location;
-
-		final LocationUpdate locationUpdate = new LocationUpdate(location);
-		party.send(locationUpdate);
-	}
-
-	@Subscribe
-	public void onGameTick(final GameTick event)
-	{
-		checkStateChanged(false);
-	}
-
-	void requestSync()
-	{
-		if (!party.getMembers().isEmpty())
-		{
-			// Request sync
-			final UserSync userSync = new UserSync();
-			party.send(userSync);
-		}
-	}
-
-	@Subscribe
-	public void onCharacterNameUpdate(final CharacterNameUpdate event)
-	{
-		final PartyData partyData = getPartyData(event.getMemberId());
-		if (partyData == null)
-		{
-			return;
-		}
-
-		final PartyMember member = party.getMemberById(event.getMemberId());
-		if (member != null)
-		{
-			final String name = Text.removeTags(Text.toJagexName(event.getCharacterName()));
-			if (!name.isEmpty())
-			{
-				member.setDisplayName(name);
-				member.setLoggedIn(true);
-				partyData.setColor(ColorUtil.fromObject(name));
-			}
-			else
-			{
-				member.setLoggedIn(false);
-				partyData.setColor(Color.WHITE);
-			}
-		}
-
-		SwingUtilities.invokeLater(() -> panel.updateMember(event.getMemberId()));
-	}
-
-	@Subscribe
-	public void onSkillUpdate(final SkillUpdate event)
-	{
-		final PartyData partyData = getPartyData(event.getMemberId());
-
-		if (partyData == null)
-		{
-			return;
-		}
-
-		if (event.getSkill() == Skill.HITPOINTS)
-		{
-			partyData.setHitpoints(event.getValue());
-			partyData.setMaxHitpoints(event.getMax());
-		}
-		else if (event.getSkill() == Skill.PRAYER)
-		{
-			partyData.setPrayer(event.getValue());
-			partyData.setMaxPrayer(event.getMax());
-		}
-
-		SwingUtilities.invokeLater(() -> panel.updateMember(partyData.getMemberId()));
-	}
-
-	@Subscribe
-	public void onLocationUpdate(final LocationUpdate event)
-	{
-		final PartyData partyData = getPartyData(event.getMemberId());
-
-		if (partyData == null)
-		{
-			return;
-		}
-
-		partyData.getWorldMapPoint().setWorldPoint(event.getWorldPoint());
-	}
-
-	@Subscribe
-	public void onUserJoin(final UserJoin event)
-	{
-		// this has a side effect of creating the party data
-		getPartyData(event.getMemberId());
-	}
-
-	@Subscribe
-	public void onUserSync(final UserSync event)
-	{
-		checkStateChanged(true);
-		lastLocation = null;
-	}
-
-	private void checkStateChanged(boolean forceSend)
-	{
-		final int currentHealth = client.getBoostedSkillLevel(Skill.HITPOINTS);
-		final int currentPrayer = client.getBoostedSkillLevel(Skill.PRAYER);
-		final int realHealth = client.getRealSkillLevel(Skill.HITPOINTS);
-		final int realPrayer = client.getRealSkillLevel(Skill.PRAYER);
-		final PartyMember localMember = party.getLocalMember();
-
-		final Player localPlayer = client.getLocalPlayer();
-		final String characterName = Strings.nullToEmpty(localPlayer != null && client.getGameState().getState() >= GameState.LOADING.getState() ? localPlayer.getName() : null);
-
-		if (localMember != null)
-		{
-			if (forceSend || currentHealth != lastHp)
-			{
-				final SkillUpdate update = new SkillUpdate(Skill.HITPOINTS, currentHealth, realHealth);
-				party.send(update);
-			}
-
-			if (forceSend || currentPrayer != lastPray)
-			{
-				final SkillUpdate update = new SkillUpdate(Skill.PRAYER, currentPrayer, realPrayer);
-				party.send(update);
-			}
-
-			if (forceSend || !characterName.equals(lastCharacterName))
-			{
-				final CharacterNameUpdate update = new CharacterNameUpdate(characterName);
-				party.send(update);
-			}
-		}
-
-		lastHp = currentHealth;
-		lastPray = currentPrayer;
-		lastCharacterName = characterName;
-	}
-
-	@Subscribe
-	public void onUserPart(final UserPart event)
-	{
-		final PartyData removed = partyDataMap.remove(event.getMemberId());
-
-		if (removed != null)
-		{
-			worldMapManager.remove(removed.getWorldMapPoint());
-
-			SwingUtilities.invokeLater(() -> panel.removeMember(event.getMemberId()));
-		}
-	}
-
-	@Subscribe
-	public void onPartyChanged(final PartyChanged event)
-	{
-		// Reset party
-		partyDataMap.clear();
-		pendingTilePings.clear();
-		worldMapManager.removeIf(PartyWorldMapPoint.class::isInstance);
-
-		if (event.getPartyId() != null)
-		{
-			config.setPreviousPartyId(event.getPassphrase());
-		}
-
-		SwingUtilities.invokeLater(panel::removeAllMembers);
-	}
-
-	@Subscribe
-	public void onCommandExecuted(CommandExecuted commandExecuted)
-	{
-		if (!developerMode || !commandExecuted.getCommand().equals("partyinfo"))
-		{
-			return;
-		}
-
-		chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.GAMEMESSAGE).value("Party " + party.getPartyPassphrase() + " ID " + party.getPartyId()).build());
-		chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.GAMEMESSAGE).value("Local ID " + party.getLocalMember().getMemberId()).build());
-		for (PartyMember partyMember : party.getMembers())
-		{
-			chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.GAMEMESSAGE).value("Member " + partyMember.getDisplayName() + " " + partyMember.getMemberId()).build());
-		}
-	}
-
-	@Subscribe
-	public void onPartyMemberAvatar(PartyMemberAvatar event)
-	{
-		SwingUtilities.invokeLater(() -> panel.updateMember(event.getMemberId()));
-	}
-
-	@Nullable
-	PartyData getPartyData(final long uuid)
-	{
-		final PartyMember memberById = party.getMemberById(uuid);
-
-		if (memberById == null)
-		{
-			// This happens when you are not in party but you still receive message.
-			// Can happen if you just left party and you received message before message went through
-			// in ws service
-			return null;
-		}
-
-		return partyDataMap.computeIfAbsent(uuid, (u) ->
-		{
-			final WorldMapPoint worldMapPoint = new PartyWorldMapPoint(new WorldPoint(0, 0, 0), memberById);
-
-			// When first joining a party, other members can join before getting a join for self
-			PartyMember partyMember = party.getLocalMember();
-
-			boolean isSelf = partyMember != null && u.equals(partyMember.getMemberId());
-
-			if (!isSelf)
-			{
-				worldMapManager.add(worldMapPoint);
-			}
-
-			PartyData partyData = new PartyData(uuid, worldMapPoint);
-
-			SwingUtilities.invokeLater(() -> panel.addMember(partyData));
-			return partyData;
-		});
-	}
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@PluginDescriptor(name="Party", configName="PartyPlugin2", description="Party management and basic info", enabledByDefault=false, forceDisabled=true)
+public class PartyPlugin
+extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(PartyPlugin.class);
+    @Inject
+    private Client client;
+    @Inject
+    private PartyService party;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private PartyPingOverlay partyPingOverlay;
+    @Inject
+    private PartyStatusOverlay partyStatusOverlay;
+    @Inject
+    private WSClient wsClient;
+    @Inject
+    private WorldMapPointManager worldMapManager;
+    @Inject
+    private PartyConfig config;
+    @Inject
+    private ChatMessageManager chatMessageManager;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private ClientToolbar clientToolbar;
+    @Inject
+    private KeyManager keyManager;
+    @Inject
+    @Named(value="developerMode")
+    boolean developerMode;
+    private final Map<Long, PartyData> partyDataMap = Collections.synchronizedMap(new HashMap());
+    private final List<PartyTilePingData> pendingTilePings = Collections.synchronizedList(new ArrayList());
+    private Instant lastLogout;
+    private PartyPanel panel;
+    private NavigationButton navButton;
+    private WorldPoint lastLocation;
+    private StatusUpdate lastStatus;
+    private final HotkeyListener hotkeyListener = new HotkeyListener(() -> this.config.pingHotkey()){
+
+        @Override
+        public void hotkeyPressed() {
+            PartyPlugin.this.hotkeyPressed = true;
+        }
+
+        @Override
+        public void hotkeyReleased() {
+            PartyPlugin.this.hotkeyPressed = false;
+        }
+    };
+    private boolean hotkeyPressed = false;
+
+    @Override
+    public void configure(Binder binder) {
+        binder.bind(PartyPluginService.class).to(PartyPluginServiceImpl.class);
+    }
+
+    @Override
+    protected void startUp() throws Exception {
+        this.lastLogout = Instant.now();
+        this.panel = (PartyPanel)this.injector.getInstance(PartyPanel.class);
+        BufferedImage icon = ImageUtil.loadImageResource(PartyPlugin.class, "panel_icon.png");
+        this.navButton = NavigationButton.builder().tooltip("Party").icon(icon).priority(9).panel(this.panel).build();
+        this.clientToolbar.addNavigation(this.navButton);
+        this.overlayManager.add(this.partyPingOverlay);
+        this.overlayManager.add(this.partyStatusOverlay);
+        this.keyManager.registerKeyListener(this.hotkeyListener);
+        this.wsClient.registerMessage(TilePing.class);
+        this.wsClient.registerMessage(LocationUpdate.class);
+        this.wsClient.registerMessage(StatusUpdate.class);
+        SwingUtilities.invokeLater(this::requestSync);
+    }
+
+    @Override
+    protected void shutDown() throws Exception {
+        this.lastLogout = null;
+        this.clientToolbar.removeNavigation(this.navButton);
+        this.panel = null;
+        this.partyDataMap.clear();
+        this.pendingTilePings.clear();
+        this.worldMapManager.removeIf(PartyWorldMapPoint.class::isInstance);
+        this.overlayManager.remove(this.partyPingOverlay);
+        this.overlayManager.remove(this.partyStatusOverlay);
+        this.keyManager.unregisterKeyListener(this.hotkeyListener);
+        this.wsClient.unregisterMessage(TilePing.class);
+        this.wsClient.unregisterMessage(LocationUpdate.class);
+        this.wsClient.unregisterMessage(StatusUpdate.class);
+        this.lastLocation = null;
+        this.lastStatus = null;
+    }
+
+    @Provides
+    public PartyConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(PartyConfig.class);
+    }
+
+    @Subscribe
+    public void onFocusChanged(FocusChanged focusChanged) {
+        if (!focusChanged.isFocused()) {
+            this.hotkeyPressed = false;
+        }
+    }
+
+    @Subscribe
+    public void onOverlayMenuClicked(OverlayMenuClicked event) {
+        if (event.getEntry().getMenuAction() == MenuAction.RUNELITE_OVERLAY && event.getEntry().getTarget().equals("Party") && event.getEntry().getOption().equals("Leave")) {
+            this.leaveParty();
+        }
+    }
+
+    void leaveParty() {
+        this.party.changeParty(null);
+    }
+
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (event.getGroup().equals("party")) {
+            this.partyStatusOverlay.updateConfig();
+            SwingUtilities.invokeLater(this.panel::updateAll);
+        }
+    }
+
+    @Subscribe
+    public void onMenuOptionClicked(MenuOptionClicked event) {
+        if (!this.hotkeyPressed || this.client.isMenuOpen() || !this.party.isInParty() || !this.config.pings()) {
+            return;
+        }
+        Tile selectedSceneTile = this.client.getSelectedSceneTile();
+        if (selectedSceneTile == null) {
+            return;
+        }
+        boolean isOnCanvas = false;
+        for (MenuEntry menuEntry : this.client.getMenuEntries()) {
+            if (menuEntry == null || !"walk here".equalsIgnoreCase(menuEntry.getOption())) continue;
+            isOnCanvas = true;
+        }
+        if (!isOnCanvas) {
+            return;
+        }
+        event.consume();
+        TilePing tilePing = new TilePing(selectedSceneTile.getWorldLocation());
+        this.party.send(tilePing);
+    }
+
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        if (event.getGameState() == GameState.LOGIN_SCREEN) {
+            this.lastLogout = Instant.now();
+        }
+        this.checkStateChanged(false);
+    }
+
+    @Subscribe
+    public void onTilePing(TilePing event) {
+        if (this.config.pings()) {
+            PartyData partyData = this.getPartyData(event.getMemberId());
+            Color color = partyData != null ? partyData.getColor() : Color.RED;
+            this.pendingTilePings.add(new PartyTilePingData(event.getPoint(), color));
+        }
+        if (this.config.sounds()) {
+            WorldPoint point = event.getPoint();
+            if (point.getPlane() != this.client.getPlane() || !WorldPoint.isInScene((Client)this.client, (int)point.getX(), (int)point.getY())) {
+                return;
+            }
+            this.clientThread.invoke(() -> this.client.playSoundEffect(3790));
+        }
+    }
+
+    @Schedule(period=10L, unit=ChronoUnit.SECONDS)
+    public void scheduledTick() {
+        if (this.client.getGameState() == GameState.LOGGED_IN) {
+            this.shareLocation();
+        } else if (this.client.getGameState() == GameState.LOGIN_SCREEN) {
+            this.checkIdle();
+        }
+    }
+
+    private void shareLocation() {
+        if (!this.party.isInParty()) {
+            return;
+        }
+        WorldPoint location = this.client.getLocalPlayer().getWorldLocation();
+        if (location.equals((Object)this.lastLocation)) {
+            return;
+        }
+        this.lastLocation = location;
+        LocationUpdate locationUpdate = new LocationUpdate(location);
+        this.party.send(locationUpdate);
+    }
+
+    private void checkIdle() {
+        if (this.lastLogout != null && this.lastLogout.isBefore(Instant.now().minus(30L, ChronoUnit.MINUTES)) && this.party.isInParty()) {
+            log.info("Leaving party due to inactivity");
+            this.party.changeParty(null);
+        }
+    }
+
+    @Subscribe
+    public void onGameTick(GameTick event) {
+        this.checkStateChanged(false);
+    }
+
+    void requestSync() {
+        if (this.party.isInParty()) {
+            UserSync userSync = new UserSync();
+            this.party.send(userSync);
+        }
+    }
+
+    @Subscribe
+    public void onStatusUpdate(StatusUpdate event) {
+        PartyData partyData = this.getPartyData(event.getMemberId());
+        if (partyData == null) {
+            return;
+        }
+        if (event.getHealthCurrent() != null) {
+            partyData.setHitpoints(event.getHealthCurrent());
+        }
+        if (event.getHealthMax() != null) {
+            partyData.setMaxHitpoints(event.getHealthMax());
+        }
+        if (event.getPrayerCurrent() != null) {
+            partyData.setPrayer(event.getPrayerCurrent());
+        }
+        if (event.getPrayerMax() != null) {
+            partyData.setMaxPrayer(event.getPrayerMax());
+        }
+        if (event.getRunEnergy() != null) {
+            partyData.setRunEnergy(event.getRunEnergy());
+        }
+        if (event.getSpecEnergy() != null) {
+            partyData.setSpecEnergy(event.getSpecEnergy());
+        }
+        if (event.getVengeanceActive() != null) {
+            partyData.setVengeanceActive(event.getVengeanceActive());
+        }
+        PartyMember member = this.party.getMemberById(event.getMemberId());
+        if (event.getCharacterName() != null) {
+            String name = Text.removeTags(Text.toJagexName(event.getCharacterName()));
+            if (!name.isEmpty()) {
+                member.setDisplayName(name);
+                member.setLoggedIn(true);
+                partyData.setColor(ColorUtil.fromObject(name));
+            } else {
+                member.setLoggedIn(false);
+                partyData.setColor(Color.WHITE);
+            }
+        }
+        SwingUtilities.invokeLater(() -> this.panel.updateMember(event.getMemberId()));
+    }
+
+    @Subscribe
+    public void onLocationUpdate(LocationUpdate event) {
+        PartyData partyData = this.getPartyData(event.getMemberId());
+        if (partyData == null) {
+            return;
+        }
+        partyData.getWorldMapPoint().setWorldPoint(event.getWorldPoint());
+    }
+
+    @Subscribe
+    public void onUserJoin(UserJoin event) {
+        this.getPartyData(event.getMemberId());
+    }
+
+    @Subscribe
+    public void onUserSync(UserSync event) {
+        this.clientThread.invokeLater(() -> this.checkStateChanged(true));
+        this.lastLocation = null;
+    }
+
+    private void checkStateChanged(boolean forceSend) {
+        if (this.lastStatus == null) {
+            forceSend = true;
+        }
+        if (!this.party.isInParty()) {
+            return;
+        }
+        int healthCurrent = this.client.getBoostedSkillLevel(Skill.HITPOINTS);
+        int prayerCurrent = this.client.getBoostedSkillLevel(Skill.PRAYER);
+        int healthMax = this.client.getRealSkillLevel(Skill.HITPOINTS);
+        int prayerMax = this.client.getRealSkillLevel(Skill.PRAYER);
+        int runEnergy = (int)Math.ceil((double)this.client.getEnergy() / 10.0) * 10;
+        int specEnergy = this.client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT) / 10;
+        boolean vengActive = this.client.getVarbitValue(2450) == 1;
+        Player localPlayer = this.client.getLocalPlayer();
+        String characterName = Strings.nullToEmpty(localPlayer != null && this.client.getGameState().getState() >= GameState.LOADING.getState() ? localPlayer.getName() : null);
+        boolean shouldSend = false;
+        StatusUpdate update = new StatusUpdate();
+        if (forceSend || !characterName.equals(this.lastStatus.getCharacterName())) {
+            shouldSend = true;
+            update.setCharacterName(characterName);
+        }
+        if (forceSend || healthCurrent != this.lastStatus.getHealthCurrent()) {
+            shouldSend = true;
+            update.setHealthCurrent(healthCurrent);
+        }
+        if (forceSend || healthMax != this.lastStatus.getHealthMax()) {
+            shouldSend = true;
+            update.setHealthMax(healthMax);
+        }
+        if (forceSend || prayerCurrent != this.lastStatus.getPrayerCurrent()) {
+            shouldSend = true;
+            update.setPrayerCurrent(prayerCurrent);
+        }
+        if (forceSend || prayerMax != this.lastStatus.getPrayerMax()) {
+            shouldSend = true;
+            update.setPrayerMax(prayerMax);
+        }
+        if (forceSend || runEnergy != this.lastStatus.getRunEnergy()) {
+            shouldSend = true;
+            update.setRunEnergy(runEnergy);
+        }
+        if (forceSend || specEnergy != this.lastStatus.getSpecEnergy()) {
+            shouldSend = true;
+            update.setSpecEnergy(specEnergy);
+        }
+        if (forceSend || vengActive != this.lastStatus.getVengeanceActive()) {
+            shouldSend = true;
+            update.setVengeanceActive(vengActive);
+        }
+        if (shouldSend) {
+            this.party.send(update);
+            this.lastStatus = new StatusUpdate(characterName, healthCurrent, healthMax, prayerCurrent, prayerMax, runEnergy, specEnergy, vengActive);
+        }
+    }
+
+    @Subscribe
+    public void onUserPart(UserPart event) {
+        PartyData removed = this.partyDataMap.remove(event.getMemberId());
+        if (removed != null) {
+            this.worldMapManager.remove(removed.getWorldMapPoint());
+            SwingUtilities.invokeLater(() -> this.panel.removeMember(event.getMemberId()));
+        }
+    }
+
+    @Subscribe
+    public void onPartyChanged(PartyChanged event) {
+        this.partyDataMap.clear();
+        this.pendingTilePings.clear();
+        this.worldMapManager.removeIf(PartyWorldMapPoint.class::isInstance);
+        if (event.getPartyId() != null) {
+            this.config.setPreviousPartyId(event.getPassphrase());
+        }
+        SwingUtilities.invokeLater(this.panel::removeAllMembers);
+    }
+
+    @Subscribe
+    public void onCommandExecuted(CommandExecuted commandExecuted) {
+        if (!this.developerMode || !commandExecuted.getCommand().equals("partyinfo")) {
+            return;
+        }
+        this.chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.GAMEMESSAGE).value("Party " + this.party.getPartyPassphrase() + " ID " + this.party.getPartyId()).build());
+        this.chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.GAMEMESSAGE).value("Local ID " + this.party.getLocalMember().getMemberId()).build());
+        for (PartyMember partyMember : this.party.getMembers()) {
+            this.chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.GAMEMESSAGE).value("Member " + partyMember.getDisplayName() + " " + partyMember.getMemberId()).build());
+        }
+    }
+
+    @Subscribe
+    public void onPartyMemberAvatar(PartyMemberAvatar event) {
+        SwingUtilities.invokeLater(() -> this.panel.updateMember(event.getMemberId()));
+    }
+
+    @Nullable
+    PartyData getPartyData(long uuid) {
+        PartyMember memberById = this.party.getMemberById(uuid);
+        if (memberById == null) {
+            return null;
+        }
+        return this.partyDataMap.computeIfAbsent(uuid, u -> {
+            boolean isSelf;
+            PartyWorldMapPoint worldMapPoint = new PartyWorldMapPoint(new WorldPoint(0, 0, 0), memberById);
+            PartyMember partyMember = this.party.getLocalMember();
+            boolean bl = isSelf = partyMember != null && u.equals(partyMember.getMemberId());
+            if (!isSelf) {
+                this.worldMapManager.add(worldMapPoint);
+            }
+            PartyData partyData = new PartyData(uuid, worldMapPoint);
+            SwingUtilities.invokeLater(() -> this.panel.addMember(partyData));
+            return partyData;
+        });
+    }
+
+    public Map<Long, PartyData> getPartyDataMap() {
+        return this.partyDataMap;
+    }
+
+    public List<PartyTilePingData> getPendingTilePings() {
+        return this.pendingTilePings;
+    }
 }
+

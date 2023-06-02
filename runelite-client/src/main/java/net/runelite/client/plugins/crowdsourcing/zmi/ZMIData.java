@@ -1,42 +1,107 @@
 /*
- * Copyright (c) 2019, Weird Gloop <admin@weirdgloop.org>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.Multiset
  */
-
 package net.runelite.client.plugins.crowdsourcing.zmi;
 
 import com.google.common.collect.Multiset;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 
-@Data
-@AllArgsConstructor
-public class ZMIData
-{
-	private final int tickDelta;
-	private final boolean ardougneMedium;
-	private final int level;
-	private final int xpGained;
-	private final Multiset<Integer> itemsReceived;
-	private final Multiset<Integer> itemsRemoved;
+public class ZMIData {
+    private final int tickDelta;
+    private final boolean ardougneMedium;
+    private final int level;
+    private final int xpGained;
+    private final Multiset<Integer> itemsReceived;
+    private final Multiset<Integer> itemsRemoved;
+
+    public int getTickDelta() {
+        return this.tickDelta;
+    }
+
+    public boolean isArdougneMedium() {
+        return this.ardougneMedium;
+    }
+
+    public int getLevel() {
+        return this.level;
+    }
+
+    public int getXpGained() {
+        return this.xpGained;
+    }
+
+    public Multiset<Integer> getItemsReceived() {
+        return this.itemsReceived;
+    }
+
+    public Multiset<Integer> getItemsRemoved() {
+        return this.itemsRemoved;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ZMIData)) {
+            return false;
+        }
+        ZMIData other = (ZMIData)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getTickDelta() != other.getTickDelta()) {
+            return false;
+        }
+        if (this.isArdougneMedium() != other.isArdougneMedium()) {
+            return false;
+        }
+        if (this.getLevel() != other.getLevel()) {
+            return false;
+        }
+        if (this.getXpGained() != other.getXpGained()) {
+            return false;
+        }
+        Multiset<Integer> this$itemsReceived = this.getItemsReceived();
+        Multiset<Integer> other$itemsReceived = other.getItemsReceived();
+        if (this$itemsReceived == null ? other$itemsReceived != null : !this$itemsReceived.equals(other$itemsReceived)) {
+            return false;
+        }
+        Multiset<Integer> this$itemsRemoved = this.getItemsRemoved();
+        Multiset<Integer> other$itemsRemoved = other.getItemsRemoved();
+        return !(this$itemsRemoved == null ? other$itemsRemoved != null : !this$itemsRemoved.equals(other$itemsRemoved));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof ZMIData;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getTickDelta();
+        result = result * 59 + (this.isArdougneMedium() ? 79 : 97);
+        result = result * 59 + this.getLevel();
+        result = result * 59 + this.getXpGained();
+        Multiset<Integer> $itemsReceived = this.getItemsReceived();
+        result = result * 59 + ($itemsReceived == null ? 43 : $itemsReceived.hashCode());
+        Multiset<Integer> $itemsRemoved = this.getItemsRemoved();
+        result = result * 59 + ($itemsRemoved == null ? 43 : $itemsRemoved.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ZMIData(tickDelta=" + this.getTickDelta() + ", ardougneMedium=" + this.isArdougneMedium() + ", level=" + this.getLevel() + ", xpGained=" + this.getXpGained() + ", itemsReceived=" + this.getItemsReceived() + ", itemsRemoved=" + this.getItemsRemoved() + ")";
+    }
+
+    public ZMIData(int tickDelta, boolean ardougneMedium, int level, int xpGained, Multiset<Integer> itemsReceived, Multiset<Integer> itemsRemoved) {
+        this.tickDelta = tickDelta;
+        this.ardougneMedium = ardougneMedium;
+        this.level = level;
+        this.xpGained = xpGained;
+        this.itemsReceived = itemsReceived;
+        this.itemsRemoved = itemsRemoved;
+    }
 }
+

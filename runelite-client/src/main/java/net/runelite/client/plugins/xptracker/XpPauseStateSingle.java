@@ -1,99 +1,81 @@
 /*
- * Copyright (c) 2018, Levi <me@levischuck.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.Skill
  */
 package net.runelite.client.plugins.xptracker;
 
 import java.util.EnumSet;
 import java.util.Set;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import net.runelite.api.Skill;
 
-@RequiredArgsConstructor
-class XpPauseStateSingle
-{
-	@Getter
-	private final Skill skill;
-	private final Set<XpPauseReason> pauseReasons = EnumSet.noneOf(XpPauseReason.class);
-	@Getter
-	private long lastChangeMillis;
-	@Getter
-	private long xp;
+class XpPauseStateSingle {
+    private final Skill skill;
+    private final Set<XpPauseReason> pauseReasons = EnumSet.noneOf(XpPauseReason.class);
+    private long lastChangeMillis;
+    private long xp;
 
-	boolean isPaused()
-	{
-		return !pauseReasons.isEmpty();
-	}
+    boolean isPaused() {
+        return !this.pauseReasons.isEmpty();
+    }
 
-	boolean login()
-	{
-		return pauseReasons.remove(XpPauseReason.PAUSED_LOGOUT);
-	}
+    boolean login() {
+        return this.pauseReasons.remove((Object)XpPauseReason.PAUSED_LOGOUT);
+    }
 
-	boolean logout()
-	{
-		return pauseReasons.add(XpPauseReason.PAUSED_LOGOUT);
-	}
+    boolean logout() {
+        return this.pauseReasons.add(XpPauseReason.PAUSED_LOGOUT);
+    }
 
-	boolean timeout()
-	{
-		return pauseReasons.add(XpPauseReason.PAUSED_TIMEOUT);
-	}
+    boolean timeout() {
+        return this.pauseReasons.add(XpPauseReason.PAUSED_TIMEOUT);
+    }
 
-	boolean manualPause()
-	{
-		return pauseReasons.add(XpPauseReason.PAUSE_MANUAL);
-	}
+    boolean manualPause() {
+        return this.pauseReasons.add(XpPauseReason.PAUSE_MANUAL);
+    }
 
-	boolean xpChanged(long xp)
-	{
-		this.xp = xp;
-		this.lastChangeMillis = System.currentTimeMillis();
-		return clearAll();
-	}
+    boolean xpChanged(long xp) {
+        this.xp = xp;
+        this.lastChangeMillis = System.currentTimeMillis();
+        return this.clearAll();
+    }
 
-	boolean unpause()
-	{
-		this.lastChangeMillis = System.currentTimeMillis();
-		return clearAll();
-	}
+    boolean unpause() {
+        this.lastChangeMillis = System.currentTimeMillis();
+        return this.clearAll();
+    }
 
-	private boolean clearAll()
-	{
-		if (pauseReasons.isEmpty())
-		{
-			return false;
-		}
+    private boolean clearAll() {
+        if (this.pauseReasons.isEmpty()) {
+            return false;
+        }
+        this.pauseReasons.clear();
+        return true;
+    }
 
-		pauseReasons.clear();
-		return true;
-	}
+    public XpPauseStateSingle(Skill skill) {
+        this.skill = skill;
+    }
 
-	private enum XpPauseReason
-	{
-		PAUSE_MANUAL,
-		PAUSED_LOGOUT,
-		PAUSED_TIMEOUT
-	}
+    public Skill getSkill() {
+        return this.skill;
+    }
+
+    public long getLastChangeMillis() {
+        return this.lastChangeMillis;
+    }
+
+    public long getXp() {
+        return this.xp;
+    }
+
+    private static enum XpPauseReason {
+        PAUSE_MANUAL,
+        PAUSED_LOGOUT,
+        PAUSED_TIMEOUT;
+
+    }
 }
+

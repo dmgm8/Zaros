@@ -1,52 +1,74 @@
 /*
- * Copyright (c) 2020, Hydrox6 <ikada@protonmail.ch>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.config;
 
-import lombok.Value;
+import net.runelite.client.config.ConfigObject;
+import net.runelite.client.config.ConfigSection;
 
-@Value
-public class ConfigSectionDescriptor implements ConfigObject
-{
-	private final String key;
-	private final ConfigSection section;
+public final class ConfigSectionDescriptor
+implements ConfigObject {
+    private final String key;
+    private final ConfigSection section;
 
-	@Override
-	public String key()
-	{
-		return key;
-	}
+    @Override
+    public String key() {
+        return this.key;
+    }
 
-	@Override
-	public String name()
-	{
-		return section.name();
-	}
+    @Override
+    public String name() {
+        return this.section.name();
+    }
 
-	@Override
-	public int position()
-	{
-		return section.position();
-	}
+    @Override
+    public int position() {
+        return this.section.position();
+    }
+
+    public ConfigSectionDescriptor(String key, ConfigSection section) {
+        this.key = key;
+        this.section = section;
+    }
+
+    public String getKey() {
+        return this.key;
+    }
+
+    public ConfigSection getSection() {
+        return this.section;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ConfigSectionDescriptor)) {
+            return false;
+        }
+        ConfigSectionDescriptor other = (ConfigSectionDescriptor)o;
+        String this$key = this.getKey();
+        String other$key = other.getKey();
+        if (this$key == null ? other$key != null : !this$key.equals(other$key)) {
+            return false;
+        }
+        ConfigSection this$section = this.getSection();
+        ConfigSection other$section = other.getSection();
+        return !(this$section == null ? other$section != null : !this$section.equals(other$section));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        String $key = this.getKey();
+        result = result * 59 + ($key == null ? 43 : $key.hashCode());
+        ConfigSection $section = this.getSection();
+        result = result * 59 + ($section == null ? 43 : $section.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ConfigSectionDescriptor(key=" + this.getKey() + ", section=" + this.getSection() + ")";
+    }
 }
+

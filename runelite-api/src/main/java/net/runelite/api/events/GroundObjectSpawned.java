@@ -1,45 +1,68 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.Data;
 import net.runelite.api.GroundObject;
 import net.runelite.api.Tile;
 
-/**
- * An event where a {@link GroundObject} is added to a {@link Tile}.
- */
-@Data
-public class GroundObjectSpawned
-{
-	/**
-	 * The affected tile.
-	 */
-	private Tile tile;
-	/**
-	 * The newly spawned ground object.
-	 */
-	private GroundObject groundObject;
+public class GroundObjectSpawned {
+    private Tile tile;
+    private GroundObject groundObject;
+
+    public Tile getTile() {
+        return this.tile;
+    }
+
+    public GroundObject getGroundObject() {
+        return this.groundObject;
+    }
+
+    public void setTile(Tile tile) {
+        this.tile = tile;
+    }
+
+    public void setGroundObject(GroundObject groundObject) {
+        this.groundObject = groundObject;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof GroundObjectSpawned)) {
+            return false;
+        }
+        GroundObjectSpawned other = (GroundObjectSpawned)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        Tile this$tile = this.getTile();
+        Tile other$tile = other.getTile();
+        if (this$tile == null ? other$tile != null : !this$tile.equals(other$tile)) {
+            return false;
+        }
+        GroundObject this$groundObject = this.getGroundObject();
+        GroundObject other$groundObject = other.getGroundObject();
+        return !(this$groundObject == null ? other$groundObject != null : !this$groundObject.equals(other$groundObject));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof GroundObjectSpawned;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Tile $tile = this.getTile();
+        result = result * 59 + ($tile == null ? 43 : $tile.hashCode());
+        GroundObject $groundObject = this.getGroundObject();
+        result = result * 59 + ($groundObject == null ? 43 : $groundObject.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "GroundObjectSpawned(tile=" + this.getTile() + ", groundObject=" + this.getGroundObject() + ")";
+    }
 }
+

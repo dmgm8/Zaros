@@ -1,290 +1,328 @@
 /*
- * Copyright (c) 2018, Sean Dewar <https://github.com/seandewar>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ImmutableSet
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.Client
+ *  net.runelite.api.EquipmentInventorySlot
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.Item
+ *  net.runelite.api.ItemContainer
+ *  net.runelite.api.Skill
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.ChatMessage
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.ScriptCallbackEvent
+ *  net.runelite.api.events.ScriptPostFired
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
+ *  org.apache.commons.lang3.StringUtils
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.runenergy;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Provides;
+import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.inject.Inject;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
 import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
-import static net.runelite.api.ItemID.*;
 import net.runelite.api.Skill;
-import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.BeforeRender;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.events.ScriptCallbackEvent;
+import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.runenergy.RunEnergyConfig;
+import net.runelite.client.plugins.runenergy.RunEnergyOverlay;
 import net.runelite.client.ui.overlay.OverlayManager;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@PluginDescriptor(
-	name = "Run Energy",
-	description = "Show various information related to run energy",
-	tags = {"overlay", "stamina"}
-)
-public class RunEnergyPlugin extends Plugin
-{
-	// TODO It would be nice if we have the IDs for just the equipped variants of the Graceful set items.
-	private static final ImmutableSet<Integer> ALL_GRACEFUL_HOODS = ImmutableSet.of(
-		GRACEFUL_HOOD_11851, GRACEFUL_HOOD_13579, GRACEFUL_HOOD_13580, GRACEFUL_HOOD_13591, GRACEFUL_HOOD_13592,
-		GRACEFUL_HOOD_13603, GRACEFUL_HOOD_13604, GRACEFUL_HOOD_13615, GRACEFUL_HOOD_13616, GRACEFUL_HOOD_13627,
-		GRACEFUL_HOOD_13628, GRACEFUL_HOOD_13667, GRACEFUL_HOOD_13668, GRACEFUL_HOOD_21061, GRACEFUL_HOOD_21063,
-		GRACEFUL_HOOD_24743, GRACEFUL_HOOD_24745, GRACEFUL_HOOD_25069, GRACEFUL_HOOD_25071
-	);
+@PluginDescriptor(name="Run Energy", description="Show various information related to run energy", tags={"overlay", "stamina"})
+public class RunEnergyPlugin
+extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(RunEnergyPlugin.class);
+    private static final ImmutableSet<Integer> ALL_GRACEFUL_HOODS = ImmutableSet.of((Object)11851, (Object)13579, (Object)13580, (Object)13591, (Object)13592, (Object)13603, (Object[])new Integer[]{13604, 13615, 13616, 13627, 13628, 13667, 13668, 21061, 21063, 24743, 24745, 25069, 25071});
+    private static final ImmutableSet<Integer> ALL_GRACEFUL_TOPS = ImmutableSet.of((Object)11855, (Object)13583, (Object)13584, (Object)13595, (Object)13596, (Object)13607, (Object[])new Integer[]{13608, 13619, 13620, 13631, 13632, 13671, 13672, 21067, 21069, 24749, 24751, 25075, 25077});
+    private static final ImmutableSet<Integer> ALL_GRACEFUL_LEGS = ImmutableSet.of((Object)11857, (Object)13585, (Object)13586, (Object)13597, (Object)13598, (Object)13609, (Object[])new Integer[]{13610, 13621, 13622, 13633, 13634, 13673, 13674, 21070, 21072, 24752, 24754, 25078, 25080});
+    private static final ImmutableSet<Integer> ALL_GRACEFUL_GLOVES = ImmutableSet.of((Object)11859, (Object)13587, (Object)13588, (Object)13599, (Object)13600, (Object)13611, (Object[])new Integer[]{13612, 13623, 13624, 13635, 13636, 13675, 13676, 21073, 21075, 24755, 24757, 25081, 25083});
+    private static final ImmutableSet<Integer> ALL_GRACEFUL_BOOTS = ImmutableSet.of((Object)11861, (Object)13589, (Object)13590, (Object)13601, (Object)13602, (Object)13613, (Object[])new Integer[]{13614, 13625, 13626, 13637, 13638, 13677, 13678, 21076, 21078, 24758, 24760, 25084, 25086});
+    private static final ImmutableSet<Integer> ALL_GRACEFUL_CAPES = ImmutableSet.of((Object)11853, (Object)13581, (Object)13582, (Object)13593, (Object)13594, (Object)13605, (Object[])new Integer[]{13606, 13617, 13618, 13629, 13630, 13669, 13670, 21064, 21066, 24746, 24748, 25072, 25074, 9771, 9772, 13280});
+    private static final int GRACEFUL_FULL_SET_BOOST_BONUS = 10;
+    private static final int RING_OF_ENDURANCE_PASSIVE_EFFECT = 500;
+    @Inject
+    private ChatMessageManager chatMessageManager;
+    @Inject
+    private Client client;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private RunEnergyOverlay energyOverlay;
+    @Inject
+    private RunEnergyConfig energyConfig;
+    @Inject
+    private ConfigManager configManager;
+    private int lastCheckTick;
+    private boolean roeWarningSent;
+    private boolean localPlayerRunningToDestination;
+    private WorldPoint prevLocalPlayerLocation;
 
-	private static final ImmutableSet<Integer> ALL_GRACEFUL_TOPS = ImmutableSet.of(
-		GRACEFUL_TOP_11855, GRACEFUL_TOP_13583, GRACEFUL_TOP_13584, GRACEFUL_TOP_13595, GRACEFUL_TOP_13596,
-		GRACEFUL_TOP_13607, GRACEFUL_TOP_13608, GRACEFUL_TOP_13619, GRACEFUL_TOP_13620, GRACEFUL_TOP_13631,
-		GRACEFUL_TOP_13632, GRACEFUL_TOP_13671, GRACEFUL_TOP_13672, GRACEFUL_TOP_21067, GRACEFUL_TOP_21069,
-		GRACEFUL_TOP_24749, GRACEFUL_TOP_24751, GRACEFUL_TOP_25075, GRACEFUL_TOP_25077
-	);
+    @Provides
+    RunEnergyConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(RunEnergyConfig.class);
+    }
 
-	private static final ImmutableSet<Integer> ALL_GRACEFUL_LEGS = ImmutableSet.of(
-		GRACEFUL_LEGS_11857, GRACEFUL_LEGS_13585, GRACEFUL_LEGS_13586, GRACEFUL_LEGS_13597, GRACEFUL_LEGS_13598,
-		GRACEFUL_LEGS_13609, GRACEFUL_LEGS_13610, GRACEFUL_LEGS_13621, GRACEFUL_LEGS_13622, GRACEFUL_LEGS_13633,
-		GRACEFUL_LEGS_13634, GRACEFUL_LEGS_13673, GRACEFUL_LEGS_13674, GRACEFUL_LEGS_21070, GRACEFUL_LEGS_21072,
-		GRACEFUL_LEGS_24752, GRACEFUL_LEGS_24754, GRACEFUL_LEGS_25078, GRACEFUL_LEGS_25080
-	);
+    @Override
+    protected void startUp() throws Exception {
+        this.overlayManager.add(this.energyOverlay);
+    }
 
-	private static final ImmutableSet<Integer> ALL_GRACEFUL_GLOVES = ImmutableSet.of(
-		GRACEFUL_GLOVES_11859, GRACEFUL_GLOVES_13587, GRACEFUL_GLOVES_13588, GRACEFUL_GLOVES_13599, GRACEFUL_GLOVES_13600,
-		GRACEFUL_GLOVES_13611, GRACEFUL_GLOVES_13612, GRACEFUL_GLOVES_13623, GRACEFUL_GLOVES_13624, GRACEFUL_GLOVES_13635,
-		GRACEFUL_GLOVES_13636, GRACEFUL_GLOVES_13675, GRACEFUL_GLOVES_13676, GRACEFUL_GLOVES_21073, GRACEFUL_GLOVES_21075,
-		GRACEFUL_GLOVES_24755, GRACEFUL_GLOVES_24757, GRACEFUL_GLOVES_25081, GRACEFUL_GLOVES_25083
-	);
+    @Override
+    protected void shutDown() throws Exception {
+        this.overlayManager.remove(this.energyOverlay);
+        this.localPlayerRunningToDestination = false;
+        this.prevLocalPlayerLocation = null;
+        this.lastCheckTick = -1;
+        this.roeWarningSent = false;
+        this.resetRunOrbText();
+    }
 
-	private static final ImmutableSet<Integer> ALL_GRACEFUL_BOOTS = ImmutableSet.of(
-		GRACEFUL_BOOTS_11861, GRACEFUL_BOOTS_13589, GRACEFUL_BOOTS_13590, GRACEFUL_BOOTS_13601, GRACEFUL_BOOTS_13602,
-		GRACEFUL_BOOTS_13613, GRACEFUL_BOOTS_13614, GRACEFUL_BOOTS_13625, GRACEFUL_BOOTS_13626, GRACEFUL_BOOTS_13637,
-		GRACEFUL_BOOTS_13638, GRACEFUL_BOOTS_13677, GRACEFUL_BOOTS_13678, GRACEFUL_BOOTS_21076, GRACEFUL_BOOTS_21078,
-		GRACEFUL_BOOTS_24758, GRACEFUL_BOOTS_24760, GRACEFUL_BOOTS_25084, GRACEFUL_BOOTS_25086
-	);
+    Integer getRingOfEnduranceCharges() {
+        return (Integer)this.configManager.getRSProfileConfiguration("runenergy", "ringOfEnduranceCharges", (Type)((Object)Integer.class));
+    }
 
-	// Agility skill capes and the non-cosmetic Max capes also count for the Graceful set effect
-	private static final ImmutableSet<Integer> ALL_GRACEFUL_CAPES = ImmutableSet.of(
-		GRACEFUL_CAPE_11853, GRACEFUL_CAPE_13581, GRACEFUL_CAPE_13582, GRACEFUL_CAPE_13593, GRACEFUL_CAPE_13594,
-		GRACEFUL_CAPE_13605, GRACEFUL_CAPE_13606, GRACEFUL_CAPE_13617, GRACEFUL_CAPE_13618, GRACEFUL_CAPE_13629,
-		GRACEFUL_CAPE_13630, GRACEFUL_CAPE_13669, GRACEFUL_CAPE_13670, GRACEFUL_CAPE_21064, GRACEFUL_CAPE_21066,
-		GRACEFUL_CAPE_24746, GRACEFUL_CAPE_24748, GRACEFUL_CAPE_25072, GRACEFUL_CAPE_25074,
-		AGILITY_CAPE, AGILITY_CAPET, MAX_CAPE
-	);
+    void setRingOfEnduranceCharges(int charges) {
+        this.configManager.setRSProfileConfiguration("runenergy", "ringOfEnduranceCharges", charges);
+    }
 
-	@RequiredArgsConstructor
-	@Getter
-	private enum GracefulEquipmentSlot
-	{
-		HEAD(EquipmentInventorySlot.HEAD.getSlotIdx(), ALL_GRACEFUL_HOODS, 3),
-		BODY(EquipmentInventorySlot.BODY.getSlotIdx(), ALL_GRACEFUL_TOPS, 4),
-		LEGS(EquipmentInventorySlot.LEGS.getSlotIdx(), ALL_GRACEFUL_LEGS, 4),
-		GLOVES(EquipmentInventorySlot.GLOVES.getSlotIdx(), ALL_GRACEFUL_GLOVES, 3),
-		BOOTS(EquipmentInventorySlot.BOOTS.getSlotIdx(), ALL_GRACEFUL_BOOTS, 3),
-		CAPE(EquipmentInventorySlot.CAPE.getSlotIdx(), ALL_GRACEFUL_CAPES, 3);
+    boolean isRingOfEnduranceEquipped() {
+        ItemContainer equipment = this.client.getItemContainer(InventoryID.EQUIPMENT);
+        return equipment != null && equipment.count(24736) == 1;
+    }
 
-		private final int index;
-		private final ImmutableSet<Integer> items;
-		private final int boost;
+    @Subscribe
+    public void onGameTick(GameTick event) {
+        this.localPlayerRunningToDestination = this.prevLocalPlayerLocation != null && this.client.getLocalDestinationLocation() != null && this.prevLocalPlayerLocation.distanceTo(this.client.getLocalPlayer().getWorldLocation()) > 1;
+        this.prevLocalPlayerLocation = this.client.getLocalPlayer().getWorldLocation();
+    }
 
-		private static final int TOTAL_BOOSTS = Arrays.stream(values()).mapToInt(GracefulEquipmentSlot::getBoost).sum();
-	}
+    @Subscribe
+    public void onScriptPostFired(ScriptPostFired scriptPostFired) {
+        if (scriptPostFired.getScriptId() == 447 && this.energyConfig.replaceOrbText()) {
+            this.setRunOrbText(this.getEstimatedRunTimeRemaining(true));
+        }
+    }
 
-	// Full set grants an extra 10% boost to recovery rate
-	private static final int GRACEFUL_FULL_SET_BOOST_BONUS = 10;
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (event.getGroup().equals("runenergy") && !this.energyConfig.replaceOrbText()) {
+            this.resetRunOrbText();
+        }
+    }
 
-	@Inject
-	private Client client;
+    @Subscribe
+    public void onChatMessage(ChatMessage event) {
+        if (event.getType() != ChatMessageType.GAMEMESSAGE && event.getType() != ChatMessageType.SPAM) {
+            return;
+        }
+        String message = event.getMessage();
+        if (message.equals("Your Ring of endurance doubles the duration of your stamina potion's effect.")) {
+            Integer charges = this.getRingOfEnduranceCharges();
+            if (charges == null) {
+                log.debug("Ring of endurance charge with no known charges");
+                return;
+            }
+            Integer n = charges;
+            Integer n2 = charges = Integer.valueOf(charges - 1);
+            this.setRingOfEnduranceCharges(charges);
+            if (!this.roeWarningSent && charges < 500 && this.energyConfig.ringOfEnduranceChargeMessage()) {
+                String chatMessage = new ChatMessageBuilder().append(ChatColorType.HIGHLIGHT).append("Your Ring of endurance now has less than 500 charges. Add more charges to regain its passive stamina effect.").build();
+                this.chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.CONSOLE).runeLiteFormattedMessage(chatMessage).build());
+                this.roeWarningSent = true;
+            }
+        } else if (message.startsWith("Your Ring of endurance is charged with") || message.startsWith("You load your Ring of endurance with")) {
+            Matcher matcher = Pattern.compile("([0-9]+)").matcher(message);
+            int charges = -1;
+            while (matcher.find()) {
+                charges = Integer.parseInt(matcher.group(1));
+            }
+            this.setRingOfEnduranceCharges(charges);
+            if (charges >= 500) {
+                this.roeWarningSent = false;
+            }
+        }
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Subscribe
+    public void onScriptCallbackEvent(ScriptCallbackEvent event) {
+        if (!"destroyOnOpKey".equals(event.getEventName())) {
+            return;
+        }
+        int yesOption = this.client.getIntStack()[this.client.getIntStackSize() - 1];
+        if (yesOption == 1) {
+            this.checkDestroyWidget();
+        }
+    }
 
-	@Inject
-	private RunEnergyOverlay energyOverlay;
+    private void setRunOrbText(String text) {
+        Widget runOrbText = this.client.getWidget(WidgetInfo.MINIMAP_RUN_ORB_TEXT);
+        if (runOrbText != null) {
+            runOrbText.setText(text);
+        }
+    }
 
-	@Inject
-	private RunEnergyConfig energyConfig;
+    private void resetRunOrbText() {
+        this.setRunOrbText(Integer.toString(this.client.getEnergy()));
+    }
 
-	private boolean localPlayerRunningToDestination;
-	private WorldPoint prevLocalPlayerLocation;
-	private String runTimeRemaining;
+    String getEstimatedRunTimeRemaining(boolean inSeconds) {
+        int effectiveWeight = Math.min(Math.max(this.client.getWeight(), 0), 64);
+        int energyUnitsLost = effectiveWeight * 67 / 64 + 67;
+        if (this.client.getVarbitValue(25) != 0) {
+            energyUnitsLost = (int)((double)energyUnitsLost * 0.3);
+        } else if (this.isRingOfEnduranceEquipped()) {
+            Integer charges = this.getRingOfEnduranceCharges();
+            if (charges == null) {
+                return "?";
+            }
+            if (charges >= 500) {
+                energyUnitsLost = (int)((double)energyUnitsLost * 0.85);
+            }
+        }
+        double ticksLeft = Math.ceil((double)this.client.getEnergy() / ((double)energyUnitsLost / 100.0));
+        double secondsLeft = ticksLeft * 600.0 / 1000.0;
+        if (inSeconds) {
+            return (int)Math.floor(secondsLeft) + "s";
+        }
+        int minutes = (int)Math.floor(secondsLeft / 60.0);
+        int seconds = (int)Math.floor(secondsLeft - (double)minutes * 60.0);
+        return minutes + ":" + StringUtils.leftPad((String)Integer.toString(seconds), (int)2, (String)"0");
+    }
 
-	@Provides
-	RunEnergyConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(RunEnergyConfig.class);
-	}
+    private int getGracefulRecoveryBoost() {
+        ItemContainer equipment = this.client.getItemContainer(InventoryID.EQUIPMENT);
+        if (equipment == null) {
+            return 0;
+        }
+        Item[] items = equipment.getItems();
+        int boost = 0;
+        for (GracefulEquipmentSlot slot : GracefulEquipmentSlot.values()) {
+            Item wornItem;
+            if (items.length <= slot.getIndex() || (wornItem = items[slot.getIndex()]) == null || !slot.getItems().contains((Object)wornItem.getId())) continue;
+            boost += slot.getBoost();
+        }
+        if (boost == GracefulEquipmentSlot.TOTAL_BOOSTS) {
+            boost += 10;
+        }
+        return boost;
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		overlayManager.add(energyOverlay);
-	}
+    int getEstimatedRecoverTimeRemaining() {
+        if (this.localPlayerRunningToDestination) {
+            return -1;
+        }
+        double recoverRate = (double)(48 + this.client.getBoostedSkillLevel(Skill.AGILITY)) / 360.0;
+        double secondsLeft = (double)(100 - this.client.getEnergy()) / (recoverRate *= 1.0 + (double)this.getGracefulRecoveryBoost() / 100.0);
+        return (int)secondsLeft;
+    }
 
-	@Override
-	protected void shutDown() throws Exception
-	{
-		overlayManager.remove(energyOverlay);
-		localPlayerRunningToDestination = false;
-		prevLocalPlayerLocation = null;
-		resetRunOrbText();
-	}
+    private void checkDestroyWidget() {
+        int currentTick = this.client.getTickCount();
+        if (this.lastCheckTick == currentTick) {
+            return;
+        }
+        this.lastCheckTick = currentTick;
+        Widget widgetDestroyItemName = this.client.getWidget(WidgetInfo.DESTROY_ITEM_NAME);
+        if (widgetDestroyItemName == null) {
+            return;
+        }
+        if (widgetDestroyItemName.getText().equals("Ring of endurance")) {
+            this.setRingOfEnduranceCharges(0);
+        }
+    }
 
-	@Subscribe
-	public void onGameTick(GameTick event)
-	{
-		localPlayerRunningToDestination =
-			prevLocalPlayerLocation != null &&
-			client.getLocalDestinationLocation() != null &&
-			prevLocalPlayerLocation.distanceTo(client.getLocalPlayer().getWorldLocation()) > 1;
+    static /* synthetic */ ImmutableSet access$000() {
+        return ALL_GRACEFUL_HOODS;
+    }
 
-		prevLocalPlayerLocation = client.getLocalPlayer().getWorldLocation();
+    static /* synthetic */ ImmutableSet access$100() {
+        return ALL_GRACEFUL_TOPS;
+    }
 
-		runTimeRemaining = energyConfig.replaceOrbText() ? getEstimatedRunTimeRemaining(true) : null;
-	}
+    static /* synthetic */ ImmutableSet access$200() {
+        return ALL_GRACEFUL_LEGS;
+    }
 
-	@Subscribe
-	public void onBeforeRender(BeforeRender beforeRender)
-	{
-		if (runTimeRemaining != null)
-		{
-			setRunOrbText(runTimeRemaining);
-		}
-	}
+    static /* synthetic */ ImmutableSet access$300() {
+        return ALL_GRACEFUL_GLOVES;
+    }
 
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		if (event.getGroup().equals("runenergy") && !energyConfig.replaceOrbText())
-		{
-			resetRunOrbText();
-		}
-	}
+    static /* synthetic */ ImmutableSet access$400() {
+        return ALL_GRACEFUL_BOOTS;
+    }
 
-	private void setRunOrbText(String text)
-	{
-		Widget runOrbText = client.getWidget(WidgetInfo.MINIMAP_RUN_ORB_TEXT);
+    static /* synthetic */ ImmutableSet access$500() {
+        return ALL_GRACEFUL_CAPES;
+    }
 
-		if (runOrbText != null)
-		{
-			runOrbText.setText(text);
-		}
-	}
+    private static enum GracefulEquipmentSlot {
+        HEAD(EquipmentInventorySlot.HEAD.getSlotIdx(), (ImmutableSet<Integer>)RunEnergyPlugin.access$000(), 3),
+        BODY(EquipmentInventorySlot.BODY.getSlotIdx(), (ImmutableSet<Integer>)RunEnergyPlugin.access$100(), 4),
+        LEGS(EquipmentInventorySlot.LEGS.getSlotIdx(), (ImmutableSet<Integer>)RunEnergyPlugin.access$200(), 4),
+        GLOVES(EquipmentInventorySlot.GLOVES.getSlotIdx(), (ImmutableSet<Integer>)RunEnergyPlugin.access$300(), 3),
+        BOOTS(EquipmentInventorySlot.BOOTS.getSlotIdx(), (ImmutableSet<Integer>)RunEnergyPlugin.access$400(), 3),
+        CAPE(EquipmentInventorySlot.CAPE.getSlotIdx(), (ImmutableSet<Integer>)RunEnergyPlugin.access$500(), 3);
 
-	private void resetRunOrbText()
-	{
-		setRunOrbText(Integer.toString(client.getEnergy()));
-	}
+        private final int index;
+        private final ImmutableSet<Integer> items;
+        private final int boost;
+        private static final int TOTAL_BOOSTS;
 
-	String getEstimatedRunTimeRemaining(boolean inSeconds)
-	{
-		// Calculate the amount of energy lost every tick.
-		// Negative weight has the same depletion effect as 0 kg.
-		final int effectiveWeight = Math.max(client.getWeight(), 0);
-		double lossRate = (Math.min(effectiveWeight, 64) / 100.0) + 0.64;
+        private GracefulEquipmentSlot(int index, ImmutableSet<Integer> items, int boost) {
+            this.index = index;
+            this.items = items;
+            this.boost = boost;
+        }
 
-		if (client.getVarbitValue(Varbits.RUN_SLOWED_DEPLETION_ACTIVE) != 0)
-		{
-			lossRate *= 0.3; // Stamina effect reduces energy depletion to 30%
-		}
+        public int getIndex() {
+            return this.index;
+        }
 
-		// Calculate the number of seconds left
-		final double secondsLeft = (client.getEnergy() * Constants.GAME_TICK_LENGTH) / (lossRate * 1000.0);
+        public ImmutableSet<Integer> getItems() {
+            return this.items;
+        }
 
-		// Return the text
-		if (inSeconds)
-		{
-			return (int) Math.floor(secondsLeft) + "s";
-		}
-		else
-		{
-			final int minutes = (int) Math.floor(secondsLeft / 60.0);
-			final int seconds = (int) Math.floor(secondsLeft - (minutes * 60.0));
-			return minutes + ":" + StringUtils.leftPad(Integer.toString(seconds), 2, "0");
-		}
-	}
+        public int getBoost() {
+            return this.boost;
+        }
 
-	private int getGracefulRecoveryBoost()
-	{
-		final ItemContainer equipment = client.getItemContainer(InventoryID.EQUIPMENT);
-
-		if (equipment == null)
-		{
-			return 0;
-		}
-
-		final Item[] items = equipment.getItems();
-
-		int boost = 0;
-
-		for (final GracefulEquipmentSlot slot : GracefulEquipmentSlot.values())
-		{
-			if (items.length <= slot.getIndex())
-			{
-				continue;
-			}
-
-			final Item wornItem = items[slot.getIndex()];
-
-			if (wornItem != null && slot.getItems().contains(wornItem.getId()))
-			{
-				boost += slot.getBoost();
-			}
-		}
-
-		if (boost == GracefulEquipmentSlot.TOTAL_BOOSTS)
-		{
-			boost += GRACEFUL_FULL_SET_BOOST_BONUS;
-		}
-
-		return boost;
-	}
-
-	int getEstimatedRecoverTimeRemaining()
-	{
-		if (localPlayerRunningToDestination)
-		{
-			return -1;
-		}
-
-		// Calculate the amount of energy recovered every second
-		double recoverRate = (48 + client.getBoostedSkillLevel(Skill.AGILITY)) / 360.0;
-		recoverRate *= 1.0 + getGracefulRecoveryBoost() / 100.0;
-
-		// Calculate the number of seconds left
-		final double secondsLeft = (100 - client.getEnergy()) / recoverRate;
-		return (int) secondsLeft;
-	}
+        static {
+            TOTAL_BOOSTS = Arrays.stream(GracefulEquipmentSlot.values()).mapToInt(GracefulEquipmentSlot::getBoost).sum();
+        }
+    }
 }
+

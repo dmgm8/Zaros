@@ -1,48 +1,91 @@
 /*
- * Copyright (c) 2018, TheLonelyDev <https://github.com/TheLonelyDev>
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
  */
 package net.runelite.client.plugins.groundmarkers;
 
 import java.awt.Color;
 import javax.annotation.Nullable;
-import lombok.EqualsAndHashCode;
-import lombok.Value;
 
-/**
- * Used for serialization of ground marker points.
- */
-@Value
-@EqualsAndHashCode(exclude = { "color", "label" })
-class GroundMarkerPoint
-{
-	private int regionId;
-	private int regionX;
-	private int regionY;
-	private int z;
-	@Nullable
-	private Color color;
-	@Nullable
-	private String label;
+final class GroundMarkerPoint {
+    private final int regionId;
+    private final int regionX;
+    private final int regionY;
+    private final int z;
+    @Nullable
+    private final Color color;
+    @Nullable
+    private final String label;
+
+    public GroundMarkerPoint(int regionId, int regionX, int regionY, int z, @Nullable Color color, @Nullable String label) {
+        this.regionId = regionId;
+        this.regionX = regionX;
+        this.regionY = regionY;
+        this.z = z;
+        this.color = color;
+        this.label = label;
+    }
+
+    public int getRegionId() {
+        return this.regionId;
+    }
+
+    public int getRegionX() {
+        return this.regionX;
+    }
+
+    public int getRegionY() {
+        return this.regionY;
+    }
+
+    public int getZ() {
+        return this.z;
+    }
+
+    @Nullable
+    public Color getColor() {
+        return this.color;
+    }
+
+    @Nullable
+    public String getLabel() {
+        return this.label;
+    }
+
+    public String toString() {
+        return "GroundMarkerPoint(regionId=" + this.getRegionId() + ", regionX=" + this.getRegionX() + ", regionY=" + this.getRegionY() + ", z=" + this.getZ() + ", color=" + this.getColor() + ", label=" + this.getLabel() + ")";
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof GroundMarkerPoint)) {
+            return false;
+        }
+        GroundMarkerPoint other = (GroundMarkerPoint)o;
+        if (this.getRegionId() != other.getRegionId()) {
+            return false;
+        }
+        if (this.getRegionX() != other.getRegionX()) {
+            return false;
+        }
+        if (this.getRegionY() != other.getRegionY()) {
+            return false;
+        }
+        return this.getZ() == other.getZ();
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getRegionId();
+        result = result * 59 + this.getRegionX();
+        result = result * 59 + this.getRegionY();
+        result = result * 59 + this.getZ();
+        return result;
+    }
 }
+

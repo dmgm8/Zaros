@@ -1,34 +1,15 @@
 /*
- * Copyright (c) 2019 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
  */
 package net.runelite.client.plugins.config;
 
+import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 import javax.swing.JMenuItem;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigDescriptor;
 import net.runelite.client.externalplugins.ExternalPluginManager;
@@ -36,72 +17,155 @@ import net.runelite.client.externalplugins.ExternalPluginManifest;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.util.LinkBrowser;
 
-@Value
-@RequiredArgsConstructor
-class PluginConfigurationDescriptor
-{
-	private final String name;
-	private final String description;
-	private final String[] tags;
+final class PluginConfigurationDescriptor {
+    private final String name;
+    private final String description;
+    private final String[] tags;
+    @Nullable
+    private final Plugin plugin;
+    @Nullable
+    private final Config config;
+    @Nullable
+    private final ConfigDescriptor configDescriptor;
+    @Nullable
+    private final List<String> conflicts;
 
-	// Can be null if its not an actual plugin (RuneLite / ChatColors)
-	@Nullable
-	private final Plugin plugin;
+    boolean hasConfigurables() {
+        return this.configDescriptor != null && !this.configDescriptor.getItems().stream().allMatch(item -> item.getItem().hidden());
+    }
 
-	// Can be null if it has no more configuration than the on/off toggle
-	@Nullable
-	private final Config config;
+    PluginConfigurationDescriptor(String name, String description, String[] tags, Config config, ConfigDescriptor configDescriptor) {
+        this(name, description, tags, null, config, configDescriptor, null);
+    }
 
-	@Nullable
-	private final ConfigDescriptor configDescriptor;
+    @Nullable
+    JMenuItem createSupportMenuItem() {
+        ExternalPluginManifest mf = this.getExternalPluginManifest();
+        if (mf != null) {
+            if (mf.getSupport() == null) {
+                return null;
+            }
+            JMenuItem menuItem = new JMenuItem("Support");
+            menuItem.addActionListener(e -> LinkBrowser.browse(mf.getSupport().toString()));
+            return menuItem;
+        }
+        JMenuItem menuItem = new JMenuItem("Wiki");
+        menuItem.addActionListener(e -> LinkBrowser.browse("https://github.com/runelite/runelite/wiki/" + this.name.replace(' ', '-')));
+        return menuItem;
+    }
 
-	@Nullable
-	private final List<String> conflicts;
+    @Nullable
+    ExternalPluginManifest getExternalPluginManifest() {
+        if (this.plugin == null) {
+            return null;
+        }
+        return ExternalPluginManager.getExternalPluginManifest(this.plugin.getClass());
+    }
 
-	boolean hasConfigurables()
-	{
-		return configDescriptor != null && !configDescriptor.getItems().stream().allMatch(item -> item.getItem().hidden());
-	}
+    public String getName() {
+        return this.name;
+    }
 
-	PluginConfigurationDescriptor(String name, String description, String[] tags, Config config, ConfigDescriptor configDescriptor)
-	{
-		this(name, description, tags, null, config, configDescriptor, null);
-	}
+    public String getDescription() {
+        return this.description;
+    }
 
-	/**
-	 * Creates a menu item for linking to a support page for the plugin
-	 *
-	 * @return A {@link JMenuItem} which opens the plugin's wiki page URL in the browser when clicked
-	 */
-	@Nullable
-	JMenuItem createSupportMenuItem()
-	{
-		ExternalPluginManifest mf = getExternalPluginManifest();
-		if (mf != null)
-		{
-			if (mf.getSupport() == null)
-			{
-				return null;
-			}
+    public String[] getTags() {
+        return this.tags;
+    }
 
-			JMenuItem menuItem = new JMenuItem("Support");
-			menuItem.addActionListener(e -> LinkBrowser.browse(mf.getSupport().toString()));
-			return menuItem;
-		}
+    @Nullable
+    public Plugin getPlugin() {
+        return this.plugin;
+    }
 
-		JMenuItem menuItem = new JMenuItem("Wiki");
-		menuItem.addActionListener(e -> LinkBrowser.browse("https://github.com/runelite/runelite/wiki/" + name.replace(' ', '-')));
-		return menuItem;
-	}
+    @Nullable
+    public Config getConfig() {
+        return this.config;
+    }
 
-	@Nullable
-	ExternalPluginManifest getExternalPluginManifest()
-	{
-		if (plugin == null)
-		{
-			return null;
-		}
+    @Nullable
+    public ConfigDescriptor getConfigDescriptor() {
+        return this.configDescriptor;
+    }
 
-		return ExternalPluginManager.getExternalPluginManifest(plugin.getClass());
-	}
+    @Nullable
+    public List<String> getConflicts() {
+        return this.conflicts;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof PluginConfigurationDescriptor)) {
+            return false;
+        }
+        PluginConfigurationDescriptor other = (PluginConfigurationDescriptor)o;
+        String this$name = this.getName();
+        String other$name = other.getName();
+        if (this$name == null ? other$name != null : !this$name.equals(other$name)) {
+            return false;
+        }
+        String this$description = this.getDescription();
+        String other$description = other.getDescription();
+        if (this$description == null ? other$description != null : !this$description.equals(other$description)) {
+            return false;
+        }
+        if (!Arrays.deepEquals(this.getTags(), other.getTags())) {
+            return false;
+        }
+        Plugin this$plugin = this.getPlugin();
+        Plugin other$plugin = other.getPlugin();
+        if (this$plugin == null ? other$plugin != null : !((Object)this$plugin).equals(other$plugin)) {
+            return false;
+        }
+        Config this$config = this.getConfig();
+        Config other$config = other.getConfig();
+        if (this$config == null ? other$config != null : !this$config.equals(other$config)) {
+            return false;
+        }
+        ConfigDescriptor this$configDescriptor = this.getConfigDescriptor();
+        ConfigDescriptor other$configDescriptor = other.getConfigDescriptor();
+        if (this$configDescriptor == null ? other$configDescriptor != null : !this$configDescriptor.equals(other$configDescriptor)) {
+            return false;
+        }
+        List<String> this$conflicts = this.getConflicts();
+        List<String> other$conflicts = other.getConflicts();
+        return !(this$conflicts == null ? other$conflicts != null : !((Object)this$conflicts).equals(other$conflicts));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        String $name = this.getName();
+        result = result * 59 + ($name == null ? 43 : $name.hashCode());
+        String $description = this.getDescription();
+        result = result * 59 + ($description == null ? 43 : $description.hashCode());
+        result = result * 59 + Arrays.deepHashCode(this.getTags());
+        Plugin $plugin = this.getPlugin();
+        result = result * 59 + ($plugin == null ? 43 : ((Object)$plugin).hashCode());
+        Config $config = this.getConfig();
+        result = result * 59 + ($config == null ? 43 : $config.hashCode());
+        ConfigDescriptor $configDescriptor = this.getConfigDescriptor();
+        result = result * 59 + ($configDescriptor == null ? 43 : $configDescriptor.hashCode());
+        List<String> $conflicts = this.getConflicts();
+        result = result * 59 + ($conflicts == null ? 43 : ((Object)$conflicts).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "PluginConfigurationDescriptor(name=" + this.getName() + ", description=" + this.getDescription() + ", tags=" + Arrays.deepToString(this.getTags()) + ", plugin=" + this.getPlugin() + ", config=" + this.getConfig() + ", configDescriptor=" + this.getConfigDescriptor() + ", conflicts=" + this.getConflicts() + ")";
+    }
+
+    public PluginConfigurationDescriptor(String name, String description, String[] tags, @Nullable Plugin plugin, @Nullable Config config, @Nullable ConfigDescriptor configDescriptor, @Nullable List<String> conflicts) {
+        this.name = name;
+        this.description = description;
+        this.tags = tags;
+        this.plugin = plugin;
+        this.config = config;
+        this.configDescriptor = configDescriptor;
+        this.conflicts = conflicts;
+    }
 }
+

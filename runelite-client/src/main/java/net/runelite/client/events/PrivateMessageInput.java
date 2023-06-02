@@ -1,36 +1,68 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.events;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import net.runelite.client.events.ChatInput;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
-public abstract class PrivateMessageInput extends ChatInput
-{
-	private final String target;
-	private final String message;
+public abstract class PrivateMessageInput
+extends ChatInput {
+    private final String target;
+    private final String message;
+
+    public PrivateMessageInput(String target, String message) {
+        this.target = target;
+        this.message = message;
+    }
+
+    public String getTarget() {
+        return this.target;
+    }
+
+    public String getMessage() {
+        return this.message;
+    }
+
+    public String toString() {
+        return "PrivateMessageInput(target=" + this.getTarget() + ", message=" + this.getMessage() + ")";
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof PrivateMessageInput)) {
+            return false;
+        }
+        PrivateMessageInput other = (PrivateMessageInput)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        String this$target = this.getTarget();
+        String other$target = other.getTarget();
+        if (this$target == null ? other$target != null : !this$target.equals(other$target)) {
+            return false;
+        }
+        String this$message = this.getMessage();
+        String other$message = other.getMessage();
+        return !(this$message == null ? other$message != null : !this$message.equals(other$message));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof PrivateMessageInput;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = super.hashCode();
+        String $target = this.getTarget();
+        result = result * 59 + ($target == null ? 43 : $target.hashCode());
+        String $message = this.getMessage();
+        result = result * 59 + ($message == null ? 43 : $message.hashCode());
+        return result;
+    }
 }
+

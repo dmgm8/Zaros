@@ -1,31 +1,21 @@
 /*
- * Copyright (c) 2018 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.cache.Cache
+ *  com.google.common.cache.CacheBuilder
+ *  javax.annotation.Nullable
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.SpritePixels
  */
 package net.runelite.client.game;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -41,146 +31,98 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.SpritePixels;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.game.SpriteOverride;
 import net.runelite.client.ui.overlay.infobox.InfoBox;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.util.ImageUtil;
 
 @Singleton
-public class SpriteManager
-{
-	private final Client client;
-	private final ClientThread clientThread;
-	private final InfoBoxManager infoBoxManager;
+public class SpriteManager {
+    private final Client client;
+    private final ClientThread clientThread;
+    private final InfoBoxManager infoBoxManager;
+    private final Cache<Long, BufferedImage> cache = CacheBuilder.newBuilder().maximumSize(128L).expireAfterAccess(1L, TimeUnit.HOURS).build();
 
-	private final Cache<Long, BufferedImage> cache = CacheBuilder.newBuilder()
-		.maximumSize(128L)
-		.expireAfterAccess(1, TimeUnit.HOURS)
-		.build();
+    @Inject
+    private SpriteManager(Client client, ClientThread clientThread, InfoBoxManager infoBoxManager) {
+        this.client = client;
+        this.clientThread = clientThread;
+        this.infoBoxManager = infoBoxManager;
+    }
 
-	@Inject
-	private SpriteManager(Client client, ClientThread clientThread, InfoBoxManager infoBoxManager)
-	{
-		this.client = client;
-		this.clientThread = clientThread;
-		this.infoBoxManager = infoBoxManager;
-	}
+    @Nullable
+    public BufferedImage getSprite(int archive, int file) {
+        assert (this.client.isClientThread());
+        if (this.client.getGameState().ordinal() < GameState.LOGIN_SCREEN.ordinal()) {
+            return null;
+        }
+        Long key = (long)archive << 32 | (long)file;
+        BufferedImage cached = (BufferedImage)this.cache.getIfPresent((Object)key);
+        if (cached != null) {
+            return cached;
+        }
+        SpritePixels[] sp = this.client.getSprites(this.client.getIndexSprites(), archive, 0);
+        if (sp == null) {
+            return null;
+        }
+        BufferedImage img = sp[file].toBufferedImage();
+        this.cache.put((Object)key, (Object)img);
+        return img;
+    }
 
-	@Nullable
-	public BufferedImage getSprite(int archive, int file)
-	{
-		assert client.isClientThread();
-		if (client.getGameState().ordinal() < GameState.LOGIN_SCREEN.ordinal())
-		{
-			return null;
-		}
+    public void getSpriteAsync(int archive, int file, Consumer<BufferedImage> user) {
+        BufferedImage cached = (BufferedImage)this.cache.getIfPresent((Object)((long)archive << 32 | (long)file));
+        if (cached != null) {
+            user.accept(cached);
+            return;
+        }
+        this.clientThread.invoke(() -> {
+            BufferedImage img = this.getSprite(archive, file);
+            if (img == null) {
+                return false;
+            }
+            user.accept(img);
+            return true;
+        });
+    }
 
-		Long key = (long) archive << 32 | file;
-		BufferedImage cached = cache.getIfPresent(key);
-		if (cached != null)
-		{
-			return cached;
-		}
+    public void getSpriteAsync(int archive, int file, InfoBox infoBox) {
+        this.getSpriteAsync(archive, file, (BufferedImage img) -> {
+            infoBox.setImage((BufferedImage)img);
+            this.infoBoxManager.updateInfoBoxImage(infoBox);
+        });
+    }
 
-		SpritePixels[] sp = client.getSprites(client.getIndexSprites(), archive, 0);
-		if (sp == null)
-		{
-			return null;
-		}
+    public void addSpriteTo(JButton c, int archive, int file) {
+        this.getSpriteAsync(archive, file, (BufferedImage img) -> SwingUtilities.invokeLater(() -> c.setIcon(new ImageIcon((Image)img))));
+    }
 
-		BufferedImage img = sp[file].toBufferedImage();
+    public void addSpriteTo(JLabel c, int archive, int file) {
+        this.getSpriteAsync(archive, file, (BufferedImage img) -> SwingUtilities.invokeLater(() -> c.setIcon(new ImageIcon((Image)img))));
+    }
 
-		cache.put(key, img);
-		return img;
-	}
+    public void addSpriteOverrides(SpriteOverride[] add) {
+        if (add.length <= 0) {
+            return;
+        }
+        this.clientThread.invokeLater(() -> {
+            Map overrides = this.client.getSpriteOverrides();
+            Class<?> owner = add[0].getClass();
+            for (SpriteOverride o : add) {
+                BufferedImage image = ImageUtil.loadImageResource(owner, o.getFileName());
+                SpritePixels sp = ImageUtil.getImageSpritePixels(image, this.client);
+                overrides.put(o.getSpriteId(), sp);
+            }
+        });
+    }
 
-	public void getSpriteAsync(int archive, int file, Consumer<BufferedImage> user)
-	{
-		BufferedImage cached = cache.getIfPresent((long) archive << 32 | file);
-		if (cached != null)
-		{
-			user.accept(cached);
-			return;
-		}
-
-		clientThread.invoke(() ->
-		{
-			BufferedImage img = getSprite(archive, file);
-			if (img == null)
-			{
-				// Cache isn't loaded yet
-				return false;
-			}
-			user.accept(img);
-			return true;
-		});
-	}
-
-	public void getSpriteAsync(int archive, int file, InfoBox infoBox)
-	{
-		getSpriteAsync(archive, file, img ->
-		{
-			infoBox.setImage(img);
-			infoBoxManager.updateInfoBoxImage(infoBox);
-		});
-	}
-
-	/**
-	 * Calls setIcon on c, ensuring it is repainted when this changes
-	 */
-	public void addSpriteTo(JButton c, int archive, int file)
-	{
-		getSpriteAsync(archive, file, img ->
-		{
-			SwingUtilities.invokeLater(() ->
-			{
-				c.setIcon(new ImageIcon(img));
-			});
-		});
-	}
-
-	/**
-	 * Calls setIcon on c, ensuring it is repainted when this changes
-	 */
-	public void addSpriteTo(JLabel c, int archive, int file)
-	{
-		getSpriteAsync(archive, file, img ->
-		{
-			SwingUtilities.invokeLater(() ->
-			{
-				c.setIcon(new ImageIcon(img));
-			});
-		});
-	}
-
-	public void addSpriteOverrides(SpriteOverride[] add)
-	{
-		if (add.length <= 0)
-		{
-			return;
-		}
-
-		clientThread.invokeLater(() ->
-		{
-			Map<Integer, SpritePixels> overrides = client.getSpriteOverrides();
-			Class<?> owner = add[0].getClass();
-			for (SpriteOverride o : add)
-			{
-				BufferedImage image = ImageUtil.loadImageResource(owner, o.getFileName());
-				SpritePixels sp = ImageUtil.getImageSpritePixels(image, client);
-				overrides.put(o.getSpriteId(), sp);
-			}
-		});
-	}
-
-	public void removeSpriteOverrides(SpriteOverride[] remove)
-	{
-		clientThread.invokeLater(() ->
-		{
-			Map<Integer, SpritePixels> overrides = client.getSpriteOverrides();
-			for (SpriteOverride o : remove)
-			{
-				overrides.remove(o.getSpriteId());
-			}
-		});
-	}
+    public void removeSpriteOverrides(SpriteOverride[] remove) {
+        this.clientThread.invokeLater(() -> {
+            Map overrides = this.client.getSpriteOverrides();
+            for (SpriteOverride o : remove) {
+                overrides.remove(o.getSpriteId());
+            }
+        });
+    }
 }
+

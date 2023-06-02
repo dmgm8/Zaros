@@ -1,26 +1,13 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.cache.CacheLoader
+ *  com.google.common.util.concurrent.ListenableFuture
+ *  com.google.common.util.concurrent.ListeningExecutorService
+ *  com.google.common.util.concurrent.MoreExecutors
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.hiscore;
 
@@ -30,56 +17,47 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
-import lombok.extern.slf4j.Slf4j;
-import static net.runelite.client.hiscore.HiscoreManager.EMPTY;
-import static net.runelite.client.hiscore.HiscoreManager.NONE;
+import net.runelite.client.hiscore.HiscoreClient;
+import net.runelite.client.hiscore.HiscoreEndpoint;
+import net.runelite.client.hiscore.HiscoreManager;
+import net.runelite.client.hiscore.HiscoreResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
-class HiscoreLoader extends CacheLoader<HiscoreManager.HiscoreKey, HiscoreResult>
-{
-	private final ListeningExecutorService executorService;
-	private final HiscoreClient hiscoreClient;
+class HiscoreLoader
+extends CacheLoader<HiscoreManager.HiscoreKey, HiscoreResult> {
+    private static final Logger log = LoggerFactory.getLogger(HiscoreLoader.class);
+    private final ListeningExecutorService executorService;
+    private final HiscoreClient hiscoreClient;
 
-	HiscoreLoader(ScheduledExecutorService executor, HiscoreClient client)
-	{
-		this.executorService = MoreExecutors.listeningDecorator(executor);
-		this.hiscoreClient = client;
-	}
+    HiscoreLoader(ScheduledExecutorService executor, HiscoreClient client) {
+        this.executorService = MoreExecutors.listeningDecorator((ScheduledExecutorService)executor);
+        this.hiscoreClient = client;
+    }
 
-	@Override
-	public HiscoreResult load(HiscoreManager.HiscoreKey hiscoreKey) throws Exception
-	{
-		return EMPTY;
-	}
+    public HiscoreResult load(HiscoreManager.HiscoreKey hiscoreKey) throws Exception {
+        return HiscoreManager.EMPTY;
+    }
 
-	@Override
-	public ListenableFuture<HiscoreResult> reload(HiscoreManager.HiscoreKey hiscoreKey, HiscoreResult oldValue)
-	{
-		log.debug("Submitting hiscore lookup for {} type {}", hiscoreKey.getUsername(), hiscoreKey.getType());
+    public ListenableFuture<HiscoreResult> reload(HiscoreManager.HiscoreKey hiscoreKey, HiscoreResult oldValue) {
+        log.debug("Submitting hiscore lookup for {} type {}", (Object)hiscoreKey.getUsername(), (Object)hiscoreKey.getType());
+        return this.executorService.submit(() -> this.fetch(hiscoreKey));
+    }
 
-		return executorService.submit(() -> fetch(hiscoreKey));
-	}
-
-	private HiscoreResult fetch(HiscoreManager.HiscoreKey hiscoreKey)
-	{
-		String username = hiscoreKey.getUsername();
-		HiscoreEndpoint endpoint = hiscoreKey.getType();
-
-		try
-		{
-			HiscoreResult result = hiscoreClient.lookup(username, endpoint);
-			if (result == null)
-			{
-				return NONE;
-			}
-			return result;
-		}
-		catch (IOException ex)
-		{
-			log.warn("Unable to look up hiscore!", ex);
-			return NONE;
-		}
-	}
-
+    private HiscoreResult fetch(HiscoreManager.HiscoreKey hiscoreKey) {
+        String username = hiscoreKey.getUsername();
+        HiscoreEndpoint endpoint = hiscoreKey.getType();
+        try {
+            HiscoreResult result = this.hiscoreClient.lookup(username, endpoint);
+            if (result == null) {
+                return HiscoreManager.NONE;
+            }
+            return result;
+        }
+        catch (IOException ex) {
+            log.warn("Unable to look up hiscore!", (Throwable)ex);
+            return HiscoreManager.NONE;
+        }
+    }
 }
 

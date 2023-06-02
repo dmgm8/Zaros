@@ -1,32 +1,22 @@
 /*
- * Copyright (c) 2018, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.World
+ *  net.runelite.api.events.WorldChanged
+ *  net.runelite.http.api.worlds.World
+ *  net.runelite.http.api.worlds.WorldResult
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.defaultworld;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.events.WorldChanged;
@@ -37,115 +27,87 @@ import net.runelite.client.events.SessionOpen;
 import net.runelite.client.game.WorldService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.defaultworld.DefaultWorldConfig;
 import net.runelite.client.util.WorldUtil;
 import net.runelite.http.api.worlds.World;
 import net.runelite.http.api.worlds.WorldResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@PluginDescriptor(
-	name = "Default World",
-	description = "Enable a default world to be selected when launching the client",
-	tags = {"home"}
-)
-@Slf4j
-public class DefaultWorldPlugin extends Plugin
-{
-	@Inject
-	private Client client;
+@PluginDescriptor(name="Default World", description="Enable a default world to be selected when launching the client", tags={"home"}, forceDisabled=true)
+public class DefaultWorldPlugin
+extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(DefaultWorldPlugin.class);
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private DefaultWorldConfig config;
+    @Inject
+    private WorldService worldService;
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    protected void startUp() {
+        this.clientThread.invokeLater(() -> {
+            if (this.client.getGameState().getState() < GameState.LOGIN_SCREEN.getState()) {
+                return false;
+            }
+            this.applyWorld();
+            return true;
+        });
+    }
 
-	@Inject
-	private DefaultWorldConfig config;
+    @Override
+    protected void shutDown() {
+    }
 
-	@Inject
-	private WorldService worldService;
+    @Provides
+    DefaultWorldConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(DefaultWorldConfig.class);
+    }
 
-	@Override
-	protected void startUp()
-	{
-		clientThread.invokeLater(() ->
-		{
-			if (client.getGameState().getState() < GameState.LOGIN_SCREEN.getState())
-			{
-				return false;
-			}
+    @Subscribe
+    public void onSessionOpen(SessionOpen event) {
+        this.clientThread.invokeLater(this::applyWorld);
+    }
 
-			applyWorld();
-			return true;
-		});
-	}
+    @Subscribe
+    public void onWorldChanged(WorldChanged worldChanged) {
+        int world = this.client.getWorld();
+        this.config.lastWorld(world);
+        log.debug("Saving last world {}", (Object)world);
+    }
 
-	@Override
-	protected void shutDown()
-	{
-	}
-
-	@Provides
-	DefaultWorldConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(DefaultWorldConfig.class);
-	}
-
-	@Subscribe
-	public void onSessionOpen(SessionOpen event)
-	{
-		clientThread.invokeLater(this::applyWorld);
-	}
-
-	@Subscribe
-	public void onWorldChanged(WorldChanged worldChanged)
-	{
-		int world = client.getWorld();
-		config.lastWorld(world);
-		log.debug("Saving last world {}", world);
-	}
-
-	private void applyWorld()
-	{
-		if (client.getGameState() != GameState.LOGIN_SCREEN)
-		{
-			return;
-		}
-
-		if (System.getProperty("cli.world") != null)
-		{
-			return;
-		}
-
-		final int newWorld = config.useLastWorld() ? config.lastWorld() : config.getWorld();
-		int correctedWorld = newWorld < 300 ? newWorld + 300 : newWorld;
-
-		// Old School RuneScape worlds start on 301 so don't even bother trying to find lower id ones
-		// and also do not try to set world if we are already on it
-		if (correctedWorld <= 300 || client.getWorld() == correctedWorld)
-		{
-			return;
-		}
-
-		final WorldResult worldResult = worldService.getWorlds();
-		if (worldResult == null)
-		{
-			log.warn("Failed to lookup worlds.");
-			return;
-		}
-
-		final World world = worldResult.findWorld(correctedWorld);
-		if (world == null)
-		{
-			log.warn("World {} not found.", correctedWorld);
-			return;
-		}
-
-		final net.runelite.api.World rsWorld = client.createWorld();
-		rsWorld.setActivity(world.getActivity());
-		rsWorld.setAddress(world.getAddress());
-		rsWorld.setId(world.getId());
-		rsWorld.setPlayerCount(world.getPlayers());
-		rsWorld.setLocation(world.getLocation());
-		rsWorld.setTypes(WorldUtil.toWorldTypes(world.getTypes()));
-
-		client.changeWorld(rsWorld);
-		log.debug("Applied new world {}", correctedWorld);
-	}
+    private void applyWorld() {
+        int correctedWorld;
+        if (this.client.getGameState() != GameState.LOGIN_SCREEN) {
+            return;
+        }
+        int newWorld = this.config.useLastWorld() ? this.config.lastWorld() : this.config.getWorld();
+        int n = correctedWorld = newWorld < 300 ? newWorld + 300 : newWorld;
+        if (correctedWorld <= 300 || this.client.getWorld() == correctedWorld) {
+            return;
+        }
+        WorldResult worldResult = this.worldService.getWorlds();
+        if (worldResult == null) {
+            log.warn("Failed to lookup worlds.");
+            return;
+        }
+        World world = worldResult.findWorld(correctedWorld);
+        if (world == null) {
+            log.warn("World {} not found.", (Object)correctedWorld);
+            return;
+        }
+        net.runelite.api.World rsWorld = this.client.createWorld();
+        rsWorld.setActivity(world.getActivity());
+        rsWorld.setAddress(world.getAddress());
+        rsWorld.setId(world.getId());
+        rsWorld.setPlayerCount(world.getPlayers());
+        rsWorld.setLocation(world.getLocation());
+        rsWorld.setTypes(WorldUtil.toWorldTypes(world.getTypes()));
+        this.client.changeWorld(rsWorld);
+        log.debug("Applied new world {}", (Object)correctedWorld);
+    }
 }
+

@@ -1,41 +1,51 @@
 /*
- * Copyright (c) 2020 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.Data;
 import net.runelite.api.StructComposition;
 
-/**
- * An event called after a new {@link StructComposition} is created and
- * its data is initialized.
- */
-@Data
-public class PostStructComposition
-{
-	/**
-	 * The newly created struct.
-	 */
-	private StructComposition structComposition;
+public class PostStructComposition {
+    private StructComposition structComposition;
+
+    public StructComposition getStructComposition() {
+        return this.structComposition;
+    }
+
+    public void setStructComposition(StructComposition structComposition) {
+        this.structComposition = structComposition;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof PostStructComposition)) {
+            return false;
+        }
+        PostStructComposition other = (PostStructComposition)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        StructComposition this$structComposition = this.getStructComposition();
+        StructComposition other$structComposition = other.getStructComposition();
+        return !(this$structComposition == null ? other$structComposition != null : !this$structComposition.equals(other$structComposition));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof PostStructComposition;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        StructComposition $structComposition = this.getStructComposition();
+        result = result * 59 + ($structComposition == null ? 43 : $structComposition.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "PostStructComposition(structComposition=" + this.getStructComposition() + ")";
+    }
 }
+

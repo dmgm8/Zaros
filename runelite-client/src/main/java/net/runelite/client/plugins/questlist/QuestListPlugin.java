@@ -1,48 +1,28 @@
 /*
- * Copyright (c) 2019 Spudjb <https://github.com/spudjb>
- * Copyright (c) 2022 Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Strings
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.events.ScriptCallbackEvent
+ *  net.runelite.api.events.ScriptPostFired
+ *  net.runelite.api.events.VarClientIntChanged
+ *  net.runelite.api.events.VarbitChanged
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.plugins.questlist;
 
 import com.google.common.base.Strings;
 import javax.inject.Inject;
 import net.runelite.api.Client;
-import net.runelite.api.ParamID;
-import net.runelite.api.ScriptID;
-import net.runelite.api.SoundEffectID;
-import net.runelite.api.SpriteID;
-import net.runelite.api.VarClientInt;
-import net.runelite.api.Varbits;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.VarClientIntChanged;
 import net.runelite.api.events.VarbitChanged;
-import net.runelite.api.widgets.JavaScriptCallback;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
-import net.runelite.api.widgets.WidgetPositionMode;
-import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
@@ -50,169 +30,126 @@ import net.runelite.client.game.chatbox.ChatboxTextInput;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
-@PluginDescriptor(
-	name = "Quest List",
-	description = "Adds a search filter to the quest list"
-)
-public class QuestListPlugin extends Plugin
-{
-	private static final String MENU_OPEN = "Open";
-	private static final String MENU_CLOSE = "Close";
-	private static final String MENU_SEARCH = "Search";
+@PluginDescriptor(name="Quest List", description="Adds a search filter to the quest list")
+public class QuestListPlugin
+extends Plugin {
+    private static final String MENU_OPEN = "Open";
+    private static final String MENU_CLOSE = "Close";
+    private static final String MENU_SEARCH = "Search";
+    @Inject
+    private Client client;
+    @Inject
+    private ChatboxPanelManager chatboxPanelManager;
+    @Inject
+    private ClientThread clientThread;
+    private ChatboxTextInput searchInput;
+    private Widget questSearchButton;
 
-	@Inject
-	private Client client;
+    @Override
+    protected void startUp() {
+        this.clientThread.invoke(this::addQuestButtons);
+    }
 
-	@Inject
-	private ChatboxPanelManager chatboxPanelManager;
+    @Override
+    protected void shutDown() {
+        Widget header = this.client.getWidget(WidgetInfo.QUESTLIST_BOX);
+        if (header != null) {
+            header.deleteAllChildren();
+        }
+    }
 
-	@Inject
-	private ClientThread clientThread;
+    @Subscribe
+    public void onScriptPostFired(ScriptPostFired event) {
+        if (event.getScriptId() == 1350) {
+            this.addQuestButtons();
+        }
+    }
 
-	private ChatboxTextInput searchInput;
-	private Widget questSearchButton;
+    private void addQuestButtons() {
+        Widget header = this.client.getWidget(WidgetInfo.QUESTLIST_BOX);
+        if (header != null) {
+            header.deleteAllChildren();
+            this.questSearchButton = header.createChild(-1, 5);
+            this.questSearchButton.setSpriteId(1113);
+            this.questSearchButton.setOriginalWidth(18);
+            this.questSearchButton.setOriginalHeight(17);
+            this.questSearchButton.setXPositionMode(2);
+            this.questSearchButton.setOriginalX(5);
+            this.questSearchButton.setOriginalY(0);
+            this.questSearchButton.setHasListener(true);
+            this.questSearchButton.setAction(1, MENU_OPEN);
+            this.questSearchButton.setOnOpListener(new Object[]{e -> this.openSearch()});
+            this.questSearchButton.setName(MENU_SEARCH);
+            this.questSearchButton.revalidate();
+        }
+    }
 
-	@Override
-	protected void startUp()
-	{
-		clientThread.invoke(this::addQuestButtons);
-	}
+    @Subscribe
+    public void onVarbitChanged(VarbitChanged varbitChanged) {
+        if (this.isChatboxOpen() && !this.isOnQuestTab()) {
+            this.chatboxPanelManager.close();
+        }
+    }
 
-	@Override
-	protected void shutDown()
-	{
-		Widget header = client.getWidget(WidgetInfo.QUESTLIST_BOX);
-		if (header != null)
-		{
-			header.deleteAllChildren();
-		}
-	}
+    @Subscribe
+    public void onVarClientIntChanged(VarClientIntChanged varClientIntChanged) {
+        if (varClientIntChanged.getIndex() == 171 && this.isChatboxOpen() && !this.isOnQuestTab()) {
+            this.chatboxPanelManager.close();
+        }
+    }
 
-	@Subscribe
-	public void onScriptPostFired(ScriptPostFired event)
-	{
-		if (event.getScriptId() == ScriptID.QUESTLIST_INIT)
-		{
-			addQuestButtons();
-		}
-	}
+    @Subscribe
+    public void onScriptCallbackEvent(ScriptCallbackEvent scriptCallbackEvent) {
+        int intStackSize;
+        if (!"questFilter".equals(scriptCallbackEvent.getEventName()) || !this.isChatboxOpen()) {
+            return;
+        }
+        String filter = this.searchInput.getValue();
+        if (Strings.isNullOrEmpty((String)filter)) {
+            return;
+        }
+        int[] intStack = this.client.getIntStack();
+        int row = intStack[(intStackSize = this.client.getIntStackSize()) - 1];
+        String questName = (String)this.client.getDBTableField(row, 2, 0, 0);
+        int n = questName.toLowerCase().contains(filter.toLowerCase()) ? 0 : 1;
+        intStack[intStackSize - 2] = n;
+    }
 
-	private void addQuestButtons()
-	{
-		Widget header = client.getWidget(WidgetInfo.QUESTLIST_BOX);
-		if (header != null)
-		{
-			header.deleteAllChildren();
+    private boolean isOnQuestTab() {
+        return this.client.getVarbitValue(8168) == 0 && this.client.getVarcIntValue(171) == 2;
+    }
 
-			questSearchButton = header.createChild(-1, WidgetType.GRAPHIC);
-			questSearchButton.setSpriteId(SpriteID.GE_SEARCH);
-			questSearchButton.setOriginalWidth(18);
-			questSearchButton.setOriginalHeight(17);
-			questSearchButton.setXPositionMode(WidgetPositionMode.ABSOLUTE_RIGHT);
-			questSearchButton.setOriginalX(5);
-			questSearchButton.setOriginalY(0);
-			questSearchButton.setHasListener(true);
-			questSearchButton.setAction(1, MENU_OPEN);
-			questSearchButton.setOnOpListener((JavaScriptCallback) e -> openSearch());
-			questSearchButton.setName(MENU_SEARCH);
-			questSearchButton.revalidate();
-		}
-	}
+    private boolean isChatboxOpen() {
+        return this.searchInput != null && this.chatboxPanelManager.getCurrentInput() == this.searchInput;
+    }
 
-	@Subscribe
-	public void onVarbitChanged(VarbitChanged varbitChanged)
-	{
-		if (isChatboxOpen() && !isOnQuestTab())
-		{
-			chatboxPanelManager.close();
-		}
-	}
+    private void closeSearch() {
+        this.chatboxPanelManager.close();
+        this.redrawQuests();
+        this.client.playSoundEffect(2266);
+    }
 
-	@Subscribe
-	public void onVarClientIntChanged(VarClientIntChanged varClientIntChanged)
-	{
-		if (varClientIntChanged.getIndex() == VarClientInt.INVENTORY_TAB.getIndex())
-		{
-			if (isChatboxOpen() && !isOnQuestTab())
-			{
-				chatboxPanelManager.close();
-			}
-		}
-	}
+    private void openSearch() {
+        this.client.playSoundEffect(2266);
+        this.questSearchButton.setAction(1, MENU_CLOSE);
+        this.questSearchButton.setOnOpListener(new Object[]{e -> this.closeSearch()});
+        this.searchInput = this.chatboxPanelManager.openTextInput("Search quest list").onChanged(s -> this.redrawQuests()).onDone(s -> false).onClose(() -> {
+            this.redrawQuests();
+            this.questSearchButton.setOnOpListener(new Object[]{e -> this.openSearch()});
+            this.questSearchButton.setAction(1, MENU_OPEN);
+        }).build();
+    }
 
-	@Subscribe
-	public void onScriptCallbackEvent(ScriptCallbackEvent scriptCallbackEvent)
-	{
-		if (!"questFilter".equals(scriptCallbackEvent.getEventName()) || !isChatboxOpen())
-		{
-			return;
-		}
-
-		final String filter = searchInput.getValue();
-		if (Strings.isNullOrEmpty(filter))
-		{
-			return;
-		}
-
-		final int[] intStack = client.getIntStack();
-		final int intStackSize = client.getIntStackSize();
-
-		final int questStruct = intStack[intStackSize - 1];
-		final String questName = client.getStructComposition(questStruct)
-			.getStringValue(ParamID.QUEST_NAME);
-
-		intStack[intStackSize - 2] = questName.toLowerCase().contains(filter.toLowerCase()) ? 0 : 1;
-	}
-
-	private boolean isOnQuestTab()
-	{
-		return client.getVarbitValue(Varbits.QUEST_TAB) == 0 && client.getVar(VarClientInt.INVENTORY_TAB) == 2;
-	}
-
-	private boolean isChatboxOpen()
-	{
-		return searchInput != null && chatboxPanelManager.getCurrentInput() == searchInput;
-	}
-
-	private void closeSearch()
-	{
-		chatboxPanelManager.close();
-		redrawQuests();
-		client.playSoundEffect(SoundEffectID.UI_BOOP);
-	}
-
-	private void openSearch()
-	{
-		client.playSoundEffect(SoundEffectID.UI_BOOP);
-		questSearchButton.setAction(1, MENU_CLOSE);
-		questSearchButton.setOnOpListener((JavaScriptCallback) e -> closeSearch());
-		searchInput = chatboxPanelManager.openTextInput("Search quest list")
-			.onChanged(s -> redrawQuests())
-			.onDone(s -> false)
-			.onClose(() ->
-			{
-				redrawQuests();
-				questSearchButton.setOnOpListener((JavaScriptCallback) e -> openSearch());
-				questSearchButton.setAction(1, MENU_OPEN);
-			})
-			.build();
-	}
-
-	private void redrawQuests()
-	{
-		Widget w = client.getWidget(WidgetInfo.QUESTLIST_CONTAINER);
-		if (w == null)
-		{
-			return;
-		}
-
-		Object[] onVarTransmitListener = w.getOnVarTransmitListener();
-		if (onVarTransmitListener == null)
-		{
-			return;
-		}
-
-		clientThread.invokeLater(() ->
-			client.runScript(onVarTransmitListener));
-	}
+    private void redrawQuests() {
+        Widget w = this.client.getWidget(WidgetInfo.QUESTLIST_CONTAINER);
+        if (w == null) {
+            return;
+        }
+        Object[] onVarTransmitListener = w.getOnVarTransmitListener();
+        if (onVarTransmitListener == null) {
+            return;
+        }
+        this.clientThread.invokeLater(() -> this.client.runScript(onVarTransmitListener));
+    }
 }
+

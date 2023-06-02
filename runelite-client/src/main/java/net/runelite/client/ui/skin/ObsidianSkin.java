@@ -1,209 +1,129 @@
 /*
- * Copyright (c) 2018, Tomas Slusny <slusnucky@gmail.com>
- * Copyright (c) 2018, Psikoi <https://github.com/psikoi>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  org.pushingpixels.substance.api.ComponentState
+ *  org.pushingpixels.substance.api.SubstanceColorSchemeBundle
+ *  org.pushingpixels.substance.api.SubstanceSkin
+ *  org.pushingpixels.substance.api.SubstanceSkin$ColorSchemes
+ *  org.pushingpixels.substance.api.SubstanceSlices$ColorSchemeAssociationKind
+ *  org.pushingpixels.substance.api.SubstanceSlices$DecorationAreaType
+ *  org.pushingpixels.substance.api.colorscheme.ColorSchemeSingleColorQuery
+ *  org.pushingpixels.substance.api.colorscheme.SubstanceColorScheme
+ *  org.pushingpixels.substance.api.painter.border.ClassicBorderPainter
+ *  org.pushingpixels.substance.api.painter.border.CompositeBorderPainter
+ *  org.pushingpixels.substance.api.painter.border.DelegateBorderPainter
+ *  org.pushingpixels.substance.api.painter.border.StandardBorderPainter
+ *  org.pushingpixels.substance.api.painter.border.SubstanceBorderPainter
+ *  org.pushingpixels.substance.api.painter.decoration.MatteDecorationPainter
+ *  org.pushingpixels.substance.api.painter.fill.FractionBasedFillPainter
+ *  org.pushingpixels.substance.api.painter.highlight.ClassicHighlightPainter
+ *  org.pushingpixels.substance.api.painter.overlay.BottomLineOverlayPainter
+ *  org.pushingpixels.substance.api.painter.overlay.BottomShadowOverlayPainter
+ *  org.pushingpixels.substance.api.painter.overlay.SubstanceOverlayPainter
+ *  org.pushingpixels.substance.api.painter.overlay.TopBezelOverlayPainter
+ *  org.pushingpixels.substance.api.painter.overlay.TopLineOverlayPainter
+ *  org.pushingpixels.substance.api.shaper.ClassicButtonShaper
+ *  org.pushingpixels.substance.internal.utils.SubstanceColorUtilities
  */
 package net.runelite.client.ui.skin;
 
+import java.awt.Color;
+import java.net.URL;
 import javax.swing.AbstractButton;
 import org.pushingpixels.substance.api.ComponentState;
 import org.pushingpixels.substance.api.SubstanceColorSchemeBundle;
 import org.pushingpixels.substance.api.SubstanceSkin;
-import org.pushingpixels.substance.api.SubstanceSlices.ColorSchemeAssociationKind;
-import org.pushingpixels.substance.api.SubstanceSlices.DecorationAreaType;
+import org.pushingpixels.substance.api.SubstanceSlices;
 import org.pushingpixels.substance.api.colorscheme.ColorSchemeSingleColorQuery;
 import org.pushingpixels.substance.api.colorscheme.SubstanceColorScheme;
 import org.pushingpixels.substance.api.painter.border.ClassicBorderPainter;
 import org.pushingpixels.substance.api.painter.border.CompositeBorderPainter;
 import org.pushingpixels.substance.api.painter.border.DelegateBorderPainter;
+import org.pushingpixels.substance.api.painter.border.StandardBorderPainter;
+import org.pushingpixels.substance.api.painter.border.SubstanceBorderPainter;
 import org.pushingpixels.substance.api.painter.decoration.MatteDecorationPainter;
 import org.pushingpixels.substance.api.painter.fill.FractionBasedFillPainter;
 import org.pushingpixels.substance.api.painter.highlight.ClassicHighlightPainter;
 import org.pushingpixels.substance.api.painter.overlay.BottomLineOverlayPainter;
 import org.pushingpixels.substance.api.painter.overlay.BottomShadowOverlayPainter;
+import org.pushingpixels.substance.api.painter.overlay.SubstanceOverlayPainter;
 import org.pushingpixels.substance.api.painter.overlay.TopBezelOverlayPainter;
 import org.pushingpixels.substance.api.painter.overlay.TopLineOverlayPainter;
 import org.pushingpixels.substance.api.shaper.ClassicButtonShaper;
 import org.pushingpixels.substance.internal.utils.SubstanceColorUtilities;
 
-public class ObsidianSkin extends SubstanceSkin
-{
-	/**
-	 * Display name for <code>this</code> skin.
-	 */
-	private static final String NAME = "RuneLite";
+public class ObsidianSkin
+extends SubstanceSkin {
+    private static final String NAME = "RuneLite";
 
-	/**
-	 * Creates a new <code>RuneLite</code> skin.
-	 */
-	ObsidianSkin()
-	{
-		final SubstanceSkin.ColorSchemes schemes = SubstanceSkin
-			.getColorSchemes(getClass().getResource(NAME + ".colorschemes"));
-		final SubstanceColorScheme activeScheme = schemes.get("RuneLite Active");
-		final SubstanceColorScheme enabledScheme = schemes.get("RuneLite Enabled");
+    ObsidianSkin() {
+        SubstanceSkin.ColorSchemes schemes = SubstanceSkin.getColorSchemes((URL)((Object)((Object)this)).getClass().getResource("RuneLite.colorschemes"));
+        SubstanceColorScheme activeScheme = schemes.get("RuneLite Active");
+        SubstanceColorScheme enabledScheme = schemes.get("RuneLite Enabled");
+        SubstanceColorSchemeBundle defaultSchemeBundle = new SubstanceColorSchemeBundle(activeScheme, enabledScheme, enabledScheme);
+        defaultSchemeBundle.registerColorScheme(enabledScheme, 0.6f, new ComponentState[]{ComponentState.DISABLED_UNSELECTED});
+        defaultSchemeBundle.registerColorScheme(activeScheme, 0.6f, new ComponentState[]{ComponentState.DISABLED_SELECTED});
+        defaultSchemeBundle.registerHighlightColorScheme(schemes.get("RuneLite Highlight"), new ComponentState[]{ComponentState.SELECTED, ComponentState.ROLLOVER_SELECTED, ComponentState.ROLLOVER_UNSELECTED});
+        SubstanceColorScheme borderDisabledSelectedScheme = schemes.get("RuneLite Selected Disabled Border");
+        SubstanceColorScheme borderScheme = schemes.get("RuneLite Border");
+        defaultSchemeBundle.registerColorScheme(borderDisabledSelectedScheme, SubstanceSlices.ColorSchemeAssociationKind.BORDER, new ComponentState[]{ComponentState.DISABLED_SELECTED});
+        defaultSchemeBundle.registerColorScheme(borderScheme, SubstanceSlices.ColorSchemeAssociationKind.BORDER, new ComponentState[0]);
+        SubstanceColorScheme markActiveScheme = schemes.get("RuneLite Mark Active");
+        defaultSchemeBundle.registerColorScheme(markActiveScheme, SubstanceSlices.ColorSchemeAssociationKind.MARK, ComponentState.getActiveStates());
+        defaultSchemeBundle.registerColorScheme(markActiveScheme, 0.6f, SubstanceSlices.ColorSchemeAssociationKind.MARK, new ComponentState[]{ComponentState.DISABLED_SELECTED, ComponentState.DISABLED_UNSELECTED});
+        SubstanceColorScheme separatorScheme = schemes.get("RuneLite Separator");
+        defaultSchemeBundle.registerColorScheme(separatorScheme, SubstanceSlices.ColorSchemeAssociationKind.SEPARATOR, new ComponentState[0]);
+        defaultSchemeBundle.registerColorScheme(schemes.get("RuneLite Tab Border"), SubstanceSlices.ColorSchemeAssociationKind.TAB_BORDER, ComponentState.getActiveStates());
+        SubstanceColorScheme watermarkScheme = schemes.get("RuneLite Watermark");
+        this.registerDecorationAreaSchemeBundle(defaultSchemeBundle, watermarkScheme, new SubstanceSlices.DecorationAreaType[]{SubstanceSlices.DecorationAreaType.NONE});
+        SubstanceColorSchemeBundle decorationsSchemeBundle = new SubstanceColorSchemeBundle(activeScheme, enabledScheme, enabledScheme);
+        decorationsSchemeBundle.registerColorScheme(enabledScheme, 0.5f, new ComponentState[]{ComponentState.DISABLED_UNSELECTED});
+        decorationsSchemeBundle.registerColorScheme(borderDisabledSelectedScheme, SubstanceSlices.ColorSchemeAssociationKind.BORDER, new ComponentState[]{ComponentState.DISABLED_SELECTED});
+        decorationsSchemeBundle.registerColorScheme(borderScheme, SubstanceSlices.ColorSchemeAssociationKind.BORDER, new ComponentState[0]);
+        decorationsSchemeBundle.registerColorScheme(markActiveScheme, SubstanceSlices.ColorSchemeAssociationKind.MARK, ComponentState.getActiveStates());
+        SubstanceColorScheme separatorDecorationsScheme = schemes.get("RuneLite Decorations Separator");
+        decorationsSchemeBundle.registerColorScheme(separatorDecorationsScheme, SubstanceSlices.ColorSchemeAssociationKind.SEPARATOR, new ComponentState[0]);
+        SubstanceColorScheme decorationsWatermarkScheme = schemes.get("RuneLite Decorations Watermark");
+        this.registerDecorationAreaSchemeBundle(decorationsSchemeBundle, decorationsWatermarkScheme, new SubstanceSlices.DecorationAreaType[]{SubstanceSlices.DecorationAreaType.TOOLBAR, SubstanceSlices.DecorationAreaType.GENERAL, SubstanceSlices.DecorationAreaType.FOOTER});
+        SubstanceColorSchemeBundle headerSchemeBundle = new SubstanceColorSchemeBundle(activeScheme, enabledScheme, enabledScheme);
+        headerSchemeBundle.registerColorScheme(enabledScheme, 0.5f, new ComponentState[]{ComponentState.DISABLED_UNSELECTED});
+        SubstanceColorScheme headerBorderScheme = schemes.get("RuneLite Header Border");
+        headerSchemeBundle.registerColorScheme(borderDisabledSelectedScheme, SubstanceSlices.ColorSchemeAssociationKind.BORDER, new ComponentState[]{ComponentState.DISABLED_SELECTED});
+        headerSchemeBundle.registerColorScheme(headerBorderScheme, SubstanceSlices.ColorSchemeAssociationKind.BORDER, new ComponentState[0]);
+        headerSchemeBundle.registerColorScheme(markActiveScheme, SubstanceSlices.ColorSchemeAssociationKind.MARK, ComponentState.getActiveStates());
+        headerSchemeBundle.registerHighlightColorScheme(activeScheme, 0.7f, new ComponentState[]{ComponentState.ROLLOVER_UNSELECTED, ComponentState.ROLLOVER_ARMED, ComponentState.ARMED});
+        headerSchemeBundle.registerHighlightColorScheme(activeScheme, 0.8f, new ComponentState[]{ComponentState.SELECTED});
+        headerSchemeBundle.registerHighlightColorScheme(activeScheme, 1.0f, new ComponentState[]{ComponentState.ROLLOVER_SELECTED});
+        SubstanceColorScheme headerWatermarkScheme = schemes.get("RuneLite Header Watermark");
+        this.registerDecorationAreaSchemeBundle(headerSchemeBundle, headerWatermarkScheme, new SubstanceSlices.DecorationAreaType[]{SubstanceSlices.DecorationAreaType.PRIMARY_TITLE_PANE, SubstanceSlices.DecorationAreaType.SECONDARY_TITLE_PANE, SubstanceSlices.DecorationAreaType.HEADER});
+        this.setTabFadeStart(0.2);
+        this.setTabFadeEnd(0.9);
+        this.addOverlayPainter((SubstanceOverlayPainter)BottomShadowOverlayPainter.getInstance(), new SubstanceSlices.DecorationAreaType[]{SubstanceSlices.DecorationAreaType.TOOLBAR});
+        this.addOverlayPainter((SubstanceOverlayPainter)BottomShadowOverlayPainter.getInstance(), new SubstanceSlices.DecorationAreaType[]{SubstanceSlices.DecorationAreaType.FOOTER});
+        BottomLineOverlayPainter toolbarBottomLineOverlayPainter = new BottomLineOverlayPainter(scheme -> scheme.getUltraDarkColor().darker());
+        this.addOverlayPainter((SubstanceOverlayPainter)toolbarBottomLineOverlayPainter, new SubstanceSlices.DecorationAreaType[]{SubstanceSlices.DecorationAreaType.TOOLBAR});
+        TopLineOverlayPainter toolbarTopLineOverlayPainter = new TopLineOverlayPainter(scheme -> SubstanceColorUtilities.getAlphaColor((Color)scheme.getForegroundColor(), (int)32));
+        this.addOverlayPainter((SubstanceOverlayPainter)toolbarTopLineOverlayPainter, new SubstanceSlices.DecorationAreaType[]{SubstanceSlices.DecorationAreaType.TOOLBAR});
+        TopBezelOverlayPainter footerTopBezelOverlayPainter = new TopBezelOverlayPainter(scheme -> scheme.getUltraDarkColor().darker(), scheme -> SubstanceColorUtilities.getAlphaColor((Color)scheme.getForegroundColor(), (int)32));
+        this.addOverlayPainter((SubstanceOverlayPainter)footerTopBezelOverlayPainter, new SubstanceSlices.DecorationAreaType[]{SubstanceSlices.DecorationAreaType.FOOTER});
+        this.setTabFadeStart(0.18);
+        this.setTabFadeEnd(0.18);
+        this.buttonShaper = new ClassicButtonShaper(){
 
-		final SubstanceColorSchemeBundle defaultSchemeBundle = new SubstanceColorSchemeBundle(
-			activeScheme, enabledScheme, enabledScheme);
+            public float getCornerRadius(AbstractButton button, float insets) {
+                return 0.0f;
+            }
+        };
+        this.watermark = null;
+        this.fillPainter = new FractionBasedFillPainter(NAME, new float[]{0.0f, 0.5f, 1.0f}, new ColorSchemeSingleColorQuery[]{ColorSchemeSingleColorQuery.ULTRALIGHT, ColorSchemeSingleColorQuery.LIGHT, ColorSchemeSingleColorQuery.LIGHT});
+        this.decorationPainter = new MatteDecorationPainter();
+        this.highlightPainter = new ClassicHighlightPainter();
+        this.borderPainter = new CompositeBorderPainter(NAME, (SubstanceBorderPainter)new ClassicBorderPainter(), (SubstanceBorderPainter)new DelegateBorderPainter("RuneLite Inner", (StandardBorderPainter)new ClassicBorderPainter(), 0x40FFFFFF, 0x20FFFFFF, 0xFFFFFF, scheme -> scheme.tint((double)0.2f)));
+    }
 
-
-		// Selected and rollover
-		defaultSchemeBundle.registerHighlightColorScheme(schemes.get("RuneLite Highlight"),
-			ComponentState.SELECTED, ComponentState.ROLLOVER_SELECTED, ComponentState.ROLLOVER_UNSELECTED);
-
-		// borders
-		final SubstanceColorScheme borderDisabledSelectedScheme = schemes
-			.get("RuneLite Selected Disabled Border");
-		final SubstanceColorScheme borderScheme = schemes.get("RuneLite Border");
-		defaultSchemeBundle.registerColorScheme(borderDisabledSelectedScheme,
-			ColorSchemeAssociationKind.BORDER, ComponentState.DISABLED_SELECTED);
-		defaultSchemeBundle.registerColorScheme(borderScheme, ColorSchemeAssociationKind.BORDER);
-
-		// marks
-		final SubstanceColorScheme markActiveScheme = schemes.get("RuneLite Mark Active");
-		defaultSchemeBundle.registerColorScheme(markActiveScheme, ColorSchemeAssociationKind.MARK,
-			ComponentState.getActiveStates());
-
-
-		// separators
-		final SubstanceColorScheme separatorScheme = schemes.get("RuneLite Separator");
-		defaultSchemeBundle.registerColorScheme(separatorScheme,
-			ColorSchemeAssociationKind.SEPARATOR);
-
-		// tab borders
-		defaultSchemeBundle.registerColorScheme(schemes.get("RuneLite Tab Border"),
-			ColorSchemeAssociationKind.TAB_BORDER, ComponentState.getActiveStates());
-
-		final SubstanceColorScheme watermarkScheme = schemes.get("RuneLite Watermark");
-
-		this.registerDecorationAreaSchemeBundle(defaultSchemeBundle, watermarkScheme,
-			DecorationAreaType.NONE);
-
-		final SubstanceColorSchemeBundle decorationsSchemeBundle = new SubstanceColorSchemeBundle(
-			activeScheme, enabledScheme, enabledScheme);
-
-
-		// borders
-		decorationsSchemeBundle.registerColorScheme(borderDisabledSelectedScheme,
-			ColorSchemeAssociationKind.BORDER, ComponentState.DISABLED_SELECTED);
-		decorationsSchemeBundle.registerColorScheme(borderScheme,
-			ColorSchemeAssociationKind.BORDER);
-
-		// marks
-		decorationsSchemeBundle.registerColorScheme(markActiveScheme,
-			ColorSchemeAssociationKind.MARK, ComponentState.getActiveStates());
-
-		// separators
-		final SubstanceColorScheme separatorDecorationsScheme = schemes
-			.get("RuneLite Decorations Separator");
-		decorationsSchemeBundle.registerColorScheme(separatorDecorationsScheme,
-			ColorSchemeAssociationKind.SEPARATOR);
-
-		final SubstanceColorScheme decorationsWatermarkScheme = schemes
-			.get("RuneLite Decorations Watermark");
-
-		this.registerDecorationAreaSchemeBundle(decorationsSchemeBundle, decorationsWatermarkScheme,
-			DecorationAreaType.TOOLBAR, DecorationAreaType.GENERAL, DecorationAreaType.FOOTER);
-
-		final SubstanceColorSchemeBundle headerSchemeBundle = new SubstanceColorSchemeBundle(activeScheme,
-			enabledScheme, enabledScheme);
-
-
-		// borders
-		final SubstanceColorScheme headerBorderScheme = schemes.get("RuneLite Header Border");
-		headerSchemeBundle.registerColorScheme(borderDisabledSelectedScheme,
-			ColorSchemeAssociationKind.BORDER, ComponentState.DISABLED_SELECTED);
-		headerSchemeBundle.registerColorScheme(headerBorderScheme,
-			ColorSchemeAssociationKind.BORDER);
-		// marks
-		headerSchemeBundle.registerColorScheme(markActiveScheme, ColorSchemeAssociationKind.MARK,
-			ComponentState.getActiveStates());
-
-		final SubstanceColorScheme headerWatermarkScheme = schemes.get("RuneLite Header Watermark");
-
-		this.registerDecorationAreaSchemeBundle(headerSchemeBundle, headerWatermarkScheme,
-			DecorationAreaType.PRIMARY_TITLE_PANE, DecorationAreaType.SECONDARY_TITLE_PANE,
-			DecorationAreaType.HEADER);
-
-		setTabFadeStart(0.2);
-		setTabFadeEnd(0.9);
-
-		// Add overlay painters to paint drop shadows along the bottom
-		// edges of toolbars and footers
-		this.addOverlayPainter(BottomShadowOverlayPainter.getInstance(),
-			DecorationAreaType.TOOLBAR);
-		this.addOverlayPainter(BottomShadowOverlayPainter.getInstance(), DecorationAreaType.FOOTER);
-
-		// add an overlay painter to paint a dark line along the bottom
-		// edge of toolbars
-		final BottomLineOverlayPainter toolbarBottomLineOverlayPainter = new BottomLineOverlayPainter(
-			(SubstanceColorScheme scheme) -> scheme.getUltraDarkColor().darker());
-		this.addOverlayPainter(toolbarBottomLineOverlayPainter, DecorationAreaType.TOOLBAR);
-
-		// add an overlay painter to paint a dark line along the bottom
-		// edge of toolbars
-		final TopLineOverlayPainter toolbarTopLineOverlayPainter = new TopLineOverlayPainter(
-			(SubstanceColorScheme scheme) -> SubstanceColorUtilities
-				.getAlphaColor(scheme.getForegroundColor(), 32));
-		this.addOverlayPainter(toolbarTopLineOverlayPainter, DecorationAreaType.TOOLBAR);
-
-		// add an overlay painter to paint a bezel line along the top
-		// edge of footer
-		final TopBezelOverlayPainter footerTopBezelOverlayPainter = new TopBezelOverlayPainter(
-			(SubstanceColorScheme scheme) -> scheme.getUltraDarkColor().darker(),
-			(SubstanceColorScheme scheme) -> SubstanceColorUtilities
-				.getAlphaColor(scheme.getForegroundColor(), 32));
-		this.addOverlayPainter(footerTopBezelOverlayPainter, DecorationAreaType.FOOTER);
-
-		this.setTabFadeStart(0.18);
-		this.setTabFadeEnd(0.18);
-
-		// Set button shaper to use "flat" design
-		this.buttonShaper = new ClassicButtonShaper()
-		{
-			@Override
-			public float getCornerRadius(AbstractButton button, float insets)
-			{
-				return 0;
-			}
-		};
-
-		this.watermark = null;
-		this.fillPainter = new FractionBasedFillPainter("RuneLite",
-			new float[]{0.0f, 0.5f, 1.0f},
-			new ColorSchemeSingleColorQuery[]{ColorSchemeSingleColorQuery.ULTRALIGHT,
-				ColorSchemeSingleColorQuery.LIGHT, ColorSchemeSingleColorQuery.LIGHT});
-		this.decorationPainter = new MatteDecorationPainter();
-		this.highlightPainter = new ClassicHighlightPainter();
-		this.borderPainter = new CompositeBorderPainter("RuneLite", new ClassicBorderPainter(),
-			new DelegateBorderPainter("RuneLite Inner", new ClassicBorderPainter(), 0x40FFFFFF,
-				0x20FFFFFF, 0x00FFFFFF,
-				(SubstanceColorScheme scheme) -> scheme.tint(0.2f)));
-	}
-
-	@Override
-	public String getDisplayName()
-	{
-		return NAME;
-	}
+    public String getDisplayName() {
+        return NAME;
+    }
 }
+

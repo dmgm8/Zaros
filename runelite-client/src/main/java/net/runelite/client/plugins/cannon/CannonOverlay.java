@@ -1,26 +1,13 @@
 /*
- * Copyright (c) 2016-2018, Seth <Sethtroll3@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.Perspective
+ *  net.runelite.api.Point
+ *  net.runelite.api.coords.LocalPoint
+ *  net.runelite.api.coords.WorldPoint
  */
 package net.runelite.client.plugins.cannon;
 
@@ -31,113 +18,71 @@ import java.awt.Polygon;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
-import static net.runelite.api.Perspective.LOCAL_TILE_SIZE;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.plugins.cannon.CannonConfig;
+import net.runelite.client.plugins.cannon.CannonPlugin;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.OverlayUtil;
 import net.runelite.client.ui.overlay.components.TextComponent;
-import static net.runelite.client.plugins.cannon.CannonPlugin.MAX_OVERLAY_DISTANCE;
 
-class CannonOverlay extends Overlay
-{
-	private final Client client;
-	private final CannonConfig config;
-	private final CannonPlugin plugin;
-	private final TextComponent textComponent = new TextComponent();
+class CannonOverlay
+extends Overlay {
+    private final Client client;
+    private final CannonConfig config;
+    private final CannonPlugin plugin;
+    private final TextComponent textComponent = new TextComponent();
 
-	@Inject
-	CannonOverlay(Client client, CannonConfig config, CannonPlugin plugin)
-	{
-		setPosition(OverlayPosition.DYNAMIC);
-		setPriority(OverlayPriority.MED);
-		this.client = client;
-		this.config = config;
-		this.plugin = plugin;
-	}
+    @Inject
+    CannonOverlay(Client client, CannonConfig config, CannonPlugin plugin) {
+        this.setPosition(OverlayPosition.DYNAMIC);
+        this.setPriority(OverlayPriority.MED);
+        this.client = client;
+        this.config = config;
+        this.plugin = plugin;
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		if (!plugin.isCannonPlaced() || plugin.getCannonPosition() == null || plugin.getCannonWorld() != client.getWorld())
-		{
-			return null;
-		}
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        if (!this.plugin.isCannonPlaced() || this.plugin.getCannonPosition() == null || this.plugin.getCannonWorld() != this.client.getWorld()) {
+            return null;
+        }
+        WorldPoint cannonLocation = this.plugin.getCannonPosition().toWorldPoint().dx(1).dy(1);
+        LocalPoint cannonPoint = LocalPoint.fromWorld((Client)this.client, (WorldPoint)cannonLocation);
+        if (cannonPoint == null) {
+            return null;
+        }
+        LocalPoint localLocation = this.client.getLocalPlayer().getLocalLocation();
+        if (localLocation.distanceTo(cannonPoint) <= 4100) {
+            Point cannonLoc = Perspective.getCanvasTextLocation((Client)this.client, (Graphics2D)graphics, (LocalPoint)cannonPoint, (String)String.valueOf(this.plugin.getCballsLeft()), (int)150);
+            if (cannonLoc != null) {
+                this.textComponent.setText(String.valueOf(this.plugin.getCballsLeft()));
+                this.textComponent.setPosition(new java.awt.Point(cannonLoc.getX(), cannonLoc.getY()));
+                this.textComponent.setColor(this.plugin.getStateColor());
+                this.textComponent.render(graphics);
+            }
+            if (this.config.showDoubleHitSpot()) {
+                Color color = this.config.highlightDoubleHitColor();
+                this.drawDoubleHitSpots(graphics, cannonPoint, color);
+            }
+        }
+        return null;
+    }
 
-		// WorldAreas return the SW point, whereas we want the centre point
-		WorldPoint cannonLocation = plugin.getCannonPosition().toWorldPoint().dx(1).dy(1);
-		LocalPoint cannonPoint = LocalPoint.fromWorld(client, cannonLocation);
-
-		if (cannonPoint == null)
-		{
-			return null;
-		}
-
-		LocalPoint localLocation = client.getLocalPlayer().getLocalLocation();
-
-		if (localLocation.distanceTo(cannonPoint) <= MAX_OVERLAY_DISTANCE)
-		{
-			Point cannonLoc = Perspective.getCanvasTextLocation(client,
-				graphics,
-				cannonPoint,
-				String.valueOf(plugin.getCballsLeft()), 150);
-
-			if (cannonLoc != null)
-			{
-				textComponent.setText(String.valueOf(plugin.getCballsLeft()));
-				textComponent.setPosition(new java.awt.Point(cannonLoc.getX(), cannonLoc.getY()));
-				textComponent.setColor(plugin.getStateColor());
-				textComponent.render(graphics);
-			}
-
-			if (config.showDoubleHitSpot())
-			{
-				Color color = config.highlightDoubleHitColor();
-				drawDoubleHitSpots(graphics, cannonPoint, color);
-			}
-		}
-
-		return null;
-	}
-
-
-	/**
-	 * Draw the double hit spots on a 6 by 6 grid around the cannon
-	 * @param startTile The position of the cannon
-	 */
-	private void drawDoubleHitSpots(Graphics2D graphics, LocalPoint startTile, Color color)
-	{
-		for (int x = -3; x <= 3; x++)
-		{
-			for (int y = -3; y <= 3; y++)
-			{
-				if (y != 1 && x != 1 && y != -1 && x != -1)
-				{
-					continue;
-				}
-
-				//Ignore center square
-				if (y >= -1 && y <= 1 && x >= -1 && x <= 1)
-				{
-					continue;
-				}
-
-				int xPos = startTile.getX() - (x * LOCAL_TILE_SIZE);
-				int yPos = startTile.getY() - (y * LOCAL_TILE_SIZE);
-
-				LocalPoint marker = new LocalPoint(xPos, yPos);
-				Polygon poly = Perspective.getCanvasTilePoly(client, marker);
-
-				if (poly == null)
-				{
-					continue;
-				}
-
-				OverlayUtil.renderPolygon(graphics, poly, color);
-			}
-		}
-	}
+    private void drawDoubleHitSpots(Graphics2D graphics, LocalPoint startTile, Color color) {
+        for (int x = -3; x <= 3; ++x) {
+            for (int y = -3; y <= 3; ++y) {
+                int yPos;
+                int xPos;
+                LocalPoint marker;
+                Polygon poly;
+                if (y != 1 && x != 1 && y != -1 && x != -1 || y >= -1 && y <= 1 && x >= -1 && x <= 1 || (poly = Perspective.getCanvasTilePoly((Client)this.client, (LocalPoint)(marker = new LocalPoint(xPos = startTile.getX() - x * 128, yPos = startTile.getY() - y * 128)))) == null) continue;
+                OverlayUtil.renderPolygon(graphics, poly, color);
+            }
+        }
+    }
 }
+

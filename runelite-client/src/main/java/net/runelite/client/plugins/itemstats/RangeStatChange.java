@@ -1,117 +1,110 @@
 /*
- * Copyright (c) 2016-2019, Jordan Atwood <nightfirecat@protonmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.itemstats;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import net.runelite.client.plugins.itemstats.StatChange;
 
-/**
- * A stat change which can result in different magnitudes of change to the stat
- */
-@Data
-@EqualsAndHashCode(callSuper = true)
-public class RangeStatChange extends StatChange
-{
-	/**
-	 * Minimum relative change that will occur if the stat boost is applied now.
-	 * In this class, {@code relative} is representative of the maximum relative change that will
-	 * occur.
-	 */
-	private int minRelative;
+public class RangeStatChange
+extends StatChange {
+    private int minRelative;
+    private int minTheoretical;
+    private int minAbsolute;
 
-	/**
-	 * Minimum theoretical change that can occur before boost cap is enforced.
-	 * In this class, {@code theoretical} is representative of the maximum theoretical change that
-	 * will occur.
-	 */
-	private int minTheoretical;
+    @Override
+    public String getFormattedRelative() {
+        return RangeStatChange.concat(this.minRelative, this.getRelative());
+    }
 
-	/**
-	 * Minimum absolute total of the stat after applying the boost.
-	 * In this class, {@code absolute} is representative of the maximum absolute change that will
-	 * occur.
-	 */
-	private int minAbsolute;
+    @Override
+    public String getFormattedTheoretical() {
+        return RangeStatChange.concat(this.minTheoretical, this.getTheoretical());
+    }
 
-	/**
-	 * Returns a human-readable formatted relative boost.
-	 * Should be the boost range in the format "±N" (for minimum -N and maximum +N values),
-	 * "+MIN~MAX" (for minimum and maximum values of the same sign),
-	 * "-MIN~+MAX" (for negative minimum and positive maximum values), or
-	 * "+MAX" (for equal minimum and maximum values).
-	 *
-	 * @return The formatted relative boost amount
-	 */
-	@Override
-	public String getFormattedRelative()
-	{
-		return concat(minRelative, getRelative());
-	}
+    private static String concat(int changeA, int changeB) {
+        if (changeA == changeB) {
+            return RangeStatChange.formatBoost(changeA);
+        }
+        if (changeA * -1 == changeB) {
+            return "\u00b1" + Math.abs(changeA);
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%+d", changeA));
+        sb.append('~');
+        if (changeA < 0 && changeB < 0 || changeA >= 0 && changeB >= 0) {
+            sb.append(Math.abs(changeB));
+        } else {
+            sb.append(String.format("%+d", changeB));
+        }
+        return sb.toString();
+    }
 
-	/**
-	 * Returns a human-readable formatted theoretical boost.
-	 * Should be the boost range in the format "±N" (for minimum -N and maximum +N values),
-	 * "+MIN~MAX" (for minimum and maximum values of the same sign),
-	 * "-MIN~+MAX" (for negative minimum and positive maximum values), or
-	 * "+MAX" (for equal minimum and maximum values).
-	 *
-	 * @return The formatted theoretical boost amount
-	 */
-	@Override
-	public String getFormattedTheoretical()
-	{
-		return concat(minTheoretical, getTheoretical());
-	}
+    public int getMinRelative() {
+        return this.minRelative;
+    }
 
-	private static String concat(int changeA, int changeB)
-	{
-		if (changeA == changeB)
-		{
-			return formatBoost(changeA);
-		}
-		else if (changeA * -1 == changeB)
-		{
-			return "±" + Math.abs(changeA);
-		}
+    public int getMinTheoretical() {
+        return this.minTheoretical;
+    }
 
-		final StringBuilder sb = new StringBuilder();
+    public int getMinAbsolute() {
+        return this.minAbsolute;
+    }
 
-		sb.append(String.format("%+d", changeA));
-		sb.append('~');
+    public void setMinRelative(int minRelative) {
+        this.minRelative = minRelative;
+    }
 
-		// If they share a operator, strip b's duplicate
-		if (changeA < 0 && changeB < 0
-			|| changeA >= 0 && changeB >= 0)
-		{
-			sb.append(Math.abs(changeB));
-		}
-		else
-		{
-			sb.append(String.format("%+d", changeB));
-		}
+    public void setMinTheoretical(int minTheoretical) {
+        this.minTheoretical = minTheoretical;
+    }
 
-		return sb.toString();
-	}
+    public void setMinAbsolute(int minAbsolute) {
+        this.minAbsolute = minAbsolute;
+    }
+
+    @Override
+    public String toString() {
+        return "RangeStatChange(minRelative=" + this.getMinRelative() + ", minTheoretical=" + this.getMinTheoretical() + ", minAbsolute=" + this.getMinAbsolute() + ")";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof RangeStatChange)) {
+            return false;
+        }
+        RangeStatChange other = (RangeStatChange)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        if (this.getMinRelative() != other.getMinRelative()) {
+            return false;
+        }
+        if (this.getMinTheoretical() != other.getMinTheoretical()) {
+            return false;
+        }
+        return this.getMinAbsolute() == other.getMinAbsolute();
+    }
+
+    @Override
+    protected boolean canEqual(Object other) {
+        return other instanceof RangeStatChange;
+    }
+
+    @Override
+    public int hashCode() {
+        int PRIME = 59;
+        int result = super.hashCode();
+        result = result * 59 + this.getMinRelative();
+        result = result * 59 + this.getMinTheoretical();
+        result = result * 59 + this.getMinAbsolute();
+        return result;
+    }
 }
+

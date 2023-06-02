@@ -1,87 +1,119 @@
 /*
- * Copyright (c) 2016-2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.itemstats;
 
-import lombok.Data;
+import net.runelite.client.plugins.itemstats.Positivity;
 import net.runelite.client.plugins.itemstats.stats.Stat;
 
-/**
- * A single stat change
- */
-@Data
-public class StatChange
-{
-	/**
-	 * The stat which will be boosted (or damaged).
-	 */
-	private Stat stat;
+public class StatChange {
+    private Stat stat;
+    private int relative;
+    private int theoretical;
+    private int absolute;
+    private Positivity positivity;
 
-	/**
-	 * Relative change that will occur if the stat boost is applied now.
-	 */
-	private int relative;
+    public String getFormattedRelative() {
+        return StatChange.formatBoost(this.relative);
+    }
 
-	/**
-	 * Theoretical change that can occur before boost cap is enforced.
-	 */
-	private int theoretical;
+    public String getFormattedTheoretical() {
+        return StatChange.formatBoost(this.theoretical);
+    }
 
-	/**
-	 * Absolute total of the stat after applying the boost.
-	 */
-	private int absolute;
+    static String formatBoost(int boost) {
+        return String.format("%+d", boost);
+    }
 
-	/**
-	 * How beneficial this stat boost will be to the player.
-	 */
-	private Positivity positivity;
+    public Stat getStat() {
+        return this.stat;
+    }
 
-	/**
-	 * Returns a human-readable formatted relative boost.
-	 * Should be the boost amount prefixed by "+" or "-".
-	 *
-	 * @return The formatted relative boost amount
-	 */
-	public String getFormattedRelative()
-	{
-		return formatBoost(relative);
-	}
+    public int getRelative() {
+        return this.relative;
+    }
 
-	/**
-	 * Returns a human-readable formatted theoretical boost.
-	 * Should be the boost amount prefixed by "+" or "-".
-	 *
-	 * @return The formatted theoretical boost amount
-	 */
-	public String getFormattedTheoretical()
-	{
-		return formatBoost(theoretical);
-	}
+    public int getTheoretical() {
+        return this.theoretical;
+    }
 
-	static String formatBoost(int boost)
-	{
-		return String.format("%+d", boost);
-	}
+    public int getAbsolute() {
+        return this.absolute;
+    }
+
+    public Positivity getPositivity() {
+        return this.positivity;
+    }
+
+    public void setStat(Stat stat) {
+        this.stat = stat;
+    }
+
+    public void setRelative(int relative) {
+        this.relative = relative;
+    }
+
+    public void setTheoretical(int theoretical) {
+        this.theoretical = theoretical;
+    }
+
+    public void setAbsolute(int absolute) {
+        this.absolute = absolute;
+    }
+
+    public void setPositivity(Positivity positivity) {
+        this.positivity = positivity;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof StatChange)) {
+            return false;
+        }
+        StatChange other = (StatChange)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getRelative() != other.getRelative()) {
+            return false;
+        }
+        if (this.getTheoretical() != other.getTheoretical()) {
+            return false;
+        }
+        if (this.getAbsolute() != other.getAbsolute()) {
+            return false;
+        }
+        Stat this$stat = this.getStat();
+        Stat other$stat = other.getStat();
+        if (this$stat == null ? other$stat != null : !this$stat.equals(other$stat)) {
+            return false;
+        }
+        Positivity this$positivity = this.getPositivity();
+        Positivity other$positivity = other.getPositivity();
+        return !(this$positivity == null ? other$positivity != null : !((Object)((Object)this$positivity)).equals((Object)other$positivity));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof StatChange;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getRelative();
+        result = result * 59 + this.getTheoretical();
+        result = result * 59 + this.getAbsolute();
+        Stat $stat = this.getStat();
+        result = result * 59 + ($stat == null ? 43 : $stat.hashCode());
+        Positivity $positivity = this.getPositivity();
+        result = result * 59 + ($positivity == null ? 43 : ((Object)((Object)$positivity)).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "StatChange(stat=" + this.getStat() + ", relative=" + this.getRelative() + ", theoretical=" + this.getTheoretical() + ", absolute=" + this.getAbsolute() + ", positivity=" + (Object)((Object)this.getPositivity()) + ")";
+    }
 }
+

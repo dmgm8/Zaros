@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.cache.CacheBuilder
+ *  com.google.common.cache.CacheLoader
+ *  com.google.common.cache.LoadingCache
+ *  com.google.common.collect.ImmutableMap
+ *  com.google.inject.Inject
+ *  javax.annotation.Nonnull
+ *  javax.annotation.Nullable
+ *  javax.inject.Named
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.ItemComposition
+ *  net.runelite.api.SpritePixels
+ *  net.runelite.http.api.item.ItemPrice
+ *  net.runelite.http.api.item.ItemStats
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.game;
 
@@ -29,7 +27,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import com.openosrs.client.game.ItemReclaimCost;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -45,499 +42,310 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.inject.Named;
 import javax.inject.Singleton;
-import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
-import static net.runelite.api.Constants.CLIENT_DEFAULT_ZOOM;
 import net.runelite.api.GameState;
 import net.runelite.api.ItemComposition;
-import static net.runelite.api.ItemID.*;
 import net.runelite.api.SpritePixels;
-import net.runelite.api.widgets.ItemQuantityMode;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.RuneLiteConfig;
+import net.runelite.client.game.ItemClient;
+import net.runelite.client.game.ItemMapping;
 import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.http.api.item.ItemPrice;
 import net.runelite.http.api.item.ItemStats;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
-@Slf4j
-public class ItemManager
-{
-	@Value
-	private static class ImageKey
-	{
-		private final int itemId;
-		private final int itemQuantity;
-		private final boolean stackable;
-	}
+public class ItemManager {
+    private static final Logger log = LoggerFactory.getLogger(ItemManager.class);
+    private final Client client;
+    private final ClientThread clientThread;
+    private final ItemClient itemClient;
+    private final RuneLiteConfig runeLiteConfig;
+    @Inject(optional=true)
+    @Named(value="activePriceThreshold")
+    private double activePriceThreshold = 5.0;
+    @Inject(optional=true)
+    @Named(value="lowPriceThreshold")
+    private int lowPriceThreshold = 1000;
+    private Map<Integer, ItemPrice> itemPrices = Collections.emptyMap();
+    private Map<Integer, ItemStats> itemStats = Collections.emptyMap();
+    private final LoadingCache<ImageKey, AsyncBufferedImage> itemImages;
+    private final LoadingCache<OutlineKey, BufferedImage> itemOutlines;
+    private static final ImmutableMap<Integer, Integer> WORN_ITEMS = ImmutableMap.builder().put((Object)89, (Object)88).put((Object)10554, (Object)10553).put((Object)11851, (Object)11850).put((Object)11853, (Object)11852).put((Object)11855, (Object)11854).put((Object)11857, (Object)11856).put((Object)11859, (Object)11858).put((Object)11861, (Object)11860).put((Object)13580, (Object)13579).put((Object)13582, (Object)13581).put((Object)13584, (Object)13583).put((Object)13586, (Object)13585).put((Object)13588, (Object)13587).put((Object)13590, (Object)13589).put((Object)13592, (Object)13591).put((Object)13594, (Object)13593).put((Object)13596, (Object)13595).put((Object)13598, (Object)13597).put((Object)13600, (Object)13599).put((Object)13602, (Object)13601).put((Object)13604, (Object)13603).put((Object)13606, (Object)13605).put((Object)13608, (Object)13607).put((Object)13610, (Object)13609).put((Object)13612, (Object)13611).put((Object)13614, (Object)13613).put((Object)13616, (Object)13615).put((Object)13618, (Object)13617).put((Object)13620, (Object)13619).put((Object)13622, (Object)13621).put((Object)13624, (Object)13623).put((Object)13626, (Object)13625).put((Object)13628, (Object)13627).put((Object)13630, (Object)13629).put((Object)13632, (Object)13631).put((Object)13634, (Object)13633).put((Object)13636, (Object)13635).put((Object)13638, (Object)13637).put((Object)13668, (Object)13667).put((Object)13670, (Object)13669).put((Object)13672, (Object)13671).put((Object)13674, (Object)13673).put((Object)13676, (Object)13675).put((Object)13678, (Object)13677).put((Object)21063, (Object)21061).put((Object)21066, (Object)21064).put((Object)21069, (Object)21067).put((Object)21072, (Object)21070).put((Object)21075, (Object)21073).put((Object)21078, (Object)21076).put((Object)24745, (Object)24743).put((Object)24748, (Object)24746).put((Object)24751, (Object)24749).put((Object)24754, (Object)24752).put((Object)24757, (Object)24755).put((Object)24760, (Object)24758).put((Object)25071, (Object)25069).put((Object)25074, (Object)25072).put((Object)25077, (Object)25075).put((Object)25080, (Object)25078).put((Object)25083, (Object)25081).put((Object)25086, (Object)25084).put((Object)13342, (Object)13280).put((Object)10073, (Object)10069).put((Object)10074, (Object)10071).put((Object)13341, (Object)9772).put((Object)13340, (Object)9771).build();
 
-	@Value
-	private static class OutlineKey
-	{
-		private final int itemId;
-		private final int itemQuantity;
-		private final Color outlineColor;
-	}
+    @Inject
+    public ItemManager(Client client, ScheduledExecutorService scheduledExecutorService, ClientThread clientThread, ItemClient itemClient, RuneLiteConfig runeLiteConfig) {
+        this.client = client;
+        this.clientThread = clientThread;
+        this.itemClient = itemClient;
+        this.runeLiteConfig = runeLiteConfig;
+        scheduledExecutorService.scheduleWithFixedDelay(this::loadPrices, 0L, 30L, TimeUnit.MINUTES);
+        scheduledExecutorService.submit(this::loadStats);
+        this.itemImages = CacheBuilder.newBuilder().maximumSize(128L).expireAfterAccess(1L, TimeUnit.HOURS).build((CacheLoader)new CacheLoader<ImageKey, AsyncBufferedImage>(){
 
-	private final Client client;
-	private final ClientThread clientThread;
-	private final ItemClient itemClient;
-	private final RuneLiteConfig runeLiteConfig;
+            public AsyncBufferedImage load(ImageKey key) throws Exception {
+                return ItemManager.this.loadImage(key.itemId, key.itemQuantity, key.stackable);
+            }
+        });
+        this.itemOutlines = CacheBuilder.newBuilder().maximumSize(128L).expireAfterAccess(1L, TimeUnit.HOURS).build((CacheLoader)new CacheLoader<OutlineKey, BufferedImage>(){
 
-	@Inject(optional = true)
-	@Named("activePriceThreshold")
-	private double activePriceThreshold = 5;
+            public BufferedImage load(OutlineKey key) throws Exception {
+                return ItemManager.this.loadItemOutline(key.itemId, key.itemQuantity, key.outlineColor);
+            }
+        });
+    }
 
-	@Inject(optional = true)
-	@Named("lowPriceThreshold")
-	private int lowPriceThreshold = 1000;
+    private void loadPrices() {
+        log.debug("Loaded {} prices", (Object)this.itemPrices.size());
+    }
 
-	private Map<Integer, ItemPrice> itemPrices = Collections.emptyMap();
-	private Map<Integer, ItemStats> itemStats = Collections.emptyMap();
-	private final LoadingCache<ImageKey, AsyncBufferedImage> itemImages;
-	private final LoadingCache<OutlineKey, BufferedImage> itemOutlines;
+    private void loadStats() {
+        try {
+            Map<Integer, ItemStats> stats = this.itemClient.getStats();
+            if (stats != null) {
+                this.itemStats = ImmutableMap.copyOf(stats);
+            }
+            log.debug("Loaded {} stats", (Object)this.itemStats.size());
+        }
+        catch (IOException e) {
+            log.warn("error loading stats!", (Throwable)e);
+        }
+    }
 
-	// Worn items with weight reducing property have a different worn and inventory ItemID
-	private static final ImmutableMap<Integer, Integer> WORN_ITEMS = ImmutableMap.<Integer, Integer>builder().
-		put(BOOTS_OF_LIGHTNESS_89, BOOTS_OF_LIGHTNESS).
-		put(PENANCE_GLOVES_10554, PENANCE_GLOVES).
+    public int getItemPrice(int itemID) {
+        return this.getItemPriceWithSource(itemID, this.runeLiteConfig.useWikiItemPrices());
+    }
 
-		put(GRACEFUL_HOOD_11851, GRACEFUL_HOOD).
-		put(GRACEFUL_CAPE_11853, GRACEFUL_CAPE).
-		put(GRACEFUL_TOP_11855, GRACEFUL_TOP).
-		put(GRACEFUL_LEGS_11857, GRACEFUL_LEGS).
-		put(GRACEFUL_GLOVES_11859, GRACEFUL_GLOVES).
-		put(GRACEFUL_BOOTS_11861, GRACEFUL_BOOTS).
-		put(GRACEFUL_HOOD_13580, GRACEFUL_HOOD_13579).
-		put(GRACEFUL_CAPE_13582, GRACEFUL_CAPE_13581).
-		put(GRACEFUL_TOP_13584, GRACEFUL_TOP_13583).
-		put(GRACEFUL_LEGS_13586, GRACEFUL_LEGS_13585).
-		put(GRACEFUL_GLOVES_13588, GRACEFUL_GLOVES_13587).
-		put(GRACEFUL_BOOTS_13590, GRACEFUL_BOOTS_13589).
-		put(GRACEFUL_HOOD_13592, GRACEFUL_HOOD_13591).
-		put(GRACEFUL_CAPE_13594, GRACEFUL_CAPE_13593).
-		put(GRACEFUL_TOP_13596, GRACEFUL_TOP_13595).
-		put(GRACEFUL_LEGS_13598, GRACEFUL_LEGS_13597).
-		put(GRACEFUL_GLOVES_13600, GRACEFUL_GLOVES_13599).
-		put(GRACEFUL_BOOTS_13602, GRACEFUL_BOOTS_13601).
-		put(GRACEFUL_HOOD_13604, GRACEFUL_HOOD_13603).
-		put(GRACEFUL_CAPE_13606, GRACEFUL_CAPE_13605).
-		put(GRACEFUL_TOP_13608, GRACEFUL_TOP_13607).
-		put(GRACEFUL_LEGS_13610, GRACEFUL_LEGS_13609).
-		put(GRACEFUL_GLOVES_13612, GRACEFUL_GLOVES_13611).
-		put(GRACEFUL_BOOTS_13614, GRACEFUL_BOOTS_13613).
-		put(GRACEFUL_HOOD_13616, GRACEFUL_HOOD_13615).
-		put(GRACEFUL_CAPE_13618, GRACEFUL_CAPE_13617).
-		put(GRACEFUL_TOP_13620, GRACEFUL_TOP_13619).
-		put(GRACEFUL_LEGS_13622, GRACEFUL_LEGS_13621).
-		put(GRACEFUL_GLOVES_13624, GRACEFUL_GLOVES_13623).
-		put(GRACEFUL_BOOTS_13626, GRACEFUL_BOOTS_13625).
-		put(GRACEFUL_HOOD_13628, GRACEFUL_HOOD_13627).
-		put(GRACEFUL_CAPE_13630, GRACEFUL_CAPE_13629).
-		put(GRACEFUL_TOP_13632, GRACEFUL_TOP_13631).
-		put(GRACEFUL_LEGS_13634, GRACEFUL_LEGS_13633).
-		put(GRACEFUL_GLOVES_13636, GRACEFUL_GLOVES_13635).
-		put(GRACEFUL_BOOTS_13638, GRACEFUL_BOOTS_13637).
-		put(GRACEFUL_HOOD_13668, GRACEFUL_HOOD_13667).
-		put(GRACEFUL_CAPE_13670, GRACEFUL_CAPE_13669).
-		put(GRACEFUL_TOP_13672, GRACEFUL_TOP_13671).
-		put(GRACEFUL_LEGS_13674, GRACEFUL_LEGS_13673).
-		put(GRACEFUL_GLOVES_13676, GRACEFUL_GLOVES_13675).
-		put(GRACEFUL_BOOTS_13678, GRACEFUL_BOOTS_13677).
-		put(GRACEFUL_HOOD_21063, GRACEFUL_HOOD_21061).
-		put(GRACEFUL_CAPE_21066, GRACEFUL_CAPE_21064).
-		put(GRACEFUL_TOP_21069, GRACEFUL_TOP_21067).
-		put(GRACEFUL_LEGS_21072, GRACEFUL_LEGS_21070).
-		put(GRACEFUL_GLOVES_21075, GRACEFUL_GLOVES_21073).
-		put(GRACEFUL_BOOTS_21078, GRACEFUL_BOOTS_21076).
-		put(GRACEFUL_HOOD_24745, GRACEFUL_HOOD_24743).
-		put(GRACEFUL_CAPE_24748, GRACEFUL_CAPE_24746).
-		put(GRACEFUL_TOP_24751, GRACEFUL_TOP_24749).
-		put(GRACEFUL_LEGS_24754, GRACEFUL_LEGS_24752).
-		put(GRACEFUL_GLOVES_24757, GRACEFUL_GLOVES_24755).
-		put(GRACEFUL_BOOTS_24760, GRACEFUL_BOOTS_24758).
-		put(GRACEFUL_HOOD_25071, GRACEFUL_HOOD_25069).
-		put(GRACEFUL_CAPE_25074, GRACEFUL_CAPE_25072).
-		put(GRACEFUL_TOP_25077, GRACEFUL_TOP_25075).
-		put(GRACEFUL_LEGS_25080, GRACEFUL_LEGS_25078).
-		put(GRACEFUL_GLOVES_25083, GRACEFUL_GLOVES_25081).
-		put(GRACEFUL_BOOTS_25086, GRACEFUL_BOOTS_25084).
+    public int getItemPriceWithSource(int itemID, boolean useWikiPrice) {
+        if (itemID == 995) {
+            return 1;
+        }
+        if (itemID == 13204) {
+            return 1000;
+        }
+        ItemComposition itemComposition = this.getItemComposition(itemID);
+        if (itemComposition.getNote() != -1) {
+            itemID = itemComposition.getLinkedNoteId();
+        }
+        itemID = (Integer)WORN_ITEMS.getOrDefault((Object)itemID, (Object)itemID);
+        int price = 0;
+        Collection<ItemMapping> mappedItems = ItemMapping.map(itemID);
+        if (mappedItems == null) {
+            ItemPrice ip = this.itemPrices.get(itemID);
+            if (ip != null) {
+                price = useWikiPrice ? this.getWikiPrice(ip) : ip.getPrice();
+            }
+        } else {
+            for (ItemMapping mappedItem : mappedItems) {
+                price = (int)((long)price + (long)this.getItemPriceWithSource(mappedItem.getTradeableItem(), useWikiPrice) * mappedItem.getQuantity());
+            }
+        }
+        return price;
+    }
 
-		put(MAX_CAPE_13342, MAX_CAPE).
+    public int getWikiPrice(ItemPrice itemPrice) {
+        int wikiPrice = itemPrice.getWikiPrice();
+        int jagPrice = itemPrice.getPrice();
+        if (wikiPrice <= 0) {
+            return jagPrice;
+        }
+        if (wikiPrice <= this.lowPriceThreshold) {
+            return wikiPrice;
+        }
+        return (double)wikiPrice < (double)jagPrice * this.activePriceThreshold ? wikiPrice : jagPrice;
+    }
 
-		put(SPOTTED_CAPE_10073, SPOTTED_CAPE).
-		put(SPOTTIER_CAPE_10074, SPOTTIER_CAPE).
+    @Nullable
+    public ItemStats getItemStats(int itemId, boolean allowNote) {
+        ItemComposition itemComposition = this.getItemComposition(itemId);
+        if (itemComposition == null || itemComposition.getName() == null || !allowNote && itemComposition.getNote() != -1) {
+            return null;
+        }
+        return this.itemStats.get(this.canonicalize(itemId));
+    }
 
-		put(AGILITY_CAPET_13341, AGILITY_CAPET).
-		put(AGILITY_CAPE_13340, AGILITY_CAPE).
-		build();
+    public List<ItemPrice> search(String itemName) {
+        itemName = itemName.toLowerCase();
+        ArrayList<ItemPrice> result = new ArrayList<ItemPrice>();
+        for (ItemPrice itemPrice : this.itemPrices.values()) {
+            String name = itemPrice.getName();
+            if (!name.toLowerCase().contains(itemName)) continue;
+            result.add(itemPrice);
+        }
+        return result;
+    }
 
-	@Inject
-	public ItemManager(Client client, ScheduledExecutorService scheduledExecutorService, ClientThread clientThread,
-						ItemClient itemClient, RuneLiteConfig runeLiteConfig)
-	{
-		this.client = client;
-		this.clientThread = clientThread;
-		this.itemClient = itemClient;
-		this.runeLiteConfig = runeLiteConfig;
+    @Nonnull
+    public ItemComposition getItemComposition(int itemId) {
+        return this.client.getItemDefinition(itemId);
+    }
 
-		scheduledExecutorService.scheduleWithFixedDelay(this::loadPrices, 0, 30, TimeUnit.MINUTES);
-		scheduledExecutorService.submit(this::loadStats);
+    public int canonicalize(int itemID) {
+        ItemComposition itemComposition = this.getItemComposition(itemID);
+        if (itemComposition.getNote() != -1) {
+            return itemComposition.getLinkedNoteId();
+        }
+        if (itemComposition.getPlaceholderTemplateId() != -1) {
+            return itemComposition.getPlaceholderId();
+        }
+        return (Integer)WORN_ITEMS.getOrDefault((Object)itemID, (Object)itemID);
+    }
 
-		itemImages = CacheBuilder.newBuilder()
-			.maximumSize(128L)
-			.expireAfterAccess(1, TimeUnit.HOURS)
-			.build(new CacheLoader<ImageKey, AsyncBufferedImage>()
-			{
-				@Override
-				public AsyncBufferedImage load(ImageKey key) throws Exception
-				{
-					return loadImage(key.itemId, key.itemQuantity, key.stackable);
-				}
-			});
+    private AsyncBufferedImage loadImage(int itemId, int quantity, boolean stackable) {
+        AsyncBufferedImage img = new AsyncBufferedImage(36, 32, 2);
+        this.clientThread.invoke(() -> {
+            if (this.client.getGameState().ordinal() < GameState.LOGIN_SCREEN.ordinal()) {
+                return false;
+            }
+            SpritePixels sprite = this.client.createItemSprite(itemId, quantity, 1, 0x302020, stackable ? 1 : 0, false, 512);
+            if (sprite == null) {
+                return false;
+            }
+            sprite.toBufferedImage((BufferedImage)img);
+            img.loaded();
+            return true;
+        });
+        return img;
+    }
 
-		itemOutlines = CacheBuilder.newBuilder()
-			.maximumSize(128L)
-			.expireAfterAccess(1, TimeUnit.HOURS)
-			.build(new CacheLoader<OutlineKey, BufferedImage>()
-			{
-				@Override
-				public BufferedImage load(OutlineKey key) throws Exception
-				{
-					return loadItemOutline(key.itemId, key.itemQuantity, key.outlineColor);
-				}
-			});
-	}
+    public AsyncBufferedImage getImage(int itemId) {
+        return this.getImage(itemId, 1, false);
+    }
 
-	private void loadPrices()
-	{
-		try
-		{
-			ItemPrice[] prices = itemClient.getPrices();
-			if (prices != null)
-			{
-				ImmutableMap.Builder<Integer, ItemPrice> map = ImmutableMap.builderWithExpectedSize(prices.length);
-				for (ItemPrice price : prices)
-				{
-					map.put(price.getId(), price);
-				}
-				itemPrices = map.build();
-			}
+    public AsyncBufferedImage getImage(int itemId, int quantity, boolean stackable) {
+        try {
+            return (AsyncBufferedImage)this.itemImages.get((Object)new ImageKey(itemId, quantity, stackable));
+        }
+        catch (ExecutionException ex) {
+            return null;
+        }
+    }
 
-			log.debug("Loaded {} prices", itemPrices.size());
-		}
-		catch (IOException e)
-		{
-			log.warn("error loading prices!", e);
-		}
-	}
+    private BufferedImage loadItemOutline(int itemId, int itemQuantity, Color outlineColor) {
+        SpritePixels itemSprite = this.client.createItemSprite(itemId, itemQuantity, 1, 0, 0, false, 512);
+        return itemSprite.toBufferedOutline(outlineColor);
+    }
 
-	private void loadStats()
-	{
-		try
-		{
-			final Map<Integer, ItemStats> stats = itemClient.getStats();
-			if (stats != null)
-			{
-				itemStats = ImmutableMap.copyOf(stats);
-			}
+    public BufferedImage getItemOutline(int itemId, int itemQuantity, Color outlineColor) {
+        try {
+            return (BufferedImage)this.itemOutlines.get((Object)new OutlineKey(itemId, itemQuantity, outlineColor));
+        }
+        catch (ExecutionException e) {
+            return null;
+        }
+    }
 
-			log.debug("Loaded {} stats", itemStats.size());
-		}
-		catch (IOException e)
-		{
-			log.warn("error loading stats!", e);
-		}
-	}
+    private static final class OutlineKey {
+        private final int itemId;
+        private final int itemQuantity;
+        private final Color outlineColor;
 
-	/**
-	 * Look up an item's price
-	 *
-	 * @param itemID item id
-	 * @return item price
-	 */
-	public int getItemPrice(int itemID)
-	{
-		return getItemPriceWithSource(itemID, runeLiteConfig.useWikiItemPrices());
-	}
+        public OutlineKey(int itemId, int itemQuantity, Color outlineColor) {
+            this.itemId = itemId;
+            this.itemQuantity = itemQuantity;
+            this.outlineColor = outlineColor;
+        }
 
-	/**
-	 * Look up an item's price
-	 *
-	 * @param itemID       item id
-	 * @param useWikiPrice use the actively traded/wiki price
-	 * @return item price
-	 */
-	public int getItemPriceWithSource(int itemID, boolean useWikiPrice)
-	{
-		if (itemID == COINS_995)
-		{
-			return 1;
-		}
-		if (itemID == PLATINUM_TOKEN)
-		{
-			return 1000;
-		}
+        public int getItemId() {
+            return this.itemId;
+        }
 
-		ItemComposition itemComposition = getItemComposition(itemID);
-		if (itemComposition.getNote() != -1)
-		{
-			itemID = itemComposition.getLinkedNoteId();
-		}
-		itemID = WORN_ITEMS.getOrDefault(itemID, itemID);
+        public int getItemQuantity() {
+            return this.itemQuantity;
+        }
 
-		int price = 0;
+        public Color getOutlineColor() {
+            return this.outlineColor;
+        }
 
-		final Collection<ItemMapping> mappedItems = ItemMapping.map(itemID);
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof OutlineKey)) {
+                return false;
+            }
+            OutlineKey other = (OutlineKey)o;
+            if (this.getItemId() != other.getItemId()) {
+                return false;
+            }
+            if (this.getItemQuantity() != other.getItemQuantity()) {
+                return false;
+            }
+            Color this$outlineColor = this.getOutlineColor();
+            Color other$outlineColor = other.getOutlineColor();
+            return !(this$outlineColor == null ? other$outlineColor != null : !((Object)this$outlineColor).equals(other$outlineColor));
+        }
 
-		if (mappedItems == null)
-		{
-			final ItemPrice ip = itemPrices.get(itemID);
+        public int hashCode() {
+            int PRIME = 59;
+            int result = 1;
+            result = result * 59 + this.getItemId();
+            result = result * 59 + this.getItemQuantity();
+            Color $outlineColor = this.getOutlineColor();
+            result = result * 59 + ($outlineColor == null ? 43 : ((Object)$outlineColor).hashCode());
+            return result;
+        }
 
-			if (ip != null)
-			{
-				price = useWikiPrice ? getWikiPrice(ip) : ip.getPrice();
-			}
-		}
-		else
-		{
-			for (final ItemMapping mappedItem : mappedItems)
-			{
-				price += getItemPriceWithSource(mappedItem.getTradeableItem(), useWikiPrice) * mappedItem.getQuantity();
-			}
-		}
+        public String toString() {
+            return "ItemManager.OutlineKey(itemId=" + this.getItemId() + ", itemQuantity=" + this.getItemQuantity() + ", outlineColor=" + this.getOutlineColor() + ")";
+        }
+    }
 
-		return price;
-	}
+    private static final class ImageKey {
+        private final int itemId;
+        private final int itemQuantity;
+        private final boolean stackable;
 
-	public int getAlchValue(ItemComposition composition)
-	{
-		if (composition.getId() == COINS_995)
-		{
-			return 1;
-		}
-		if (composition.getId() == PLATINUM_TOKEN)
-		{
-			return 1000;
-		}
+        public ImageKey(int itemId, int itemQuantity, boolean stackable) {
+            this.itemId = itemId;
+            this.itemQuantity = itemQuantity;
+            this.stackable = stackable;
+        }
 
-		return Math.max(1, composition.getHaPrice());
-	}
+        public int getItemId() {
+            return this.itemId;
+        }
 
-	public int getRepairValue(int itemId)
-	{
-		return getRepairValue(itemId, false);
-	}
+        public int getItemQuantity() {
+            return this.itemQuantity;
+        }
 
-	private int getRepairValue(int itemId, boolean fullValue)
-	{
-		final ItemReclaimCost b = ItemReclaimCost.of(itemId);
+        public boolean isStackable() {
+            return this.stackable;
+        }
 
-		if (b != null)
-		{
-			if (fullValue || b.getItemID() == GRANITE_MAUL_24225 || b.getItemID() == GRANITE_MAUL_24227)
-			{
-				return b.getValue();
-			}
-			return (int) (b.getValue() * (75.0f / 100.0f));
-		}
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof ImageKey)) {
+                return false;
+            }
+            ImageKey other = (ImageKey)o;
+            if (this.getItemId() != other.getItemId()) {
+                return false;
+            }
+            if (this.getItemQuantity() != other.getItemQuantity()) {
+                return false;
+            }
+            return this.isStackable() == other.isStackable();
+        }
 
-		return 0;
-	}
+        public int hashCode() {
+            int PRIME = 59;
+            int result = 1;
+            result = result * 59 + this.getItemId();
+            result = result * 59 + this.getItemQuantity();
+            result = result * 59 + (this.isStackable() ? 79 : 97);
+            return result;
+        }
 
-	/**
-	 * Get the wiki price for an item, with checks to try and avoid excessive price manipulation
-	 *
-	 * @param itemPrice
-	 * @return
-	 */
-	public int getWikiPrice(ItemPrice itemPrice)
-	{
-		final int wikiPrice = itemPrice.getWikiPrice();
-		final int jagPrice = itemPrice.getPrice();
-		if (wikiPrice <= 0)
-		{
-			return jagPrice;
-		}
-		if (wikiPrice <= lowPriceThreshold)
-		{
-			return wikiPrice;
-		}
-		return wikiPrice < jagPrice * activePriceThreshold ? wikiPrice : jagPrice;
-	}
-
-	/**
-	 * Look up an item's stats
-	 *
-	 * @param itemId item id
-	 * @return item stats
-	 */
-	@Nullable
-	public ItemStats getItemStats(int itemId, boolean allowNote)
-	{
-		ItemComposition itemComposition = getItemComposition(itemId);
-
-		if (itemComposition == null || itemComposition.getName() == null || (!allowNote && itemComposition.getNote() != -1))
-		{
-			return null;
-		}
-
-		return itemStats.get(canonicalize(itemId));
-	}
-
-	/**
-	 * Search for tradeable items based on item name
-	 *
-	 * @param itemName item name
-	 * @return
-	 */
-	public List<ItemPrice> search(String itemName)
-	{
-		itemName = itemName.toLowerCase();
-
-		List<ItemPrice> result = new ArrayList<>();
-		for (ItemPrice itemPrice : itemPrices.values())
-		{
-			final String name = itemPrice.getName();
-			if (name.toLowerCase().contains(itemName))
-			{
-				result.add(itemPrice);
-			}
-		}
-		return result;
-	}
-
-	/**
-	 * Look up an item's composition
-	 *
-	 * @param itemId item id
-	 * @return item composition
-	 */
-	@Nonnull
-	public ItemComposition getItemComposition(int itemId)
-	{
-		return client.getItemDefinition(itemId);
-	}
-
-	/**
-	 * Get an item's un-noted, un-placeholdered ID
-	 */
-	public int canonicalize(int itemID)
-	{
-		ItemComposition itemComposition = getItemComposition(itemID);
-
-		if (itemComposition.getNote() != -1)
-		{
-			return itemComposition.getLinkedNoteId();
-		}
-
-		if (itemComposition.getPlaceholderTemplateId() != -1)
-		{
-			return itemComposition.getPlaceholderId();
-		}
-
-		return WORN_ITEMS.getOrDefault(itemID, itemID);
-	}
-
-	/**
-	 * Loads item sprite from game, makes transparent, and generates image
-	 *
-	 * @param itemId
-	 * @return
-	 */
-	private AsyncBufferedImage loadImage(int itemId, int quantity, boolean stackable)
-	{
-		AsyncBufferedImage img = new AsyncBufferedImage(Constants.ITEM_SPRITE_WIDTH, Constants.ITEM_SPRITE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
-		clientThread.invoke(() ->
-		{
-			if (client.getGameState().ordinal() < GameState.LOGIN_SCREEN.ordinal())
-			{
-				return false;
-			}
-			SpritePixels sprite = client.createItemSprite(itemId, quantity, 1, SpritePixels.DEFAULT_SHADOW_COLOR,
-				stackable ? ItemQuantityMode.ALWAYS : ItemQuantityMode.NEVER, false, CLIENT_DEFAULT_ZOOM);
-			if (sprite == null)
-			{
-				return false;
-			}
-			sprite.toBufferedImage(img);
-			img.loaded();
-			return true;
-		});
-		return img;
-	}
-
-	/**
-	 * Get item sprite image as BufferedImage.
-	 * <p>
-	 * This method may return immediately with a blank image if not called on the game thread.
-	 * The image will be filled in later. If this is used for a UI label/button, it should be added
-	 * using AsyncBufferedImage::addTo to ensure it is painted properly
-	 *
-	 * @param itemId
-	 * @return
-	 */
-	public AsyncBufferedImage getImage(int itemId)
-	{
-		return getImage(itemId, 1, false);
-	}
-
-	/**
-	 * Get item sprite image as BufferedImage.
-	 * <p>
-	 * This method may return immediately with a blank image if not called on the game thread.
-	 * The image will be filled in later. If this is used for a UI label/button, it should be added
-	 * using AsyncBufferedImage::addTo to ensure it is painted properly
-	 *
-	 * @param itemId
-	 * @param quantity
-	 * @return
-	 */
-	public AsyncBufferedImage getImage(int itemId, int quantity, boolean stackable)
-	{
-		try
-		{
-			return itemImages.get(new ImageKey(itemId, quantity, stackable));
-		}
-		catch (ExecutionException ex)
-		{
-			return null;
-		}
-	}
-
-	/**
-	 * Create item sprite and applies an outline.
-	 *
-	 * @param itemId       item id
-	 * @param itemQuantity item quantity
-	 * @param outlineColor outline color
-	 * @return image
-	 */
-	private BufferedImage loadItemOutline(final int itemId, final int itemQuantity, final Color outlineColor)
-	{
-		final SpritePixels itemSprite = client.createItemSprite(itemId, itemQuantity, 1, 0, 0, false, CLIENT_DEFAULT_ZOOM);
-		return itemSprite.toBufferedOutline(outlineColor);
-	}
-
-	/**
-	 * Get item outline with a specific color.
-	 *
-	 * @param itemId       item id
-	 * @param itemQuantity item quantity
-	 * @param outlineColor outline color
-	 * @return image
-	 */
-	public BufferedImage getItemOutline(final int itemId, final int itemQuantity, final Color outlineColor)
-	{
-		try
-		{
-			return itemOutlines.get(new OutlineKey(itemId, itemQuantity, outlineColor));
-		}
-		catch (ExecutionException e)
-		{
-			return null;
-		}
-	}
+        public String toString() {
+            return "ItemManager.ImageKey(itemId=" + this.getItemId() + ", itemQuantity=" + this.getItemQuantity() + ", stackable=" + this.isStackable() + ")";
+        }
+    }
 }
+

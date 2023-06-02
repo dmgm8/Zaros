@@ -1,26 +1,25 @@
 /*
- * Copyright (c) 2018-2021, Woox <https://github.com/wooxsolo>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Inject
+ *  com.google.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.DecorativeObject
+ *  net.runelite.api.GameObject
+ *  net.runelite.api.GraphicsObject
+ *  net.runelite.api.GroundObject
+ *  net.runelite.api.ItemLayer
+ *  net.runelite.api.MainBufferProvider
+ *  net.runelite.api.Model
+ *  net.runelite.api.NPC
+ *  net.runelite.api.NPCComposition
+ *  net.runelite.api.Perspective
+ *  net.runelite.api.Player
+ *  net.runelite.api.Renderable
+ *  net.runelite.api.TileObject
+ *  net.runelite.api.WallObject
+ *  net.runelite.api.coords.LocalPoint
  */
 package net.runelite.client.ui.overlay.outline;
 
@@ -32,10 +31,6 @@ import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.List;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import net.runelite.api.Client;
 import net.runelite.api.DecorativeObject;
 import net.runelite.api.GameObject;
@@ -52,1121 +47,702 @@ import net.runelite.api.Renderable;
 import net.runelite.api.TileObject;
 import net.runelite.api.WallObject;
 import net.runelite.api.coords.LocalPoint;
+import net.runelite.client.ui.overlay.outline.IntBlockBuffer;
 
 @Singleton
-public class ModelOutlineRenderer
-{
-	@AllArgsConstructor
-	private static class PixelDistanceDelta
-	{
-		private final int dx;
-		private final int dy;
-	}
-
-	@AllArgsConstructor
-	private static class PixelDistanceGroupIndex
-	{
-		@Getter(AccessLevel.PRIVATE)
-		private final double distance;
-		private final int distanceGroupIndex;
-		private final double alphaMultiply;
-	}
-
-	private static final int MAX_OUTLINE_WIDTH = 50;
-	private static final int MAX_FEATHER = 4;
-	private static final int DIRECT_WRITE_OUTLINE_WIDTH_THRESHOLD = 10;
-
-	private final Client client;
-	
-	// Vertex positions projected on the screen.
-	private final int[] projectedVerticesX = new int[6500];
-	private final int[] projectedVerticesY = new int[6500];
-
-	// Window boundaries for the ingame world
-	private int clipX1;
-	private int clipY1;
-	private int clipX2;
-	private int clipY2;
-
-	// Boundaries for the outline
-	private int croppedX1;
-	private int croppedY1;
-	private int croppedX2;
-	private int croppedY2;
-	private int croppedWidth;
-	private int croppedHeight;
-
-	// Bitset with pixel positions that would be rendered to within the cropped area by the model.
-	private int[] visited = new int[0];
-
-	// Memory used for queueing the pixels for the outline of the model.
-	// Pixels are grouped by x and y distance to the closest pixel drawn on the model.
-	// A block buffer is used so memory can be reused after a group has been processed
-	// without using the JVM garbage collector.
-	private final IntBlockBuffer outlinePixelsBlockBuffer = new IntBlockBuffer();
-	private int[][] outlinePixelsBlockIndices = new int[0][];
-	private int[] outlinePixelsBlockIndicesLengths = new int[0];
-	private int[] outlinePixelsLastBlockLength;
-	private int outlineArrayWidth;
-
-	// An array of pixel group indices ordered by distance for each outline width and feather.
-	// These are calculated once upon first usage and then stored here to skip reevaluation.
-	private PixelDistanceGroupIndex[][][] precomputedGroupIndices = new PixelDistanceGroupIndex[0][][];
-
-	// An array of pixel distance deltas for each outline width and direction (right/up/left/down).
-	// These are calculated once upon first usage and then stored here to skip reevaluation.
-	private PixelDistanceDelta[][][] precomputedDistanceDeltas = new PixelDistanceDelta[0][][];
-
-	@Inject
-	private ModelOutlineRenderer(Client client)
-	{
-		this.client = client;
-	}
-
-	/**
-	 * Calculate the next power of two of a value.
-	 *
-	 * @param value The value to find the next power of two of.
-	 * @return Returns the next power of two.
-	 */
-	private static int nextPowerOfTwo(int value)
-	{
-		value--;
-		value |= value >> 1;
-		value |= value >> 2;
-		value |= value >> 4;
-		value |= value >> 8;
-		value |= value >> 16;
-		value++;
-		return value;
-	}
-
-	/**
-	 * Determine if a triangle goes counter clockwise
-	 *
-	 * @return Returns true if the triangle goes counter clockwise and should be culled, otherwise false
-	 */
-	private static boolean cullFace(int x1, int y1, int x2, int y2, int x3, int y3)
-	{
-		return (y2 - y1) * (x3 - x2) - (x2 - x1) * (y3 - y2) <= 0;
-	}
-
-	/**
-	 * Get an array of pixel outline group indices ordered by distance for a specific outline width.
-	 *
-	 * @param outlineWidth The outline width.
-	 * @param feather The feather of the outline.
-	 * @return Returns the list of pixel distances.
-	 */
-	private PixelDistanceGroupIndex[] getPriorityList(int outlineWidth, int feather)
-	{
-		if (precomputedGroupIndices.length <= outlineWidth)
-		{
-			precomputedGroupIndices = Arrays.copyOf(precomputedGroupIndices, outlineWidth + 1);
-		}
-		if (precomputedGroupIndices[outlineWidth] == null)
-		{
-			precomputedGroupIndices[outlineWidth] = new PixelDistanceGroupIndex[feather + 1][];
-		}
-		else if (precomputedGroupIndices[outlineWidth].length <= feather)
-		{
-			precomputedGroupIndices[outlineWidth] = Arrays.copyOf(precomputedGroupIndices[outlineWidth], feather + 1);
-		}
-
-		if (precomputedGroupIndices[outlineWidth][feather] == null)
-		{
-			double fadedDistance = (double) feather / MAX_FEATHER * (outlineWidth - 0.5);
-			List<PixelDistanceGroupIndex> ps = new ArrayList<>();
-			for (int x = 0; x <= outlineWidth; x++)
-			{
-				for (int y = 0; y <= outlineWidth; y++)
-				{
-					if (x == 0 && y == 0)
-					{
-						continue;
-					}
-
-					double dist = Math.hypot(x, y);
-					if (dist > outlineWidth)
-					{
-						continue;
-					}
-
-					double outerDist = outlineWidth - dist + 0.5;
-					double multipliedAlpha = outerDist < fadedDistance ? outerDist / fadedDistance : 1.0;
-					ps.add(new PixelDistanceGroupIndex(dist, x + y * outlineArrayWidth, multipliedAlpha));
-				}
-			}
-			ps.sort(Comparator.comparingDouble(PixelDistanceGroupIndex::getDistance));
-			precomputedGroupIndices[outlineWidth][feather] = ps.toArray(new PixelDistanceGroupIndex[0]);
-		}
-		return precomputedGroupIndices[outlineWidth][feather];
-	}
-
-	private void ensureDistanceDeltasCreated(int outlineWidth)
-	{
-		if (precomputedDistanceDeltas.length <= outlineWidth)
-		{
-			precomputedDistanceDeltas = Arrays.copyOf(precomputedDistanceDeltas, outlineWidth + 1);
-		}
-		if (precomputedDistanceDeltas[outlineWidth] == null)
-		{
-			precomputedDistanceDeltas[outlineWidth] = new PixelDistanceDelta[4][];
-		}
-		if (precomputedDistanceDeltas[outlineWidth][0] != null)
-		{
-			return;
-		}
-
-		List<PixelDistanceDelta> distances = new ArrayList<>();
-		for (int dy = -outlineWidth; dy <= outlineWidth; dy++)
-		{
-			for (int dx = 1; dx <= outlineWidth; dx++)
-			{
-				if (Math.abs(dy) > dx)
-				{
-					continue;
-				}
-
-				double dist = Math.hypot(dx, dy);
-				if (dist > outlineWidth)
-				{
-					continue;
-				}
-
-				distances.add(new PixelDistanceDelta(dx, dy));
-			}
-		}
-
-		for (int direction = 0; direction < 4; direction++)
-		{
-			precomputedDistanceDeltas[outlineWidth][direction] = distances.toArray(new PixelDistanceDelta[0]);
-
-			// Turn 90 deg ccw
-			for (int i = 0; i < distances.size(); i++)
-			{
-				PixelDistanceDelta pdd = distances.get(i);
-				distances.set(i, new PixelDistanceDelta(pdd.dy, -pdd.dx));
-			}
-		}
-	}
-
-	/**
-	 * Enqueues a pixel for outlining.
-	 *
-	 * @param distanceGroupIndex The group index to enqueue the pixel into.
-	 * @param x The x position of the pixel.
-	 * @param y The y position of the pixel.
-	 */
-	private void enqueueOutlinePixel(int distanceGroupIndex, int x, int y)
-	{
-		if (outlinePixelsLastBlockLength[distanceGroupIndex] == IntBlockBuffer.BLOCK_SIZE)
-		{
-			int minimumBlockIndicesSize = outlinePixelsBlockIndicesLengths[distanceGroupIndex] + 1;
-			if (minimumBlockIndicesSize > outlinePixelsBlockIndices[distanceGroupIndex].length)
-			{
-				outlinePixelsBlockIndices[distanceGroupIndex] = Arrays.copyOf(
-					outlinePixelsBlockIndices[distanceGroupIndex],
-					nextPowerOfTwo(minimumBlockIndicesSize));
-			}
-			outlinePixelsBlockIndices[distanceGroupIndex][outlinePixelsBlockIndicesLengths[distanceGroupIndex]] =
-				outlinePixelsBlockBuffer.useNewBlock();
-			outlinePixelsBlockIndicesLengths[distanceGroupIndex]++;
-			outlinePixelsLastBlockLength[distanceGroupIndex] = 0;
-		}
-
-		int[] memory = outlinePixelsBlockBuffer.getMemory();
-		int block = outlinePixelsBlockIndices[distanceGroupIndex][outlinePixelsBlockIndicesLengths[distanceGroupIndex] - 1];
-		int blockPos = outlinePixelsLastBlockLength[distanceGroupIndex]++;
-		memory[(block << IntBlockBuffer.BLOCK_BITS) + blockPos] = (y << 16) | x;
-	}
-
-	/**
-	 * Checks that the visited bitset is big enough to hold a certain amount of pixels and sets them to 0.
-	 *
-	 * @param pixelAmount The amount of pixels needed.
-	 */
-	private void resetVisited(int pixelAmount)
-	{
-		int size = (pixelAmount >>> 5);
-		if (visited.length < size)
-		{
-			visited = new int[nextPowerOfTwo(size)];
-		}
-		Arrays.fill(visited, 0, size, 0);
-	}
-
-	/**
-	 * Ensures that the outline buffer arrays are large enough to fit the current outline.
-	 */
-	private void initializeOutlineBuffers()
-	{
-		int arraySizes = outlineArrayWidth * outlineArrayWidth;
-		if (outlinePixelsBlockIndicesLengths.length < arraySizes)
-		{
-			outlinePixelsBlockIndices = new int[arraySizes][];
-			outlinePixelsBlockIndicesLengths = new int[arraySizes];
-			outlinePixelsLastBlockLength = new int[arraySizes];
-			for (int i = 0; i < arraySizes; i++)
-			{
-				outlinePixelsBlockIndices[i] = new int[0];
-			}
-		}
-
-		for (int i = 0; i < arraySizes; i++)
-		{
-			outlinePixelsLastBlockLength[i] = IntBlockBuffer.BLOCK_SIZE;
-		}
-	}
-
-	/**
-	 * Frees all blocks currently in use by the outline block buffer.
-	 */
-	private void freeAllBlockMemory()
-	{
-		for (int i = 0; i < outlineArrayWidth * outlineArrayWidth; i++)
-		{
-			while (outlinePixelsBlockIndicesLengths[i] > 0)
-			{
-				outlinePixelsBlockIndicesLengths[i]--;
-				outlinePixelsBlockBuffer.freeBlock(outlinePixelsBlockIndices[i][outlinePixelsBlockIndicesLengths[i]]);
-			}
-			outlinePixelsLastBlockLength[i] = IntBlockBuffer.BLOCK_SIZE;
-		}
-	}
-
-	/**
-	 * Simulates a horizontal line rasterization and marks pixels visited.
-	 *
-	 * @param pixelY The y position of the line
-	 * @param x1 The starting x position
-	 * @param x2 The ending x position
-	 */
-	private void simulateHorizontalLineRasterizationForOutline(int pixelY, int x1, int x2)
-	{
-		if (x2 > clipX2)
-		{
-			x2 = clipX2;
-		}
-		if (x1 < clipX1)
-		{
-			x1 = clipX1;
-		}
-		if (x1 >= x2)
-		{
-			return;
-		}
-
-		int pixelPos1 = (pixelY - croppedY1) * croppedWidth + (x1 - croppedX1);
-		int pixelPos2 = pixelPos1 + x2 - x1;
-		int pixelPosIndex1 = pixelPos1 >> 5;
-		int pixelPosIndex2 = pixelPos2 >> 5;
-		if (pixelPosIndex1 == pixelPosIndex2)
-		{
-			visited[pixelPosIndex1] |= ((1 << (pixelPos2 & 31)) - 1) ^ ((1 << (pixelPos1 & 31)) - 1);
-		}
-		else
-		{
-			visited[pixelPosIndex1] |= -(1 << (pixelPos1 & 31));
-			visited[pixelPosIndex2] |= (1 << (pixelPos2 & 31)) - 1;
-			for (int i = pixelPosIndex1 + 1; i < pixelPosIndex2; i++)
-			{
-				visited[i] = 0xFFFFFFFF;
-			}
-		}
-	}
-
-	/**
-	 * Simulates rasterization of a triangle and marks pixels visited.
-	 *
-	 * @param x1 The x position of the first vertex in the triangle
-	 * @param y1 The y position of the first vertex in the triangle
-	 * @param x2 The x position of the second vertex in the triangle
-	 * @param y2 The y position of the second vertex in the triangle
-	 * @param x3 The x position of the third vertex in the triangle
-	 * @param y3 The y position of the third vertex in the triangle
-	 */
-	private void simulateTriangleRasterizationForOutline(
-		int x1, int y1, int x2, int y2, int x3, int y3)
-	{
-		// Swap vertices so y1 <= y2 <= y3 using bubble sort
-		if (y1 > y2)
-		{
-			int yp = y1;
-			int xp = x1;
-			y1 = y2;
-			y2 = yp;
-			x1 = x2;
-			x2 = xp;
-		}
-		if (y2 > y3)
-		{
-			int yp = y2;
-			int xp = x2;
-			y2 = y3;
-			y3 = yp;
-			x2 = x3;
-			x3 = xp;
-		}
-		if (y1 > y2)
-		{
-			int yp = y1;
-			int xp = x1;
-			y1 = y2;
-			y2 = yp;
-			x1 = x2;
-			x2 = xp;
-		}
-
-		if (y1 > clipY2)
-		{
-			// All points are outside clip boundaries
-			return;
-		}
-
-		int slope1 = 0;
-		if (y1 != y2)
-		{
-			slope1 = (x2 - x1 << 14) / (y2 - y1);
-		}
-
-		int slope2 = 0;
-		if (y3 != y2)
-		{
-			slope2 = (x3 - x2 << 14) / (y3 - y2);
-		}
-
-		int slope3 = 0;
-		if (y1 != y3)
-		{
-			slope3 = (x1 - x3 << 14) / (y1 - y3);
-		}
-
-		if (y2 > clipY2)
-		{
-			y2 = clipY2;
-		}
-		if (y3 > clipY2)
-		{
-			y3 = clipY2;
-		}
-		if (y1 == y3 || y3 < clipY1)
-		{
-			return;
-		}
-
-		x1 <<= 14;
-		x2 <<= 14;
-		x3 = x1;
-
-		if (y1 < clipY1)
-		{
-			x3 -= (y1 - clipY1) * slope3;
-			x1 -= (y1 - clipY1) * slope1;
-			y1 = clipY1;
-		}
-		if (y2 < clipY1)
-		{
-			x2 -= (y2 - clipY1) * slope2;
-			y2 = clipY1;
-		}
-
-		int pixelY = y1;
-		int height1 = y2 - y1;
-		int height2 = y3 - y2;
-		if (y1 != y2 && slope3 < slope1 || y1 == y2 && slope3 > slope2)
-		{
-			while (height1-- > 0)
-			{
-				simulateHorizontalLineRasterizationForOutline(pixelY, x3 >> 14, x1 >> 14);
-				x3 += slope3;
-				x1 += slope1;
-				pixelY++;
-			}
-
-			while (height2-- > 0)
-			{
-				simulateHorizontalLineRasterizationForOutline(pixelY, x3 >> 14, x2 >> 14);
-				x3 += slope3;
-				x2 += slope2;
-				pixelY++;
-			}
-		}
-		else
-		{
-			while (height1-- > 0)
-			{
-				simulateHorizontalLineRasterizationForOutline(pixelY, x1 >> 14, x3 >> 14);
-				x1 += slope1;
-				x3 += slope3;
-				pixelY++;
-			}
-
-			while (height2-- > 0)
-			{
-				simulateHorizontalLineRasterizationForOutline(pixelY, x2 >> 14, x3 >> 14);
-				x3 += slope3;
-				x2 += slope2;
-				pixelY++;
-			}
-		}
-	}
-
-	/**
-	 * Translates the vertices 3D points to the screen canvas 2D points.
-	 *
-	 * @param localX The local x position of the vertices.
-	 * @param localY The local y position of the vertices.
-	 * @param localZ The local z position of the vertices.
-	 * @param vertexOrientation The orientation of the vertices.
-	 * @return Returns true if any of them are inside the clip area, otherwise false.
-	 */
-	private boolean projectVertices(Model model, int localX, int localY, int localZ, final int vertexOrientation)
-	{
-		final int vertexCount = model.getVerticesCount();
-		Perspective.modelToCanvas(client,
-			vertexCount,
-			localX, localY, localZ,
-			vertexOrientation,
-			model.getVerticesX(), model.getVerticesZ(), model.getVerticesY(),
-			projectedVerticesX, projectedVerticesY);
-
-		boolean anyVisible = false;
-
-		for (int i = 0; i < vertexCount; i++)
-		{
-			int x = projectedVerticesX[i];
-			int y = projectedVerticesY[i];
-
-			if (y != Integer.MIN_VALUE)
-			{
-				boolean visibleX = x >= clipX1 && x < clipX2;
-				boolean visibleY = y >= clipY1 && y < clipY2;
-				anyVisible |= visibleX && visibleY;
-
-				croppedX1 = Math.min(croppedX1, x);
-				croppedX2 = Math.max(croppedX2, x + 1);
-				croppedY1 = Math.min(croppedY1, y);
-				croppedY2 = Math.max(croppedY2, y + 1);
-			}
-			else
-			{
-				// Vertex is too close or behind camera and isn't rendered
-				projectedVerticesY[i] = Integer.MIN_VALUE;
-			}
-		}
-
-		return anyVisible;
-	}
-
-	/**
-	 * Simulates rendering of the model and marks every pixel visited.
-	 */
-	private void simulateModelRasterizationForOutline(Model model)
-	{
-		final int triangleCount = model.getFaceCount();
-		final int[] indices1 = model.getFaceIndices1();
-		final int[] indices2 = model.getFaceIndices2();
-		final int[] indices3 = model.getFaceIndices3();
-		final byte[] triangleTransparencies = model.getFaceTransparencies();
-
-		for (int i = 0; i < triangleCount; i++)
-		{
-			if (projectedVerticesY[indices1[i]] != Integer.MIN_VALUE &&
-				projectedVerticesY[indices2[i]] != Integer.MIN_VALUE &&
-				projectedVerticesY[indices3[i]] != Integer.MIN_VALUE &&
-				// 254 and 255 counts as fully transparent
-				(triangleTransparencies == null || (triangleTransparencies[i] & 255) < 254))
-			{
-				final int index1 = indices1[i];
-				final int index2 = indices2[i];
-				final int index3 = indices3[i];
-				final int v1x = projectedVerticesX[index1];
-				final int v1y = projectedVerticesY[index1];
-				final int v2x = projectedVerticesX[index2];
-				final int v2y = projectedVerticesY[index2];
-				final int v3x = projectedVerticesX[index3];
-				final int v3y = projectedVerticesY[index3];
-
-				if (!cullFace(v1x, v1y, v2x, v2y, v3x, v3y))
-				{
-					simulateTriangleRasterizationForOutline(v1x, v1y, v2x, v2y, v3x, v3y);
-				}
-			}
-		}
-	}
-
-	/**
-	 * Draws the outline of a pixel according to the distance deltas of an outline.
-	 *
-	 * @param imageData The image data to draw to.
-	 * @param imageWidth The width of the image to draw to.
-	 * @param x The x position of the pixel.
-	 * @param y The y position of the pixel.
-	 * @param distanceDeltas The distance deltas of the outline width.
-	 * @param color The color to draw the outline in.
-	 */
-	private void rasterDistanceDeltas(int[] imageData, int imageWidth, int x, int y,
-		PixelDistanceDelta[] distanceDeltas, int color)
-	{
-		for (PixelDistanceDelta delta : distanceDeltas)
-		{
-			int cx = x + delta.dx;
-			int cy = y + delta.dy;
-			int visitedPixelPos = (cy - croppedY1) * croppedWidth + (cx - croppedX1);
-			if (cx >= clipX1 && cx < clipX2 && cy >= clipY1 && cy < clipY2 &&
-				(visited[visitedPixelPos >> 5] & (1 << (visitedPixelPos & 31))) == 0)
-			{
-				imageData[cy * imageWidth + cx] = color;
-			}
-		}
-	}
-
-	/**
-	 * Enqueues pixels that are adjacent above or below the model
-	 * or draws them directly to the clients image buffer.
-	 *
-	 * @param directWrite If true the pixels are drawn to the image buffer, otherwise they are enqueued for drawing.
-	 * @param color The color to draw if directWrite == true
-	 * @param outlineWidth The outline width to draw if directWrite == true
-	 */
-	private void processInitialOutlinePixels(boolean directWrite, Color color, int outlineWidth)
-	{
-		MainBufferProvider bufferProvider = (MainBufferProvider) client.getBufferProvider();
-		BufferedImage image = (BufferedImage) bufferProvider.getImage();
-		int imageWidth = image.getWidth();
-		int[] imageData = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
-		int colorRGB = color.getRGB();
-
-		// Up and down
-		for (int x = 0; x < croppedWidth; x += 32)
-		{
-			int v1 = visited[x >> 5];
-			for (int y = 1; y < croppedHeight; y++)
-			{
-				int v2 = visited[(y * croppedWidth + x) >> 5];
-				if (v1 != v2)
-				{
-					if (directWrite)
-					{
-						// Special case handling outlineWidth == 1 gives a
-						// small but noticeable performance improvement.
-						if (outlineWidth == 1)
-						{
-							for (int bit = 0; bit < 32; bit++)
-							{
-								int bv1 = (v1 >>> bit) & 1;
-								int bv2 = (v2 >>> bit) & 1;
-								if (bv1 != bv2)
-								{
-									imageData[(croppedY1 + y - bv2) * imageWidth + (croppedX1 + x + bit)] = colorRGB;
-								}
-							}
-						}
-						else
-						{
-							PixelDistanceDelta[] distancesDown = precomputedDistanceDeltas[outlineWidth][3];
-							PixelDistanceDelta[] distancesUp = precomputedDistanceDeltas[outlineWidth][1];
-							for (int bit = 0; bit < 32; bit++)
-							{
-								int bv1 = (v1 >>> bit) & 1;
-								int bv2 = (v2 >>> bit) & 1;
-								if (bv1 == 1 && bv2 == 0)
-								{
-									rasterDistanceDeltas(imageData, imageWidth, croppedX1 + x + bit, croppedY1 + y - 1,
-										distancesDown, colorRGB);
-								}
-								else if (bv1 == 0 && bv2 == 1)
-								{
-									rasterDistanceDeltas(imageData, imageWidth, croppedX1 + x + bit, croppedY1 + y,
-										distancesUp, colorRGB);
-								}
-							}
-						}
-					}
-					else
-					{
-						for (int bit = 0; bit < 32; bit++)
-						{
-							int bv1 = (v1 >>> bit) & 1;
-							int bv2 = (v2 >>> bit) & 1;
-							if (bv1 != bv2)
-							{
-								enqueueOutlinePixel(outlineArrayWidth, croppedX1 + x + bit, croppedY1 + y - bv2);
-							}
-						}
-					}
-				}
-
-				v1 = v2;
-			}
-		}
-
-		// Left and right
-		for (int y = 0; y < croppedHeight; y++)
-		{
-			int rowPosition = y * croppedWidth;
-			int lastV = 0;
-			for (int x = 0; x < croppedWidth; x += 32)
-			{
-				int v = visited[(rowPosition + x) >> 5];
-
-				// Test adjacent pixels in the same 32-bit segment
-				if (v != 0 && v != 0xFFFFFFFF)
-				{
-					int end = Math.min(32, clipX2 - croppedX1 - x);
-					int lastBv = v & 1;
-					if (directWrite)
-					{
-						// Special case handling outlineWidth == 1 gives a
-						// small but noticeable performance improvement.
-						if (outlineWidth == 1)
-						{
-							for (int bit = 1; bit < end; bit++)
-							{
-								int bv = (v >>> bit) & 1;
-								if (bv != lastBv)
-								{
-									imageData[(croppedY1 + y) * imageWidth + (croppedX1 + x + bit - bv)] = colorRGB;
-								}
-								lastBv = bv;
-							}
-						}
-						else
-						{
-							PixelDistanceDelta[] distancesRight = precomputedDistanceDeltas[outlineWidth][0];
-							PixelDistanceDelta[] distancesLeft = precomputedDistanceDeltas[outlineWidth][2];
-							for (int bit = 1; bit < end; bit++)
-							{
-								int bv = (v >>> bit) & 1;
-								if (bv == 1 && lastBv == 0)
-								{
-									rasterDistanceDeltas(imageData, imageWidth, croppedX1 + x + bit, croppedY1 + y,
-										distancesLeft, colorRGB);
-								}
-								else if (bv == 0 && lastBv == 1)
-								{
-									rasterDistanceDeltas(imageData, imageWidth, croppedX1 + x + bit - 1, croppedY1 + y,
-										distancesRight, colorRGB);
-								}
-								lastBv = bv;
-							}
-						}
-					}
-					else
-					{
-						for (int bit = 1; bit < end; bit++)
-						{
-							int bv = (v >>> bit) & 1;
-							if (bv != lastBv)
-							{
-								enqueueOutlinePixel(1, croppedX1 + x + bit - bv, croppedY1 + y);
-							}
-							lastBv = bv;
-						}
-					}
-				}
-
-				// Test adjacent pixels in different 32-bit segments
-				if ((lastV >>> 31) != (v & 1) && x > 0)
-				{
-					if (directWrite)
-					{
-						if (outlineWidth == 1)
-						{
-							imageData[(croppedY1 + y) * imageWidth + (croppedX1 + x - (v & 1))] = colorRGB;
-						}
-						else
-						{
-							if ((v & 1) == 1)
-							{
-								PixelDistanceDelta[] distancesLeft = precomputedDistanceDeltas[outlineWidth][2];
-								rasterDistanceDeltas(imageData, imageWidth, croppedX1 + x, croppedY1 + y,
-									distancesLeft, colorRGB);
-							}
-							else
-							{
-								PixelDistanceDelta[] distancesRight = precomputedDistanceDeltas[outlineWidth][0];
-								rasterDistanceDeltas(imageData, imageWidth, croppedX1 + x - 1, croppedY1 + y,
-									distancesRight, colorRGB);
-							}
-						}
-					}
-					else
-					{
-						enqueueOutlinePixel(1, croppedX1 + x - (v & 1), croppedY1 + y);
-					}
-				}
-
-				lastV = v;
-			}
-		}
-	}
-
-	/**
-	 * Process the outline queue and draw an outline of the pixels
-	 * in the queue to the client image buffer.
-	 *
-	 * @param outlineWidth The width of the outline.
-	 * @param color The color of the outline.
-	 */
-	private void processOutlinePixelQueue(int outlineWidth, Color color, int feather)
-	{
-		MainBufferProvider bufferProvider = (MainBufferProvider) client.getBufferProvider();
-		BufferedImage image = (BufferedImage) bufferProvider.getImage();
-		int imageWidth = image.getWidth();
-		int[] imageData = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
-		PixelDistanceGroupIndex[] ps = getPriorityList(outlineWidth, feather);
-
-		for (PixelDistanceGroupIndex p : ps)
-		{
-			final int[] blockMemory = outlinePixelsBlockBuffer.getMemory();
-
-			final int colorARGB;
-			final int inverseAlpha;
-			{
-				int alpha = (int) Math.round(color.getAlpha() * p.alphaMultiply);
-				inverseAlpha = 256 - alpha;
-				colorARGB = (alpha << 24)
-					| ((color.getRed() * alpha) / 255) << 16
-					| ((color.getGreen() * alpha) / 255) << 8
-					| ((color.getBlue() * alpha) / 255);
-			}
-
-			final int groupIndex = p.distanceGroupIndex;
-			final int nextGroupIndexY = groupIndex + outlineArrayWidth;
-			final int nextGroupIndexX = groupIndex + 1;
-
-			while (outlinePixelsBlockIndicesLengths[groupIndex] > 0)
-			{
-				final int block = outlinePixelsBlockIndices[groupIndex][outlinePixelsBlockIndicesLengths[groupIndex] - 1];
-				final int blockStart = block << IntBlockBuffer.BLOCK_BITS;
-				final int blockEnd = blockStart + outlinePixelsLastBlockLength[groupIndex];
-				for (int i = blockStart; i < blockEnd; i++)
-				{
-					int x = blockMemory[i] & 0xFFFF;
-					int y = blockMemory[i] >>> 16;
-					int visitedPixelPos = (y - croppedY1) * croppedWidth + (x - croppedX1);
-					if ((visited[visitedPixelPos >> 5] & (1 << (visitedPixelPos & 31))) != 0)
-					{
-						continue;
-					}
-					visited[visitedPixelPos >> 5] |= 1 << (visitedPixelPos & 31);
-
-					int pixelPos = y * imageWidth + x;
-					int dst = imageData[pixelPos];
-					imageData[pixelPos]
-						= (colorARGB & 0xFF00FF00) + (((dst & 0xFF00FF00) * inverseAlpha) >>> 8) & 0xFF00FF00
-						| (colorARGB & 0x00FF00FF) + (((dst & 0x00FF00FF) * inverseAlpha) >>> 8) & 0x00FF00FF;
-
-					if (x - 1 >= clipX1)
-					{
-						enqueueOutlinePixel(nextGroupIndexX, x - 1, y);
-					}
-					if (x + 1 < clipX2)
-					{
-						enqueueOutlinePixel(nextGroupIndexX, x + 1, y);
-					}
-					if (y - 1 >= clipY1)
-					{
-						enqueueOutlinePixel(nextGroupIndexY, x, y - 1);
-					}
-					if (y + 1 < clipY2)
-					{
-						enqueueOutlinePixel(nextGroupIndexY, x, y + 1);
-					}
-				}
-
-				outlinePixelsBlockBuffer.freeBlock(block);
-				outlinePixelsBlockIndicesLengths[groupIndex]--;
-				outlinePixelsLastBlockLength[groupIndex] = IntBlockBuffer.BLOCK_SIZE;
-			}
-		}
-	}
-
-	/**
-	 * Draws an outline around a model to an image
-	 *
-	 * @param localX The local x position of the model
-	 * @param localY The local y position of the model
-	 * @param localZ The local z position of the model
-	 * @param orientation The orientation of the model
-	 * @param outlineWidth The width of the outline
-	 * @param color The color of the outline
-	 */
-	private void drawModelOutline(Model model,
-		int localX, int localY, int localZ, int orientation,
-		int outlineWidth, Color color, int feather)
-	{
-		if (outlineWidth <= 0 || color.getAlpha() == 0 || model == null)
-		{
-			return;
-		}
-
-		if (outlineWidth > MAX_OUTLINE_WIDTH)
-		{
-			outlineWidth = MAX_OUTLINE_WIDTH;
-		}
-
-		if (feather < 0)
-		{
-			feather = 0;
-		}
-		else if (feather > MAX_FEATHER)
-		{
-			feather = MAX_FEATHER;
-		}
-
-		croppedX1 = Integer.MAX_VALUE;
-		croppedX2 = Integer.MIN_VALUE;
-		croppedY1 = Integer.MAX_VALUE;
-		croppedY2 = Integer.MIN_VALUE;
-
-		clipX1 = client.getViewportXOffset();
-		clipY1 = client.getViewportYOffset();
-		clipX2 = client.getViewportWidth() + clipX1;
-		clipY2 = client.getViewportHeight() + clipY1;
-
-		if (!projectVertices(model, localX, localY, localZ, orientation))
-		{
-			// No vertex of the model is visible on the screen, so we can
-			// assume there are no parts of the model to outline.
-			return;
-		}
-
-		croppedX1 = Math.max(croppedX1 - outlineWidth, clipX1);
-		croppedX2 = Math.min(croppedX2 + outlineWidth, clipX2);
-		croppedX2 += ~(croppedX2 - croppedX1 - 1) & 31; // Increases width to next multiple of 32 so bitset segments align
-		croppedY1 = Math.max(croppedY1 - outlineWidth, clipY1);
-		croppedY2 = Math.min(croppedY2 + outlineWidth, clipY2);
-		croppedWidth = croppedX2 - croppedX1;
-		croppedHeight = croppedY2 - croppedY1;
-
-		resetVisited(croppedWidth * croppedHeight);
-
-		simulateModelRasterizationForOutline(model);
-
-		// We can improve performance and reduce memory needed when drawing
-		// only a small outline around the model by skipping the pixel queueing
-		// and instead raster pixels directly. This only looks right for opaque
-		// outlines since some pixels of the outline can get drawn more than once.
-		// Performance becomes worse than queueing when using larger outline widths,
-		// usually around 10 px outline width according to some basic testing.
-		boolean directWrite = color.getAlpha() == 255 && outlineWidth <= DIRECT_WRITE_OUTLINE_WIDTH_THRESHOLD &&
-			(feather == 0 || outlineWidth == 1); // Feather has no effect on outlineWidth == 1
-
-		if (directWrite)
-		{
-			ensureDistanceDeltasCreated(outlineWidth);
-		}
-		else
-		{
-			outlineArrayWidth = outlineWidth + 2;
-			initializeOutlineBuffers();
-		}
-
-		try
-		{
-			processInitialOutlinePixels(directWrite, color, outlineWidth);
-
-			if (!directWrite)
-			{
-				processOutlinePixelQueue(outlineWidth, color, feather);
-			}
-		}
-		finally
-		{
-			freeAllBlockMemory();
-		}
-	}
-
-	public void drawOutline(NPC npc, int outlineWidth, Color color, int feather)
-	{
-		int size = 1;
-		NPCComposition composition = npc.getTransformedComposition();
-		if (composition != null)
-		{
-			size = composition.getSize();
-		}
-
-		LocalPoint lp = npc.getLocalLocation();
-		if (lp != null)
-		{
-			// NPCs z position are calculated based on the tile height of the northeastern tile
-			final int northEastX = lp.getX() + Perspective.LOCAL_TILE_SIZE * (size - 1) / 2;
-			final int northEastY = lp.getY() + Perspective.LOCAL_TILE_SIZE * (size - 1) / 2;
-			final LocalPoint northEastLp = new LocalPoint(northEastX, northEastY);
-
-			drawModelOutline(npc.getModel(), lp.getX(), lp.getY(),
-				Perspective.getTileHeight(client, northEastLp, client.getPlane()),
-				npc.getCurrentOrientation(), outlineWidth, color, feather);
-		}
-	}
-
-	public void drawOutline(Player player, int outlineWidth, Color color, int feather)
-	{
-		LocalPoint lp = player.getLocalLocation();
-		if (lp != null)
-		{
-			drawModelOutline(player.getModel(), lp.getX(), lp.getY(),
-				Perspective.getTileHeight(client, lp, client.getPlane()),
-				player.getCurrentOrientation(), outlineWidth, color, feather);
-		}
-	}
-
-	private void drawOutline(GameObject gameObject, int outlineWidth, Color color, int feather)
-	{
-		Renderable renderable = gameObject.getRenderable();
-		if (renderable != null)
-		{
-			Model model = renderable instanceof Model ? (Model) renderable : renderable.getModel();
-			if (model != null)
-			{
-				drawModelOutline(model, gameObject.getX(), gameObject.getY(), gameObject.getZ(),
-					gameObject.getModelOrientation(), outlineWidth, color, feather);
-			}
-		}
-	}
-
-	private void drawOutline(GroundObject groundObject, int outlineWidth, Color color, int feather)
-	{
-		Renderable renderable = groundObject.getRenderable();
-		if (renderable != null)
-		{
-			Model model = renderable instanceof Model ? (Model) renderable : renderable.getModel();
-			if (model != null)
-			{
-				drawModelOutline(model, groundObject.getX(), groundObject.getY(), groundObject.getZ(),
-					0, outlineWidth, color, feather);
-			}
-		}
-	}
-
-	private void drawOutline(ItemLayer itemLayer, int outlineWidth, Color color, int feather)
-	{
-		Renderable bottomRenderable = itemLayer.getBottom();
-		if (bottomRenderable != null)
-		{
-			Model model = bottomRenderable instanceof Model ? (Model) bottomRenderable : bottomRenderable.getModel();
-			if (model != null)
-			{
-				drawModelOutline(model, itemLayer.getX(), itemLayer.getY(), itemLayer.getZ() - itemLayer.getHeight(),
-					0, outlineWidth, color, feather);
-			}
-		}
-
-		Renderable middleRenderable = itemLayer.getMiddle();
-		if (middleRenderable != null)
-		{
-			Model model = middleRenderable instanceof Model ? (Model) middleRenderable : middleRenderable.getModel();
-			if (model != null)
-			{
-				drawModelOutline(model, itemLayer.getX(), itemLayer.getY(), itemLayer.getZ() - itemLayer.getHeight(),
-					0, outlineWidth, color, feather);
-			}
-		}
-
-		Renderable topRenderable = itemLayer.getTop();
-		if (topRenderable != null)
-		{
-			Model model = topRenderable instanceof Model ? (Model) topRenderable : topRenderable.getModel();
-			if (model != null)
-			{
-				drawModelOutline(model, itemLayer.getX(), itemLayer.getY(), itemLayer.getZ() - itemLayer.getHeight(),
-					0, outlineWidth, color, feather);
-			}
-		}
-	}
-
-	private void drawOutline(DecorativeObject decorativeObject, int outlineWidth, Color color, int feather)
-	{
-		Renderable renderable1 = decorativeObject.getRenderable();
-		if (renderable1 != null)
-		{
-			Model model = renderable1 instanceof Model ? (Model) renderable1 : renderable1.getModel();
-			if (model != null)
-			{
-				drawModelOutline(model,
-					decorativeObject.getX() + decorativeObject.getXOffset(),
-					decorativeObject.getY() + decorativeObject.getYOffset(),
-					decorativeObject.getZ(),
-					0, outlineWidth, color, feather);
-			}
-		}
-
-		Renderable renderable2 = decorativeObject.getRenderable2();
-		if (renderable2 != null)
-		{
-			Model model = renderable2 instanceof Model ? (Model) renderable2 : renderable2.getModel();
-			if (model != null)
-			{
-				// Offset is not used for the second model
-				drawModelOutline(model, decorativeObject.getX(), decorativeObject.getY(), decorativeObject.getZ(),
-					0, outlineWidth, color, feather);
-			}
-		}
-	}
-
-	private void drawOutline(WallObject wallObject, int outlineWidth, Color color, int feather)
-	{
-		Renderable renderable1 = wallObject.getRenderable1();
-		if (renderable1 != null)
-		{
-			Model model = renderable1 instanceof Model ? (Model) renderable1 : renderable1.getModel();
-			if (model != null)
-			{
-				drawModelOutline(model, wallObject.getX(), wallObject.getY(), wallObject.getZ(),
-					0, outlineWidth, color, feather);
-			}
-		}
-
-		Renderable renderable2 = wallObject.getRenderable2();
-		if (renderable2 != null)
-		{
-			Model model = renderable2 instanceof Model ? (Model) renderable2 : renderable2.getModel();
-			if (model != null)
-			{
-				drawModelOutline(model, wallObject.getX(), wallObject.getY(), wallObject.getZ(),
-					0, outlineWidth, color, feather);
-			}
-		}
-	}
-
-	public void drawOutline(TileObject tileObject, int outlineWidth, Color color, int feather)
-	{
-		if (tileObject instanceof GameObject)
-		{
-			drawOutline((GameObject) tileObject, outlineWidth, color, feather);
-		}
-		else if (tileObject instanceof GroundObject)
-		{
-			drawOutline((GroundObject) tileObject, outlineWidth, color, feather);
-		}
-		else if (tileObject instanceof ItemLayer)
-		{
-			drawOutline((ItemLayer) tileObject, outlineWidth, color, feather);
-		}
-		else if (tileObject instanceof DecorativeObject)
-		{
-			drawOutline((DecorativeObject) tileObject, outlineWidth, color, feather);
-		}
-		else if (tileObject instanceof WallObject)
-		{
-			drawOutline((WallObject) tileObject, outlineWidth, color, feather);
-		}
-	}
-
-	public void drawOutline(GraphicsObject graphicsObject, int outlineWidth, Color color, int feather)
-	{
-		LocalPoint lp = graphicsObject.getLocation();
-		if (lp != null)
-		{
-			Model model = graphicsObject.getModel();
-			if (model != null)
-			{
-				drawModelOutline(model, lp.getX(), lp.getY(), graphicsObject.getZ(),
-					0, outlineWidth, color, feather);
-			}
-		}
-	}
+public class ModelOutlineRenderer {
+    private static final int MAX_OUTLINE_WIDTH = 50;
+    private static final int MAX_FEATHER = 4;
+    private static final int DIRECT_WRITE_OUTLINE_WIDTH_THRESHOLD = 10;
+    private final Client client;
+    private final int[] projectedVerticesX = new int[6500];
+    private final int[] projectedVerticesY = new int[6500];
+    private int clipX1;
+    private int clipY1;
+    private int clipX2;
+    private int clipY2;
+    private int croppedX1;
+    private int croppedY1;
+    private int croppedX2;
+    private int croppedY2;
+    private int croppedWidth;
+    private int croppedHeight;
+    private int[] visited = new int[0];
+    private final IntBlockBuffer outlinePixelsBlockBuffer = new IntBlockBuffer();
+    private int[][] outlinePixelsBlockIndices = new int[0][];
+    private int[] outlinePixelsBlockIndicesLengths = new int[0];
+    private int[] outlinePixelsLastBlockLength;
+    private int outlineArrayWidth;
+    private PixelDistanceGroupIndex[][][] precomputedGroupIndices = new PixelDistanceGroupIndex[0][][];
+    private PixelDistanceDelta[][][] precomputedDistanceDeltas = new PixelDistanceDelta[0][][];
+
+    @Inject
+    private ModelOutlineRenderer(Client client) {
+        this.client = client;
+    }
+
+    private static int nextPowerOfTwo(int value) {
+        --value;
+        value |= value >> 1;
+        value |= value >> 2;
+        value |= value >> 4;
+        value |= value >> 8;
+        value |= value >> 16;
+        return ++value;
+    }
+
+    private static boolean cullFace(int x1, int y1, int x2, int y2, int x3, int y3) {
+        return (y2 - y1) * (x3 - x2) - (x2 - x1) * (y3 - y2) <= 0;
+    }
+
+    private PixelDistanceGroupIndex[] getPriorityList(int outlineWidth, int feather) {
+        if (this.precomputedGroupIndices.length <= outlineWidth) {
+            this.precomputedGroupIndices = (PixelDistanceGroupIndex[][][])Arrays.copyOf(this.precomputedGroupIndices, outlineWidth + 1);
+        }
+        if (this.precomputedGroupIndices[outlineWidth] == null) {
+            this.precomputedGroupIndices[outlineWidth] = new PixelDistanceGroupIndex[feather + 1][];
+        } else if (this.precomputedGroupIndices[outlineWidth].length <= feather) {
+            this.precomputedGroupIndices[outlineWidth] = (PixelDistanceGroupIndex[][])Arrays.copyOf(this.precomputedGroupIndices[outlineWidth], feather + 1);
+        }
+        if (this.precomputedGroupIndices[outlineWidth][feather] == null) {
+            double fadedDistance = (double)feather / 4.0 * ((double)outlineWidth - 0.5);
+            ArrayList<PixelDistanceGroupIndex> ps = new ArrayList<PixelDistanceGroupIndex>();
+            for (int x = 0; x <= outlineWidth; ++x) {
+                for (int y = 0; y <= outlineWidth; ++y) {
+                    double dist;
+                    if (x == 0 && y == 0 || (dist = Math.hypot(x, y)) > (double)outlineWidth) continue;
+                    double outerDist = (double)outlineWidth - dist + 0.5;
+                    double multipliedAlpha = outerDist < fadedDistance ? outerDist / fadedDistance : 1.0;
+                    ps.add(new PixelDistanceGroupIndex(dist, x + y * this.outlineArrayWidth, multipliedAlpha));
+                }
+            }
+            ps.sort(Comparator.comparingDouble(rec$ -> ((PixelDistanceGroupIndex)rec$).getDistance()));
+            this.precomputedGroupIndices[outlineWidth][feather] = ps.toArray(new PixelDistanceGroupIndex[0]);
+        }
+        return this.precomputedGroupIndices[outlineWidth][feather];
+    }
+
+    private void ensureDistanceDeltasCreated(int outlineWidth) {
+        if (this.precomputedDistanceDeltas.length <= outlineWidth) {
+            this.precomputedDistanceDeltas = (PixelDistanceDelta[][][])Arrays.copyOf(this.precomputedDistanceDeltas, outlineWidth + 1);
+        }
+        if (this.precomputedDistanceDeltas[outlineWidth] == null) {
+            this.precomputedDistanceDeltas[outlineWidth] = new PixelDistanceDelta[4][];
+        }
+        if (this.precomputedDistanceDeltas[outlineWidth][0] != null) {
+            return;
+        }
+        ArrayList<PixelDistanceDelta> distances = new ArrayList<PixelDistanceDelta>();
+        for (int dy = -outlineWidth; dy <= outlineWidth; ++dy) {
+            for (int dx = 1; dx <= outlineWidth; ++dx) {
+                double dist;
+                if (Math.abs(dy) > dx || (dist = Math.hypot(dx, dy)) > (double)outlineWidth) continue;
+                distances.add(new PixelDistanceDelta(dx, dy));
+            }
+        }
+        for (int direction = 0; direction < 4; ++direction) {
+            this.precomputedDistanceDeltas[outlineWidth][direction] = distances.toArray(new PixelDistanceDelta[0]);
+            for (int i = 0; i < distances.size(); ++i) {
+                PixelDistanceDelta pdd = (PixelDistanceDelta)distances.get(i);
+                distances.set(i, new PixelDistanceDelta(pdd.dy, -pdd.dx));
+            }
+        }
+    }
+
+    private void enqueueOutlinePixel(int distanceGroupIndex, int x, int y) {
+        if (this.outlinePixelsLastBlockLength[distanceGroupIndex] == 1024) {
+            int minimumBlockIndicesSize = this.outlinePixelsBlockIndicesLengths[distanceGroupIndex] + 1;
+            if (minimumBlockIndicesSize > this.outlinePixelsBlockIndices[distanceGroupIndex].length) {
+                this.outlinePixelsBlockIndices[distanceGroupIndex] = Arrays.copyOf(this.outlinePixelsBlockIndices[distanceGroupIndex], ModelOutlineRenderer.nextPowerOfTwo(minimumBlockIndicesSize));
+            }
+            this.outlinePixelsBlockIndices[distanceGroupIndex][this.outlinePixelsBlockIndicesLengths[distanceGroupIndex]] = this.outlinePixelsBlockBuffer.useNewBlock();
+            int n = distanceGroupIndex;
+            this.outlinePixelsBlockIndicesLengths[n] = this.outlinePixelsBlockIndicesLengths[n] + 1;
+            this.outlinePixelsLastBlockLength[distanceGroupIndex] = 0;
+        }
+        int[] memory = this.outlinePixelsBlockBuffer.getMemory();
+        int block = this.outlinePixelsBlockIndices[distanceGroupIndex][this.outlinePixelsBlockIndicesLengths[distanceGroupIndex] - 1];
+        int n = distanceGroupIndex;
+        int n2 = this.outlinePixelsLastBlockLength[n];
+        this.outlinePixelsLastBlockLength[n] = n2 + 1;
+        int blockPos = n2;
+        memory[(block << 10) + blockPos] = y << 16 | x;
+    }
+
+    private void resetVisited(int pixelAmount) {
+        int size = pixelAmount >>> 5;
+        if (this.visited.length < size) {
+            this.visited = new int[ModelOutlineRenderer.nextPowerOfTwo(size)];
+        }
+        Arrays.fill(this.visited, 0, size, 0);
+    }
+
+    private void initializeOutlineBuffers() {
+        int i;
+        int arraySizes = this.outlineArrayWidth * this.outlineArrayWidth;
+        if (this.outlinePixelsBlockIndicesLengths.length < arraySizes) {
+            this.outlinePixelsBlockIndices = new int[arraySizes][];
+            this.outlinePixelsBlockIndicesLengths = new int[arraySizes];
+            this.outlinePixelsLastBlockLength = new int[arraySizes];
+            for (i = 0; i < arraySizes; ++i) {
+                this.outlinePixelsBlockIndices[i] = new int[0];
+            }
+        }
+        for (i = 0; i < arraySizes; ++i) {
+            this.outlinePixelsLastBlockLength[i] = 1024;
+        }
+    }
+
+    private void freeAllBlockMemory() {
+        for (int i = 0; i < this.outlineArrayWidth * this.outlineArrayWidth; ++i) {
+            while (this.outlinePixelsBlockIndicesLengths[i] > 0) {
+                int n = i;
+                this.outlinePixelsBlockIndicesLengths[n] = this.outlinePixelsBlockIndicesLengths[n] - 1;
+                this.outlinePixelsBlockBuffer.freeBlock(this.outlinePixelsBlockIndices[i][this.outlinePixelsBlockIndicesLengths[i]]);
+            }
+            this.outlinePixelsLastBlockLength[i] = 1024;
+        }
+    }
+
+    private void simulateHorizontalLineRasterizationForOutline(int pixelY, int x1, int x2) {
+        if (x2 > this.clipX2) {
+            x2 = this.clipX2;
+        }
+        if (x1 < this.clipX1) {
+            x1 = this.clipX1;
+        }
+        if (x1 >= x2) {
+            return;
+        }
+        int pixelPos1 = (pixelY - this.croppedY1) * this.croppedWidth + (x1 - this.croppedX1);
+        int pixelPosIndex1 = pixelPos1 >> 5;
+        int pixelPos2 = pixelPos1 + x2 - x1;
+        int pixelPosIndex2 = pixelPos2 >> 5;
+        if (pixelPosIndex1 == pixelPosIndex2) {
+            int n = pixelPosIndex1;
+            this.visited[n] = this.visited[n] | (1 << (pixelPos2 & 0x1F)) - 1 ^ (1 << (pixelPos1 & 0x1F)) - 1;
+        } else {
+            int n = pixelPosIndex1;
+            this.visited[n] = this.visited[n] | -(1 << (pixelPos1 & 0x1F));
+            int n2 = pixelPosIndex2;
+            this.visited[n2] = this.visited[n2] | (1 << (pixelPos2 & 0x1F)) - 1;
+            for (int i = pixelPosIndex1 + 1; i < pixelPosIndex2; ++i) {
+                this.visited[i] = -1;
+            }
+        }
+    }
+
+    private void simulateTriangleRasterizationForOutline(int x1, int y1, int x2, int y2, int x3, int y3) {
+        int xp;
+        int yp;
+        if (y1 > y2) {
+            yp = y1;
+            xp = x1;
+            y1 = y2;
+            y2 = yp;
+            x1 = x2;
+            x2 = xp;
+        }
+        if (y2 > y3) {
+            yp = y2;
+            xp = x2;
+            y2 = y3;
+            y3 = yp;
+            x2 = x3;
+            x3 = xp;
+        }
+        if (y1 > y2) {
+            yp = y1;
+            xp = x1;
+            y1 = y2;
+            y2 = yp;
+            x1 = x2;
+            x2 = xp;
+        }
+        if (y1 > this.clipY2) {
+            return;
+        }
+        int slope1 = 0;
+        if (y1 != y2) {
+            slope1 = (x2 - x1 << 14) / (y2 - y1);
+        }
+        int slope2 = 0;
+        if (y3 != y2) {
+            slope2 = (x3 - x2 << 14) / (y3 - y2);
+        }
+        int slope3 = 0;
+        if (y1 != y3) {
+            slope3 = (x1 - x3 << 14) / (y1 - y3);
+        }
+        if (y2 > this.clipY2) {
+            y2 = this.clipY2;
+        }
+        if (y3 > this.clipY2) {
+            y3 = this.clipY2;
+        }
+        if (y1 == y3 || y3 < this.clipY1) {
+            return;
+        }
+        x2 <<= 14;
+        x3 = x1 <<= 14;
+        if (y1 < this.clipY1) {
+            x3 -= (y1 - this.clipY1) * slope3;
+            x1 -= (y1 - this.clipY1) * slope1;
+            y1 = this.clipY1;
+        }
+        if (y2 < this.clipY1) {
+            x2 -= (y2 - this.clipY1) * slope2;
+            y2 = this.clipY1;
+        }
+        int pixelY = y1;
+        int height1 = y2 - y1;
+        int height2 = y3 - y2;
+        if (y1 != y2 && slope3 < slope1 || y1 == y2 && slope3 > slope2) {
+            while (height1-- > 0) {
+                this.simulateHorizontalLineRasterizationForOutline(pixelY, x3 >> 14, x1 >> 14);
+                x3 += slope3;
+                x1 += slope1;
+                ++pixelY;
+            }
+            while (height2-- > 0) {
+                this.simulateHorizontalLineRasterizationForOutline(pixelY, x3 >> 14, x2 >> 14);
+                x3 += slope3;
+                x2 += slope2;
+                ++pixelY;
+            }
+        } else {
+            while (height1-- > 0) {
+                this.simulateHorizontalLineRasterizationForOutline(pixelY, x1 >> 14, x3 >> 14);
+                x1 += slope1;
+                x3 += slope3;
+                ++pixelY;
+            }
+            while (height2-- > 0) {
+                this.simulateHorizontalLineRasterizationForOutline(pixelY, x2 >> 14, x3 >> 14);
+                x3 += slope3;
+                x2 += slope2;
+                ++pixelY;
+            }
+        }
+    }
+
+    private boolean projectVertices(Model model, int localX, int localY, int localZ, int vertexOrientation) {
+        int vertexCount = model.getVerticesCount();
+        Perspective.modelToCanvas((Client)this.client, (int)vertexCount, (int)localX, (int)localY, (int)localZ, (int)vertexOrientation, (int[])model.getVerticesX(), (int[])model.getVerticesZ(), (int[])model.getVerticesY(), (int[])this.projectedVerticesX, (int[])this.projectedVerticesY);
+        boolean anyVisible = false;
+        for (int i = 0; i < vertexCount; ++i) {
+            int x = this.projectedVerticesX[i];
+            int y = this.projectedVerticesY[i];
+            if (y != Integer.MIN_VALUE) {
+                boolean visibleX = x >= this.clipX1 && x < this.clipX2;
+                boolean visibleY = y >= this.clipY1 && y < this.clipY2;
+                anyVisible |= visibleX && visibleY;
+                this.croppedX1 = Math.min(this.croppedX1, x);
+                this.croppedX2 = Math.max(this.croppedX2, x + 1);
+                this.croppedY1 = Math.min(this.croppedY1, y);
+                this.croppedY2 = Math.max(this.croppedY2, y + 1);
+                continue;
+            }
+            this.projectedVerticesY[i] = Integer.MIN_VALUE;
+        }
+        return anyVisible;
+    }
+
+    private void simulateModelRasterizationForOutline(Model model) {
+        int triangleCount = model.getFaceCount();
+        int[] indices1 = model.getFaceIndices1();
+        int[] indices2 = model.getFaceIndices2();
+        int[] indices3 = model.getFaceIndices3();
+        byte[] triangleTransparencies = model.getFaceTransparencies();
+        for (int i = 0; i < triangleCount; ++i) {
+            int v3y;
+            int index3;
+            int v3x;
+            int v2y;
+            int index2;
+            int v2x;
+            int v1y;
+            int index1;
+            int v1x;
+            if (this.projectedVerticesY[indices1[i]] == Integer.MIN_VALUE || this.projectedVerticesY[indices2[i]] == Integer.MIN_VALUE || this.projectedVerticesY[indices3[i]] == Integer.MIN_VALUE || triangleTransparencies != null && (triangleTransparencies[i] & 0xFF) >= 254 || ModelOutlineRenderer.cullFace(v1x = this.projectedVerticesX[index1 = indices1[i]], v1y = this.projectedVerticesY[index1], v2x = this.projectedVerticesX[index2 = indices2[i]], v2y = this.projectedVerticesY[index2], v3x = this.projectedVerticesX[index3 = indices3[i]], v3y = this.projectedVerticesY[index3])) continue;
+            this.simulateTriangleRasterizationForOutline(v1x, v1y, v2x, v2y, v3x, v3y);
+        }
+    }
+
+    private void rasterDistanceDeltas(int[] imageData, int imageWidth, int x, int y, PixelDistanceDelta[] distanceDeltas, int color) {
+        for (PixelDistanceDelta delta : distanceDeltas) {
+            int cx = x + delta.dx;
+            int cy = y + delta.dy;
+            int visitedPixelPos = (cy - this.croppedY1) * this.croppedWidth + (cx - this.croppedX1);
+            if (cx < this.clipX1 || cx >= this.clipX2 || cy < this.clipY1 || cy >= this.clipY2 || (this.visited[visitedPixelPos >> 5] & 1 << (visitedPixelPos & 0x1F)) != 0) continue;
+            imageData[cy * imageWidth + cx] = color;
+        }
+    }
+
+    private void processInitialOutlinePixels(boolean directWrite, Color color, int outlineWidth) {
+        MainBufferProvider bufferProvider = (MainBufferProvider)this.client.getBufferProvider();
+        BufferedImage image = (BufferedImage)bufferProvider.getImage();
+        int imageWidth = image.getWidth();
+        int[] imageData = ((DataBufferInt)image.getRaster().getDataBuffer()).getData();
+        int colorRGB = color.getRGB();
+        for (int x = 0; x < this.croppedWidth; x += 32) {
+            int v1 = this.visited[x >> 5];
+            for (int y = 1; y < this.croppedHeight; ++y) {
+                int v2 = this.visited[y * this.croppedWidth + x >> 5];
+                if (v1 != v2) {
+                    int bv2;
+                    int bit;
+                    if (directWrite) {
+                        if (outlineWidth == 1) {
+                            for (bit = 0; bit < 32; ++bit) {
+                                int bv1 = v1 >>> bit & 1;
+                                bv2 = v2 >>> bit & 1;
+                                if (bv1 == bv2) continue;
+                                imageData[(this.croppedY1 + y - bv2) * imageWidth + (this.croppedX1 + x + bit)] = colorRGB;
+                            }
+                        } else {
+                            PixelDistanceDelta[] distancesDown = this.precomputedDistanceDeltas[outlineWidth][3];
+                            PixelDistanceDelta[] distancesUp = this.precomputedDistanceDeltas[outlineWidth][1];
+                            for (int bit2 = 0; bit2 < 32; ++bit2) {
+                                int bv1 = v1 >>> bit2 & 1;
+                                int bv22 = v2 >>> bit2 & 1;
+                                if (bv1 == 1 && bv22 == 0) {
+                                    this.rasterDistanceDeltas(imageData, imageWidth, this.croppedX1 + x + bit2, this.croppedY1 + y - 1, distancesDown, colorRGB);
+                                    continue;
+                                }
+                                if (bv1 != 0 || bv22 != 1) continue;
+                                this.rasterDistanceDeltas(imageData, imageWidth, this.croppedX1 + x + bit2, this.croppedY1 + y, distancesUp, colorRGB);
+                            }
+                        }
+                    } else {
+                        for (bit = 0; bit < 32; ++bit) {
+                            int bv1 = v1 >>> bit & 1;
+                            bv2 = v2 >>> bit & 1;
+                            if (bv1 == bv2) continue;
+                            this.enqueueOutlinePixel(this.outlineArrayWidth, this.croppedX1 + x + bit, this.croppedY1 + y - bv2);
+                        }
+                    }
+                }
+                v1 = v2;
+            }
+        }
+        for (int y = 0; y < this.croppedHeight; ++y) {
+            int rowPosition = y * this.croppedWidth;
+            int lastV = 0;
+            for (int x = 0; x < this.croppedWidth; x += 32) {
+                int v = this.visited[rowPosition + x >> 5];
+                if (v != 0 && v != -1) {
+                    int end = Math.min(32, this.clipX2 - this.croppedX1 - x);
+                    int lastBv = v & 1;
+                    if (directWrite) {
+                        if (outlineWidth == 1) {
+                            for (int bit = 1; bit < end; ++bit) {
+                                int bv = v >>> bit & 1;
+                                if (bv != lastBv) {
+                                    imageData[(this.croppedY1 + y) * imageWidth + (this.croppedX1 + x + bit - bv)] = colorRGB;
+                                }
+                                lastBv = bv;
+                            }
+                        } else {
+                            PixelDistanceDelta[] distancesRight = this.precomputedDistanceDeltas[outlineWidth][0];
+                            PixelDistanceDelta[] distancesLeft = this.precomputedDistanceDeltas[outlineWidth][2];
+                            for (int bit = 1; bit < end; ++bit) {
+                                int bv = v >>> bit & 1;
+                                if (bv == 1 && lastBv == 0) {
+                                    this.rasterDistanceDeltas(imageData, imageWidth, this.croppedX1 + x + bit, this.croppedY1 + y, distancesLeft, colorRGB);
+                                } else if (bv == 0 && lastBv == 1) {
+                                    this.rasterDistanceDeltas(imageData, imageWidth, this.croppedX1 + x + bit - 1, this.croppedY1 + y, distancesRight, colorRGB);
+                                }
+                                lastBv = bv;
+                            }
+                        }
+                    } else {
+                        for (int bit = 1; bit < end; ++bit) {
+                            int bv = v >>> bit & 1;
+                            if (bv != lastBv) {
+                                this.enqueueOutlinePixel(1, this.croppedX1 + x + bit - bv, this.croppedY1 + y);
+                            }
+                            lastBv = bv;
+                        }
+                    }
+                }
+                if (lastV >>> 31 != (v & 1) && x > 0) {
+                    if (directWrite) {
+                        if (outlineWidth == 1) {
+                            imageData[(this.croppedY1 + y) * imageWidth + (this.croppedX1 + x - (v & 1))] = colorRGB;
+                        } else if ((v & 1) == 1) {
+                            PixelDistanceDelta[] distancesLeft = this.precomputedDistanceDeltas[outlineWidth][2];
+                            this.rasterDistanceDeltas(imageData, imageWidth, this.croppedX1 + x, this.croppedY1 + y, distancesLeft, colorRGB);
+                        } else {
+                            PixelDistanceDelta[] distancesRight = this.precomputedDistanceDeltas[outlineWidth][0];
+                            this.rasterDistanceDeltas(imageData, imageWidth, this.croppedX1 + x - 1, this.croppedY1 + y, distancesRight, colorRGB);
+                        }
+                    } else {
+                        this.enqueueOutlinePixel(1, this.croppedX1 + x - (v & 1), this.croppedY1 + y);
+                    }
+                }
+                lastV = v;
+            }
+        }
+    }
+
+    private void processOutlinePixelQueue(int outlineWidth, Color color, int feather) {
+        PixelDistanceGroupIndex[] ps;
+        MainBufferProvider bufferProvider = (MainBufferProvider)this.client.getBufferProvider();
+        BufferedImage image = (BufferedImage)bufferProvider.getImage();
+        int imageWidth = image.getWidth();
+        int[] imageData = ((DataBufferInt)image.getRaster().getDataBuffer()).getData();
+        for (PixelDistanceGroupIndex p : ps = this.getPriorityList(outlineWidth, feather)) {
+            int[] blockMemory = this.outlinePixelsBlockBuffer.getMemory();
+            int alpha = (int)Math.round((double)color.getAlpha() * p.alphaMultiply);
+            int inverseAlpha = 256 - alpha;
+            int colorARGB = alpha << 24 | color.getRed() * alpha / 255 << 16 | color.getGreen() * alpha / 255 << 8 | color.getBlue() * alpha / 255;
+            int groupIndex = p.distanceGroupIndex;
+            int nextGroupIndexY = groupIndex + this.outlineArrayWidth;
+            int nextGroupIndexX = groupIndex + 1;
+            while (this.outlinePixelsBlockIndicesLengths[groupIndex] > 0) {
+                int block = this.outlinePixelsBlockIndices[groupIndex][this.outlinePixelsBlockIndicesLengths[groupIndex] - 1];
+                int blockStart = block << 10;
+                int blockEnd = blockStart + this.outlinePixelsLastBlockLength[groupIndex];
+                for (int i = blockStart; i < blockEnd; ++i) {
+                    int y = blockMemory[i] >>> 16;
+                    int x = blockMemory[i] & 0xFFFF;
+                    int visitedPixelPos = (y - this.croppedY1) * this.croppedWidth + (x - this.croppedX1);
+                    if ((this.visited[visitedPixelPos >> 5] & 1 << (visitedPixelPos & 0x1F)) != 0) continue;
+                    int n = visitedPixelPos >> 5;
+                    this.visited[n] = this.visited[n] | 1 << (visitedPixelPos & 0x1F);
+                    int pixelPos = y * imageWidth + x;
+                    int dst = imageData[pixelPos];
+                    imageData[pixelPos] = (colorARGB & 0xFF00FF00) + ((dst & 0xFF00FF00) * inverseAlpha >>> 8) & 0xFF00FF00 | (colorARGB & 0xFF00FF) + ((dst & 0xFF00FF) * inverseAlpha >>> 8) & 0xFF00FF;
+                    if (x - 1 >= this.clipX1) {
+                        this.enqueueOutlinePixel(nextGroupIndexX, x - 1, y);
+                    }
+                    if (x + 1 < this.clipX2) {
+                        this.enqueueOutlinePixel(nextGroupIndexX, x + 1, y);
+                    }
+                    if (y - 1 >= this.clipY1) {
+                        this.enqueueOutlinePixel(nextGroupIndexY, x, y - 1);
+                    }
+                    if (y + 1 >= this.clipY2) continue;
+                    this.enqueueOutlinePixel(nextGroupIndexY, x, y + 1);
+                }
+                this.outlinePixelsBlockBuffer.freeBlock(block);
+                int n = groupIndex;
+                this.outlinePixelsBlockIndicesLengths[n] = this.outlinePixelsBlockIndicesLengths[n] - 1;
+                this.outlinePixelsLastBlockLength[groupIndex] = 1024;
+            }
+        }
+    }
+
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    private void drawModelOutline(Model model, int localX, int localY, int localZ, int orientation, int outlineWidth, Color color, int feather) {
+        boolean directWrite;
+        if (outlineWidth <= 0 || color.getAlpha() == 0 || model == null) {
+            return;
+        }
+        if (outlineWidth > 50) {
+            outlineWidth = 50;
+        }
+        if (feather < 0) {
+            feather = 0;
+        } else if (feather > 4) {
+            feather = 4;
+        }
+        this.croppedX1 = Integer.MAX_VALUE;
+        this.croppedX2 = Integer.MIN_VALUE;
+        this.croppedY1 = Integer.MAX_VALUE;
+        this.croppedY2 = Integer.MIN_VALUE;
+        this.clipX1 = this.client.getViewportXOffset();
+        this.clipY1 = this.client.getViewportYOffset();
+        this.clipX2 = this.client.getViewportWidth() + this.clipX1;
+        this.clipY2 = this.client.getViewportHeight() + this.clipY1;
+        if (!this.projectVertices(model, localX, localY, localZ, orientation)) {
+            return;
+        }
+        this.croppedX1 = Math.max(this.croppedX1 - outlineWidth, this.clipX1);
+        this.croppedX2 = Math.min(this.croppedX2 + outlineWidth, this.clipX2);
+        this.croppedX2 += ~(this.croppedX2 - this.croppedX1 - 1) & 0x1F;
+        this.croppedY1 = Math.max(this.croppedY1 - outlineWidth, this.clipY1);
+        this.croppedY2 = Math.min(this.croppedY2 + outlineWidth, this.clipY2);
+        this.croppedWidth = this.croppedX2 - this.croppedX1;
+        this.croppedHeight = this.croppedY2 - this.croppedY1;
+        this.resetVisited(this.croppedWidth * this.croppedHeight);
+        this.simulateModelRasterizationForOutline(model);
+        boolean bl = directWrite = color.getAlpha() == 255 && outlineWidth <= 10 && (feather == 0 || outlineWidth == 1);
+        if (directWrite) {
+            this.ensureDistanceDeltasCreated(outlineWidth);
+        } else {
+            this.outlineArrayWidth = outlineWidth + 2;
+            this.initializeOutlineBuffers();
+        }
+        try {
+            this.processInitialOutlinePixels(directWrite, color, outlineWidth);
+            if (!directWrite) {
+                this.processOutlinePixelQueue(outlineWidth, color, feather);
+            }
+        }
+        finally {
+            this.freeAllBlockMemory();
+        }
+    }
+
+    public void drawOutline(NPC npc, int outlineWidth, Color color, int feather) {
+        LocalPoint lp;
+        int size = 1;
+        NPCComposition composition = npc.getTransformedComposition();
+        if (composition != null) {
+            size = composition.getSize();
+        }
+        if ((lp = npc.getLocalLocation()) != null) {
+            int northEastX = lp.getX() + 128 * (size - 1) / 2;
+            int northEastY = lp.getY() + 128 * (size - 1) / 2;
+            LocalPoint northEastLp = new LocalPoint(northEastX, northEastY);
+            this.drawModelOutline(npc.getModel(), lp.getX(), lp.getY(), Perspective.getTileHeight((Client)this.client, (LocalPoint)northEastLp, (int)this.client.getPlane()), npc.getCurrentOrientation(), outlineWidth, color, feather);
+        }
+    }
+
+    public void drawOutline(Player player, int outlineWidth, Color color, int feather) {
+        LocalPoint lp = player.getLocalLocation();
+        if (lp != null) {
+            this.drawModelOutline(player.getModel(), lp.getX(), lp.getY(), Perspective.getTileHeight((Client)this.client, (LocalPoint)lp, (int)this.client.getPlane()), player.getCurrentOrientation(), outlineWidth, color, feather);
+        }
+    }
+
+    private void drawOutline(GameObject gameObject, int outlineWidth, Color color, int feather) {
+        Renderable renderable = gameObject.getRenderable();
+        if (renderable != null) {
+            Model model;
+            Model model2 = model = renderable instanceof Model ? (Model)renderable : renderable.getModel();
+            if (model != null) {
+                this.drawModelOutline(model, gameObject.getX(), gameObject.getY(), gameObject.getZ(), gameObject.getModelOrientation(), outlineWidth, color, feather);
+            }
+        }
+    }
+
+    private void drawOutline(GroundObject groundObject, int outlineWidth, Color color, int feather) {
+        Renderable renderable = groundObject.getRenderable();
+        if (renderable != null) {
+            Model model;
+            Model model2 = model = renderable instanceof Model ? (Model)renderable : renderable.getModel();
+            if (model != null) {
+                this.drawModelOutline(model, groundObject.getX(), groundObject.getY(), groundObject.getZ(), 0, outlineWidth, color, feather);
+            }
+        }
+    }
+
+    private void drawOutline(ItemLayer itemLayer, int outlineWidth, Color color, int feather) {
+        Renderable topRenderable;
+        Renderable middleRenderable;
+        Renderable bottomRenderable = itemLayer.getBottom();
+        if (bottomRenderable != null) {
+            Model model;
+            Model model2 = model = bottomRenderable instanceof Model ? (Model)bottomRenderable : bottomRenderable.getModel();
+            if (model != null) {
+                this.drawModelOutline(model, itemLayer.getX(), itemLayer.getY(), itemLayer.getZ() - itemLayer.getHeight(), 0, outlineWidth, color, feather);
+            }
+        }
+        if ((middleRenderable = itemLayer.getMiddle()) != null) {
+            Model model;
+            Model model3 = model = middleRenderable instanceof Model ? (Model)middleRenderable : middleRenderable.getModel();
+            if (model != null) {
+                this.drawModelOutline(model, itemLayer.getX(), itemLayer.getY(), itemLayer.getZ() - itemLayer.getHeight(), 0, outlineWidth, color, feather);
+            }
+        }
+        if ((topRenderable = itemLayer.getTop()) != null) {
+            Model model;
+            Model model4 = model = topRenderable instanceof Model ? (Model)topRenderable : topRenderable.getModel();
+            if (model != null) {
+                this.drawModelOutline(model, itemLayer.getX(), itemLayer.getY(), itemLayer.getZ() - itemLayer.getHeight(), 0, outlineWidth, color, feather);
+            }
+        }
+    }
+
+    private void drawOutline(DecorativeObject decorativeObject, int outlineWidth, Color color, int feather) {
+        Renderable renderable2;
+        Renderable renderable1 = decorativeObject.getRenderable();
+        if (renderable1 != null) {
+            Model model;
+            Model model2 = model = renderable1 instanceof Model ? (Model)renderable1 : renderable1.getModel();
+            if (model != null) {
+                this.drawModelOutline(model, decorativeObject.getX() + decorativeObject.getXOffset(), decorativeObject.getY() + decorativeObject.getYOffset(), decorativeObject.getZ(), 0, outlineWidth, color, feather);
+            }
+        }
+        if ((renderable2 = decorativeObject.getRenderable2()) != null) {
+            Model model;
+            Model model3 = model = renderable2 instanceof Model ? (Model)renderable2 : renderable2.getModel();
+            if (model != null) {
+                this.drawModelOutline(model, decorativeObject.getX(), decorativeObject.getY(), decorativeObject.getZ(), 0, outlineWidth, color, feather);
+            }
+        }
+    }
+
+    private void drawOutline(WallObject wallObject, int outlineWidth, Color color, int feather) {
+        Renderable renderable2;
+        Renderable renderable1 = wallObject.getRenderable1();
+        if (renderable1 != null) {
+            Model model;
+            Model model2 = model = renderable1 instanceof Model ? (Model)renderable1 : renderable1.getModel();
+            if (model != null) {
+                this.drawModelOutline(model, wallObject.getX(), wallObject.getY(), wallObject.getZ(), 0, outlineWidth, color, feather);
+            }
+        }
+        if ((renderable2 = wallObject.getRenderable2()) != null) {
+            Model model;
+            Model model3 = model = renderable2 instanceof Model ? (Model)renderable2 : renderable2.getModel();
+            if (model != null) {
+                this.drawModelOutline(model, wallObject.getX(), wallObject.getY(), wallObject.getZ(), 0, outlineWidth, color, feather);
+            }
+        }
+    }
+
+    public void drawOutline(TileObject tileObject, int outlineWidth, Color color, int feather) {
+        if (tileObject instanceof GameObject) {
+            this.drawOutline((GameObject)tileObject, outlineWidth, color, feather);
+        } else if (tileObject instanceof GroundObject) {
+            this.drawOutline((GroundObject)tileObject, outlineWidth, color, feather);
+        } else if (tileObject instanceof ItemLayer) {
+            this.drawOutline((ItemLayer)tileObject, outlineWidth, color, feather);
+        } else if (tileObject instanceof DecorativeObject) {
+            this.drawOutline((DecorativeObject)tileObject, outlineWidth, color, feather);
+        } else if (tileObject instanceof WallObject) {
+            this.drawOutline((WallObject)tileObject, outlineWidth, color, feather);
+        }
+    }
+
+    public void drawOutline(GraphicsObject graphicsObject, int outlineWidth, Color color, int feather) {
+        Model model;
+        LocalPoint lp = graphicsObject.getLocation();
+        if (lp != null && (model = graphicsObject.getModel()) != null) {
+            this.drawModelOutline(model, lp.getX(), lp.getY(), graphicsObject.getZ(), 0, outlineWidth, color, feather);
+        }
+    }
+
+    private static class PixelDistanceGroupIndex {
+        private final double distance;
+        private final int distanceGroupIndex;
+        private final double alphaMultiply;
+
+        public PixelDistanceGroupIndex(double distance, int distanceGroupIndex, double alphaMultiply) {
+            this.distance = distance;
+            this.distanceGroupIndex = distanceGroupIndex;
+            this.alphaMultiply = alphaMultiply;
+        }
+
+        private double getDistance() {
+            return this.distance;
+        }
+    }
+
+    private static class PixelDistanceDelta {
+        private final int dx;
+        private final int dy;
+
+        public PixelDistanceDelta(int dx, int dy) {
+            this.dx = dx;
+            this.dy = dy;
+        }
+    }
 }
+

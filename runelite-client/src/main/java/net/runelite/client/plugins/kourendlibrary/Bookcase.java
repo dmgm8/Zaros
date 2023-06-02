@@ -1,26 +1,8 @@
 /*
- * Copyright (c) 2018 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.coords.WorldPoint
  */
 package net.runelite.client.plugins.kourendlibrary;
 
@@ -28,103 +10,84 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import lombok.Getter;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.plugins.kourendlibrary.Book;
 
-class Bookcase
-{
-	Bookcase(WorldPoint location)
-	{
-		this.location = location;
-		this.index = new ArrayList<>();
-	}
+class Bookcase {
+    private final WorldPoint location;
+    private final List<Integer> index;
+    private boolean isBookSet;
+    private Book book;
+    private Set<Book> possibleBooks = new HashSet<Book>();
 
-	@Getter
-	private final WorldPoint location;
+    Bookcase(WorldPoint location) {
+        this.location = location;
+        this.index = new ArrayList<Integer>();
+    }
 
-	@Getter
-	private final List<Integer> index;
+    void clearBook() {
+        this.book = null;
+        this.isBookSet = false;
+    }
 
-	@Getter
-	private boolean isBookSet;
+    void setBook(Book book) {
+        this.book = book;
+        this.isBookSet = true;
+    }
 
-	/**
-	 * Book in this bookcase as found by the player.
-	 * Will be correct as long as isBookSet is true, unless the library has reset;
-	 */
-	@Getter
-	private Book book;
+    String getLocationString() {
+        boolean west;
+        StringBuilder b = new StringBuilder();
+        boolean north = this.location.getY() > 3815;
+        boolean bl = west = this.location.getX() < 1625;
+        if (this.location.getPlane() == 0) {
+            north = this.location.getY() > 3813;
+            boolean bl2 = west = this.location.getX() < 1627;
+        }
+        if (north && west) {
+            b.append("Northwest");
+        } else if (north) {
+            b.append("Northeast");
+        } else if (west) {
+            b.append("Southwest");
+        } else {
+            b.append("Center");
+        }
+        b.append(' ');
+        switch (this.location.getPlane()) {
+            case 0: {
+                b.append("ground floor");
+                break;
+            }
+            case 1: {
+                b.append("middle floor");
+                break;
+            }
+            case 2: {
+                b.append("top floor");
+            }
+        }
+        return b.toString();
+    }
 
-	/**
-	 * Books that can be in this slot. Will only be populated if library.state != SolvedState.NO_DATA
-	 */
-	@Getter
-	private Set<Book> possibleBooks = new HashSet<>();
+    public WorldPoint getLocation() {
+        return this.location;
+    }
 
-	void clearBook()
-	{
-		book = null;
-		isBookSet = false;
-	}
+    public List<Integer> getIndex() {
+        return this.index;
+    }
 
-	void setBook(Book book)
-	{
-		this.book = book;
-		this.isBookSet = true;
-	}
+    public boolean isBookSet() {
+        return this.isBookSet;
+    }
 
-	String getLocationString()
-	{
-		StringBuilder b = new StringBuilder();
+    public Book getBook() {
+        return this.book;
+    }
 
-		// Floors 2 and 3
-		boolean north = location.getY() > 3815;
-		boolean west = location.getX() < 1625;
-
-		// Floor 1 has slightly different dimensions
-		if (location.getPlane() == 0)
-		{
-			north = location.getY() > 3813;
-			west = location.getX() < 1627;
-		}
-
-		if (north && west)
-		{
-			b.append("Northwest");
-		}
-		else if (north)
-		{
-			b.append("Northeast");
-		}
-		else if (west)
-		{
-			b.append("Southwest");
-		}
-		else
-		{
-			b.append("Center");
-		}
-
-		b.append(' ');
-
-		switch (location.getPlane())
-		{
-			case 0:
-				b.append("ground floor");
-				break;
-			case 1:
-				b.append("middle floor");
-				break;
-			case 2:
-				b.append("top floor");
-				break;
-		}
-
-		if (KourendLibraryPlugin.debug)
-		{
-			b.append(' ').append(index.stream().map(Object::toString).collect(Collectors.joining(", ")));
-		}
-		return b.toString();
-	}
+    public Set<Book> getPossibleBooks() {
+        return this.possibleBooks;
+    }
 }
+

@@ -1,50 +1,112 @@
 /*
- * Copyright (c) 2017, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
+ *  net.runelite.api.VarPlayer
  */
 package net.runelite.client.chat;
 
 import java.awt.Color;
 import javax.annotation.Nullable;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import net.runelite.api.VarPlayer;
+import net.runelite.client.chat.ChatColorType;
 
-@Data
-@EqualsAndHashCode(exclude = {"color", "isDefault", "setting"})
-@AllArgsConstructor
-class ChatColor
-{
-	private ChatColorType type;
-	private Color color;
-	private boolean transparent;
-	private boolean isDefault;
-	@Nullable
-	private VarPlayer setting; // varp for the in-game chat color setting
+class ChatColor {
+    private ChatColorType type;
+    private Color color;
+    private boolean transparent;
+    private boolean isDefault;
+    @Nullable
+    private VarPlayer setting;
 
-	public ChatColor(ChatColorType type, Color color, boolean transparent)
-	{
-		this(type, color, transparent, false, null);
-	}
+    public ChatColor(ChatColorType type, Color color, boolean transparent) {
+        this(type, color, transparent, false, null);
+    }
+
+    public ChatColorType getType() {
+        return this.type;
+    }
+
+    public Color getColor() {
+        return this.color;
+    }
+
+    public boolean isTransparent() {
+        return this.transparent;
+    }
+
+    public boolean isDefault() {
+        return this.isDefault;
+    }
+
+    @Nullable
+    public VarPlayer getSetting() {
+        return this.setting;
+    }
+
+    public void setType(ChatColorType type) {
+        this.type = type;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
+    }
+
+    public void setTransparent(boolean transparent) {
+        this.transparent = transparent;
+    }
+
+    public void setDefault(boolean isDefault) {
+        this.isDefault = isDefault;
+    }
+
+    public void setSetting(@Nullable VarPlayer setting) {
+        this.setting = setting;
+    }
+
+    public String toString() {
+        return "ChatColor(type=" + (Object)((Object)this.getType()) + ", color=" + this.getColor() + ", transparent=" + this.isTransparent() + ", isDefault=" + this.isDefault() + ", setting=" + (Object)this.getSetting() + ")";
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ChatColor)) {
+            return false;
+        }
+        ChatColor other = (ChatColor)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.isTransparent() != other.isTransparent()) {
+            return false;
+        }
+        ChatColorType this$type = this.getType();
+        ChatColorType other$type = other.getType();
+        return !(this$type == null ? other$type != null : !((Object)((Object)this$type)).equals((Object)other$type));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof ChatColor;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + (this.isTransparent() ? 79 : 97);
+        ChatColorType $type = this.getType();
+        result = result * 59 + ($type == null ? 43 : ((Object)((Object)$type)).hashCode());
+        return result;
+    }
+
+    public ChatColor(ChatColorType type, Color color, boolean transparent, boolean isDefault, @Nullable VarPlayer setting) {
+        this.type = type;
+        this.color = color;
+        this.transparent = transparent;
+        this.isDefault = isDefault;
+        this.setting = setting;
+    }
 }
+

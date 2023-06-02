@@ -1,101 +1,83 @@
 /*
- * Copyright (c) 2021, Illya Myshakov <https://github.com/IllyaMyshakov>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.chatcommands;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import net.runelite.api.ItemID;
+@Deprecated
+enum Pet {
+    ABYSSAL_ORPHAN("Abyssal orphan", 13262),
+    IKKLE_HYDRA("Ikkle hydra", 22746),
+    CALLISTO_CUB("Callisto cub", 13178),
+    HELLPUPPY("Hellpuppy", 13247),
+    PET_CHAOS_ELEMENTAL("Pet chaos elemental", 11995),
+    PET_ZILYANA("Pet zilyana", 12651),
+    PET_DARK_CORE("Pet dark core", 12816),
+    PET_DAGANNOTH_PRIME("Pet dagannoth prime", 12644),
+    PET_DAGANNOTH_SUPREME("Pet dagannoth supreme", 12643),
+    PET_DAGANNOTH_REX("Pet dagannoth rex", 12645),
+    TZREKJAD("Tzrek-jad", 13225),
+    PET_GENERAL_GRAARDOR("Pet general graardor", 12650),
+    BABY_MOLE("Baby mole", 12646),
+    NOON("Noon", 21748),
+    JALNIBREK("Jal-nib-rek", 21291),
+    KALPHITE_PRINCESS("Kalphite princess", 12647),
+    PRINCE_BLACK_DRAGON("Prince black dragon", 12653),
+    PET_KRAKEN("Pet kraken", 12655),
+    PET_KREEARRA("Pet kree'arra", 12649),
+    PET_KRIL_TSUTSAROTH("Pet k'ril tsutsaroth", 12652),
+    SCORPIAS_OFFSPRING("Scorpia's offspring", 13181),
+    SKOTOS("Skotos", 21273),
+    PET_SMOKE_DEVIL("Pet smoke devil", 12648),
+    VENENATIS_SPIDERLING("Venenatis spiderling", 13177),
+    VETION_JR("Vet'ion jr.", 13179),
+    VORKI("Vorki", 21992),
+    PHOENIX("Phoenix", 20693),
+    PET_SNAKELING("Pet snakeling", 12921),
+    OLMLET("Olmlet", 20851),
+    LIL_ZIK("Lil' zik", 22473),
+    BLOODHOUND("Bloodhound", 19730),
+    PET_PENANCE_QUEEN("Pet penance queen", 12703),
+    HERON("Heron", 13320),
+    ROCK_GOLEM("Rock golem", 13321),
+    BEAVER("Beaver", 13322),
+    BABY_CHINCHOMPA("Baby chinchompa", 13324),
+    GIANT_SQUIRREL("Giant squirrel", 20659),
+    TANGLEROOT("Tangleroot", 20661),
+    ROCKY("Rocky", 20663),
+    RIFT_GUARDIAN("Rift guardian", 20665),
+    HERBI("Herbi", 21509),
+    CHOMPY_CHICK("Chompy chick", 13071),
+    SRARACHA("Sraracha", 23495),
+    SMOLCANO("Smolcano", 23760),
+    YOUNGLLEF("Youngllef", 23757),
+    LITTLE_NIGHTMARE("Little nightmare", 24491),
+    LIL_CREATOR("Lil' creator", 25348),
+    TINY_TEMPOR("Tiny tempor", 25602),
+    NEXLING("Nexling", 26348),
+    ABYSSAL_PROTECTOR("Abyssal protector", 26901);
 
-@AllArgsConstructor
-@Getter
-enum Pet
-{
-	ABYSSAL_ORPHAN("Abyssal orphan", ItemID.ABYSSAL_ORPHAN),
-	IKKLE_HYDRA("Ikkle hydra", ItemID.IKKLE_HYDRA),
-	CALLISTO_CUB("Callisto cub", ItemID.CALLISTO_CUB),
-	HELLPUPPY("Hellpuppy", ItemID.HELLPUPPY),
-	PET_CHAOS_ELEMENTAL("Pet chaos elemental", ItemID.PET_CHAOS_ELEMENTAL),
-	PET_ZILYANA("Pet zilyana", ItemID.PET_ZILYANA),
-	PET_DARK_CORE("Pet dark core", ItemID.PET_DARK_CORE),
-	PET_DAGANNOTH_PRIME("Pet dagannoth prime", ItemID.PET_DAGANNOTH_PRIME),
-	PET_DAGANNOTH_SUPREME("Pet dagannoth supreme", ItemID.PET_DAGANNOTH_SUPREME),
-	PET_DAGANNOTH_REX("Pet dagannoth rex", ItemID.PET_DAGANNOTH_REX),
-	TZREKJAD("Tzrek-jad", ItemID.TZREKJAD),
-	PET_GENERAL_GRAARDOR("Pet general graardor", ItemID.PET_GENERAL_GRAARDOR),
-	BABY_MOLE("Baby mole", ItemID.BABY_MOLE),
-	NOON("Noon", ItemID.NOON),
-	JALNIBREK("Jal-nib-rek", ItemID.JALNIBREK),
-	KALPHITE_PRINCESS("Kalphite princess", ItemID.KALPHITE_PRINCESS),
-	PRINCE_BLACK_DRAGON("Prince black dragon", ItemID.PRINCE_BLACK_DRAGON),
-	PET_KRAKEN("Pet kraken", ItemID.PET_KRAKEN),
-	PET_KREEARRA("Pet kree'arra", ItemID.PET_KREEARRA),
-	PET_KRIL_TSUTSAROTH("Pet k'ril tsutsaroth", ItemID.PET_KRIL_TSUTSAROTH),
-	SCORPIAS_OFFSPRING("Scorpia's offspring", ItemID.SCORPIAS_OFFSPRING),
-	SKOTOS("Skotos", ItemID.SKOTOS),
-	PET_SMOKE_DEVIL("Pet smoke devil", ItemID.PET_SMOKE_DEVIL),
-	VENENATIS_SPIDERLING("Venenatis spiderling", ItemID.VENENATIS_SPIDERLING),
-	VETION_JR("Vet'ion jr.", ItemID.VETION_JR),
-	VORKI("Vorki", ItemID.VORKI),
-	PHOENIX("Phoenix", ItemID.PHOENIX),
-	PET_SNAKELING("Pet snakeling", ItemID.PET_SNAKELING),
-	OLMLET("Olmlet", ItemID.OLMLET),
-	LIL_ZIK("Lil' zik", ItemID.LIL_ZIK),
-	BLOODHOUND("Bloodhound", ItemID.BLOODHOUND),
-	PET_PENANCE_QUEEN("Pet penance queen", ItemID.PET_PENANCE_QUEEN),
-	HERON("Heron", ItemID.HERON),
-	ROCK_GOLEM("Rock golem", ItemID.ROCK_GOLEM),
-	BEAVER("Beaver", ItemID.BEAVER),
-	BABY_CHINCHOMPA("Baby chinchompa", ItemID.BABY_CHINCHOMPA_13324),
-	GIANT_SQUIRREL("Giant squirrel", ItemID.GIANT_SQUIRREL),
-	TANGLEROOT("Tangleroot", ItemID.TANGLEROOT),
-	ROCKY("Rocky", ItemID.ROCKY),
-	RIFT_GUARDIAN("Rift guardian", ItemID.RIFT_GUARDIAN),
-	HERBI("Herbi", ItemID.HERBI),
-	CHOMPY_CHICK("Chompy chick", ItemID.CHOMPY_CHICK),
-	SRARACHA("Sraracha", ItemID.SRARACHA),
-	SMOLCANO("Smolcano", ItemID.SMOLCANO),
-	YOUNGLLEF("Youngllef", ItemID.YOUNGLLEF),
-	LITTLE_NIGHTMARE("Little nightmare", ItemID.LITTLE_NIGHTMARE),
-	LIL_CREATOR("Lil' creator", ItemID.LIL_CREATOR),
-	TINY_TEMPOR("Tiny tempor", ItemID.TINY_TEMPOR),
-	NEXLING("Nexling", ItemID.NEXLING),
-	ABYSSAL_PROTECTOR("Abyssal protector", ItemID.ABYSSAL_PROTECTOR),
-	;
+    private final String name;
+    private final Integer iconID;
 
-	private final String name;
-	private final Integer iconID;
+    static Pet findPet(String petName) {
+        for (Pet pet : Pet.values()) {
+            if (!pet.name.equals(petName)) continue;
+            return pet;
+        }
+        return null;
+    }
 
-	static Pet findPet(String petName)
-	{
-		for (Pet pet : values())
-		{
-			if (pet.name.equals(petName))
-			{
-				return pet;
-			}
-		}
-		return null;
-	}
+    private Pet(String name, Integer iconID) {
+        this.name = name;
+        this.iconID = iconID;
+    }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public Integer getIconID() {
+        return this.iconID;
+    }
 }
+

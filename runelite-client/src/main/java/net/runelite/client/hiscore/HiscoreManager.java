@@ -1,112 +1,134 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.cache.CacheBuilder
+ *  com.google.common.cache.CacheLoader
+ *  com.google.common.cache.LoadingCache
+ *  com.google.common.collect.ImmutableMap
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
  */
 package net.runelite.client.hiscore;
 
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import okhttp3.OkHttpClient;
+import net.runelite.client.hiscore.HiscoreClient;
+import net.runelite.client.hiscore.HiscoreEndpoint;
+import net.runelite.client.hiscore.HiscoreLoader;
+import net.runelite.client.hiscore.HiscoreResult;
+import net.runelite.client.hiscore.HiscoreSkill;
+import net.runelite.client.hiscore.Skill;
 
 @Singleton
-public class HiscoreManager
-{
-	@AllArgsConstructor
-	@Data
-	static class HiscoreKey
-	{
-		String username;
-		HiscoreEndpoint type;
-	}
+public class HiscoreManager {
+    static final HiscoreResult EMPTY = new HiscoreResult(-1, null, (Map<HiscoreSkill, Skill>)ImmutableMap.of());
+    static final HiscoreResult NONE = new HiscoreResult(-1, null, (Map<HiscoreSkill, Skill>)ImmutableMap.of());
+    private final LoadingCache<HiscoreKey, HiscoreResult> hiscoreCache;
+    private final HiscoreClient hiscoreClient;
 
-	static final HiscoreResult EMPTY = new HiscoreResult();
-	static final HiscoreResult NONE = new HiscoreResult();
+    @Inject
+    private HiscoreManager(ScheduledExecutorService executor, HiscoreClient hiscoreClient) {
+        this.hiscoreClient = hiscoreClient;
+        this.hiscoreCache = CacheBuilder.newBuilder().maximumSize(128L).expireAfterWrite(1L, TimeUnit.HOURS).build((CacheLoader)new HiscoreLoader(executor, hiscoreClient));
+    }
 
-	private final LoadingCache<HiscoreKey, HiscoreResult> hiscoreCache;
-	private final HiscoreClient hiscoreClient;
+    public HiscoreResult lookup(String username, HiscoreEndpoint endpoint) throws IOException {
+        HiscoreKey hiscoreKey = new HiscoreKey(username, endpoint);
+        HiscoreResult hiscoreResult = (HiscoreResult)this.hiscoreCache.getIfPresent((Object)hiscoreKey);
+        if (hiscoreResult != null && hiscoreResult != EMPTY) {
+            return hiscoreResult == NONE ? null : hiscoreResult;
+        }
+        hiscoreResult = this.hiscoreClient.lookup(username, endpoint);
+        if (hiscoreResult == null) {
+            this.hiscoreCache.put((Object)hiscoreKey, (Object)NONE);
+            return null;
+        }
+        this.hiscoreCache.put((Object)hiscoreKey, (Object)hiscoreResult);
+        return hiscoreResult;
+    }
 
-	@Inject
-	private HiscoreManager(ScheduledExecutorService executor, OkHttpClient okHttpClient)
-	{
-		hiscoreClient = new HiscoreClient(okHttpClient);
-		hiscoreCache = CacheBuilder.newBuilder()
-			.maximumSize(128L)
-			.expireAfterWrite(1, TimeUnit.HOURS)
-			.build(new HiscoreLoader(executor, hiscoreClient));
-	}
+    public HiscoreResult lookupAsync(String username, HiscoreEndpoint endpoint) {
+        HiscoreKey hiscoreKey = new HiscoreKey(username, endpoint);
+        HiscoreResult hiscoreResult = (HiscoreResult)this.hiscoreCache.getIfPresent((Object)hiscoreKey);
+        if (hiscoreResult != null && hiscoreResult != EMPTY) {
+            return hiscoreResult == NONE ? null : hiscoreResult;
+        }
+        this.hiscoreCache.refresh((Object)hiscoreKey);
+        return null;
+    }
 
-	/**
-	 * Synchronously look up a players hiscore from a specified endpoint
-	 *
-	 * @param username Players username
-	 * @param endpoint Hiscore endpoint
-	 * @return HiscoreResult or null
-	 * @throws IOException Upon error in fetching hiscore
-	 */
-	public HiscoreResult lookup(String username, HiscoreEndpoint endpoint) throws IOException
-	{
-		HiscoreKey hiscoreKey = new HiscoreKey(username, endpoint);
-		HiscoreResult hiscoreResult = hiscoreCache.getIfPresent(hiscoreKey);
-		if (hiscoreResult != null && hiscoreResult != EMPTY)
-		{
-			return hiscoreResult == NONE ? null : hiscoreResult;
-		}
+    static class HiscoreKey {
+        String username;
+        HiscoreEndpoint type;
 
-		hiscoreResult = hiscoreClient.lookup(username, endpoint);
-		if (hiscoreResult == null)
-		{
-			hiscoreCache.put(hiscoreKey, NONE);
-			return null;
-		}
+        public HiscoreKey(String username, HiscoreEndpoint type) {
+            this.username = username;
+            this.type = type;
+        }
 
-		hiscoreCache.put(hiscoreKey, hiscoreResult);
-		return hiscoreResult;
-	}
+        public String getUsername() {
+            return this.username;
+        }
 
-	/**
-	 * Asynchronously look up a players hiscore from a specified endpoint
-	 *
-	 * @param username Players username
-	 * @param endpoint Hiscore endpoint
-	 * @return HiscoreResult or null
-	 */
-	public HiscoreResult lookupAsync(String username, HiscoreEndpoint endpoint)
-	{
-		HiscoreKey hiscoreKey = new HiscoreKey(username, endpoint);
-		HiscoreResult hiscoreResult = hiscoreCache.getIfPresent(hiscoreKey);
-		if (hiscoreResult != null && hiscoreResult != EMPTY)
-		{
-			return hiscoreResult == NONE ? null : hiscoreResult;
-		}
+        public HiscoreEndpoint getType() {
+            return this.type;
+        }
 
-		hiscoreCache.refresh(hiscoreKey);
-		return null;
-	}
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public void setType(HiscoreEndpoint type) {
+            this.type = type;
+        }
+
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof HiscoreKey)) {
+                return false;
+            }
+            HiscoreKey other = (HiscoreKey)o;
+            if (!other.canEqual(this)) {
+                return false;
+            }
+            String this$username = this.getUsername();
+            String other$username = other.getUsername();
+            if (this$username == null ? other$username != null : !this$username.equals(other$username)) {
+                return false;
+            }
+            HiscoreEndpoint this$type = this.getType();
+            HiscoreEndpoint other$type = other.getType();
+            return !(this$type == null ? other$type != null : !((Object)((Object)this$type)).equals((Object)other$type));
+        }
+
+        protected boolean canEqual(Object other) {
+            return other instanceof HiscoreKey;
+        }
+
+        public int hashCode() {
+            int PRIME = 59;
+            int result = 1;
+            String $username = this.getUsername();
+            result = result * 59 + ($username == null ? 43 : $username.hashCode());
+            HiscoreEndpoint $type = this.getType();
+            result = result * 59 + ($type == null ? 43 : ((Object)((Object)$type)).hashCode());
+            return result;
+        }
+
+        public String toString() {
+            return "HiscoreManager.HiscoreKey(username=" + this.getUsername() + ", type=" + (Object)((Object)this.getType()) + ")";
+        }
+    }
 }
+

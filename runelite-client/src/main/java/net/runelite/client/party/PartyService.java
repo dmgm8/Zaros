@@ -1,27 +1,18 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * Copyright (c) 2021, Jonathan Rousseau <https://github.com/JoRouss>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.CharMatcher
+ *  com.google.common.hash.Hashing
+ *  javax.annotation.Nullable
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.ItemComposition
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.party;
 
@@ -38,8 +29,6 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -50,262 +39,200 @@ import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.PartyChanged;
 import net.runelite.client.events.PartyMemberAvatar;
-import net.runelite.client.party.messages.PartyChatMessage;
-import net.runelite.client.party.messages.PartyMessage;
+import net.runelite.client.party.PartyMember;
+import net.runelite.client.party.WSClient;
 import net.runelite.client.party.events.UserJoin;
 import net.runelite.client.party.events.UserPart;
+import net.runelite.client.party.messages.PartyChatMessage;
+import net.runelite.client.party.messages.PartyMessage;
 import net.runelite.client.party.messages.UserSync;
-import static net.runelite.client.util.Text.JAGEX_PRINTABLE_CHAR_MATCHER;
+import net.runelite.client.util.Text;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 @Singleton
-public class PartyService
-{
-	private static final int MAX_MESSAGE_LEN = 150;
-	private static final String ALPHABET = "bcdfghjklmnpqrstvwxyz";
+public class PartyService {
+    private static final Logger log = LoggerFactory.getLogger(PartyService.class);
+    private static final int MAX_MESSAGE_LEN = 150;
+    private static final String ALPHABET = "bcdfghjklmnpqrstvwxyz";
+    private final Client client;
+    private final WSClient wsClient;
+    private final EventBus eventBus;
+    private final ChatMessageManager chat;
+    private final List<PartyMember> members = new ArrayList<PartyMember>();
+    private long partyId;
+    private long memberId = PartyService.randomMemberId();
+    private String partyPassphrase;
 
-	private final Client client;
-	private final WSClient wsClient;
-	private final EventBus eventBus;
-	private final ChatMessageManager chat;
-	private final List<PartyMember> members = new ArrayList<>();
+    @Inject
+    private PartyService(Client client, WSClient wsClient, EventBus eventBus, ChatMessageManager chat) {
+        this.client = client;
+        this.wsClient = wsClient;
+        this.eventBus = eventBus;
+        this.chat = chat;
+        eventBus.register(this);
+    }
 
-	@Getter
-	private long partyId; // secret party id
-	private long memberId = randomMemberId();
-	@Getter
-	private String partyPassphrase;
+    public String generatePassphrase() {
+        int len;
+        assert (this.client.isClientThread());
+        Random r = new Random();
+        StringBuilder sb = new StringBuilder();
+        if (this.client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState()) {
+            len = 0;
+            CharMatcher matcher = CharMatcher.javaLetter();
+            do {
+                String[] split;
+                String token;
+                int itemId;
+                ItemComposition def;
+                String name;
+                if ((name = (def = this.client.getItemDefinition(itemId = r.nextInt(this.client.getItemCount()))).getMembersName()) == null || name.isEmpty() || name.equalsIgnoreCase("null") || !matcher.matchesAllOf((CharSequence)(token = (split = name.split(" "))[r.nextInt(split.length)])) || token.length() <= 2) continue;
+                if (sb.length() > 0) {
+                    sb.append('-');
+                }
+                sb.append(token.toLowerCase(Locale.US));
+                ++len;
+            } while (len < 4);
+        } else {
+            len = 0;
+            do {
+                if (sb.length() > 0) {
+                    sb.append('-');
+                }
+                for (int i = 0; i < 5; ++i) {
+                    sb.append(ALPHABET.charAt(r.nextInt(ALPHABET.length())));
+                }
+            } while (++len < 4);
+        }
+        String partyPassphrase = sb.toString();
+        log.debug("Generated party passphrase {}", (Object)partyPassphrase);
+        return partyPassphrase;
+    }
 
-	@Inject
-	private PartyService(final Client client, final WSClient wsClient, final EventBus eventBus, final ChatMessageManager chat)
-	{
-		this.client = client;
-		this.wsClient = wsClient;
-		this.eventBus = eventBus;
-		this.chat = chat;
-		eventBus.register(this);
-	}
+    public void changeParty(@Nullable String passphrase) {
+        if (this.wsClient.sessionExists()) {
+            this.wsClient.part();
+            this.memberId = PartyService.randomMemberId();
+        }
+        long id = passphrase != null ? PartyService.passphraseToId(passphrase) : 0L;
+        log.debug("Party change to {} (id {})", (Object)passphrase, (Object)id);
+        this.members.clear();
+        this.partyId = id;
+        this.partyPassphrase = passphrase;
+        if (passphrase == null) {
+            this.wsClient.changeSession(null);
+            this.eventBus.post(new PartyChanged(this.partyPassphrase, null));
+            return;
+        }
+        if (!this.wsClient.sessionExists()) {
+            this.wsClient.changeSession(UUID.randomUUID());
+        }
+        this.eventBus.post(new PartyChanged(this.partyPassphrase, this.partyId));
+        this.wsClient.join(this.partyId, this.memberId);
+    }
 
-	public String generatePassphrase()
-	{
-		assert client.isClientThread();
+    public <T extends PartyMessage> void send(T message) {
+        if (!this.wsClient.isOpen()) {
+            log.debug("Reconnecting to server");
+            this.members.clear();
+            this.wsClient.connect();
+            this.wsClient.join(this.partyId, this.memberId);
+        }
+        this.wsClient.send(message);
+    }
 
-		Random r = new Random();
-		StringBuilder sb = new StringBuilder();
+    @Subscribe(priority=1.0f)
+    public void onUserJoin(UserJoin message) {
+        PartyMember localMember;
+        if (this.partyId != message.getPartyId()) {
+            return;
+        }
+        PartyMember partyMember = this.getMemberById(message.getMemberId());
+        if (partyMember == null) {
+            partyMember = new PartyMember(message.getMemberId());
+            this.members.add(partyMember);
+            log.debug("User {} joins party, {} members", (Object)partyMember, (Object)this.members.size());
+        }
+        if ((localMember = this.getLocalMember()) != null && localMember == partyMember) {
+            log.debug("Requesting sync");
+            UserSync userSync = new UserSync();
+            this.wsClient.send(userSync);
+        }
+    }
 
-		if (client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState())
-		{
-			int len = 0;
-			final CharMatcher matcher = CharMatcher.javaLetter();
-			do
-			{
-				final int itemId = r.nextInt(client.getItemCount());
-				final ItemComposition def = client.getItemDefinition(itemId);
-				final String name = def.getName();
-				if (name == null || name.isEmpty() || name.equals("null"))
-				{
-					continue;
-				}
+    @Subscribe(priority=1.0f)
+    public void onUserPart(UserPart message) {
+        if (this.members.removeIf(member -> member.getMemberId() == message.getMemberId())) {
+            log.debug("User {} leaves party, {} members", (Object)message.getMemberId(), (Object)this.members.size());
+        }
+    }
 
-				final String[] split = name.split(" ");
-				final String token = split[r.nextInt(split.length)];
-				if (!matcher.matchesAllOf(token) || token.length() <= 2)
-				{
-					continue;
-				}
+    @Subscribe
+    public void onPartyChatMessage(PartyChatMessage message) {
+        PartyMember member = this.getMemberById(message.getMemberId());
+        if (member == null || !member.isLoggedIn()) {
+            log.debug("Dropping party chat from non logged-in member");
+            return;
+        }
+        String sentMesage = Text.JAGEX_PRINTABLE_CHAR_MATCHER.retainFrom((CharSequence)message.getValue()).replaceAll("<img=.+>", "");
+        if (sentMesage.length() > 150) {
+            sentMesage = sentMesage.substring(0, 150);
+        }
+        this.chat.queue(QueuedMessage.builder().type(ChatMessageType.FRIENDSCHAT).sender("Party").name(member.getDisplayName()).runeLiteFormattedMessage(sentMesage).build());
+    }
 
-				if (sb.length() > 0)
-				{
-					sb.append('-');
-				}
-				sb.append(token.toLowerCase(Locale.US));
-				++len;
-			}
-			while (len < 4);
-		}
-		else
-		{
-			int len = 0;
-			do
-			{
-				if (sb.length() > 0)
-				{
-					sb.append('-');
-				}
-				for (int i = 0; i < 5; ++i)
-				{
-					sb.append(ALPHABET.charAt(r.nextInt(ALPHABET.length())));
-				}
-				++len;
-			}
-			while (len < 4);
-		}
+    public PartyMember getLocalMember() {
+        return this.getMemberById(this.memberId);
+    }
 
-		String partyPassphrase = sb.toString();
-		log.debug("Generated party passphrase {}", partyPassphrase);
-		return partyPassphrase;
-	}
+    public PartyMember getMemberById(long id) {
+        for (PartyMember member : this.members) {
+            if (id != member.getMemberId()) continue;
+            return member;
+        }
+        return null;
+    }
 
-	public void changeParty(@Nullable String passphrase)
-	{
-		if (wsClient.sessionExists())
-		{
-			wsClient.part();
-			memberId = randomMemberId(); // use a different member id between parties
-		}
+    public PartyMember getMemberByDisplayName(String name) {
+        String sanitized = Text.removeTags(Text.toJagexName(name));
+        for (PartyMember member : this.members) {
+            if (!member.isLoggedIn() || !sanitized.equals(member.getDisplayName())) continue;
+            return member;
+        }
+        return null;
+    }
 
-		long id = passphrase != null ? passphraseToId(passphrase) : 0;
+    public List<PartyMember> getMembers() {
+        return Collections.unmodifiableList(this.members);
+    }
 
-		log.debug("Party change to {} (id {})", passphrase, id);
-		members.clear();
-		partyId = id;
-		partyPassphrase = passphrase;
+    public boolean isInParty() {
+        return this.partyId != 0L;
+    }
 
-		if (passphrase == null)
-		{
-			wsClient.changeSession(null);
-			eventBus.post(new PartyChanged(partyPassphrase, null));
-			return;
-		}
+    public void setPartyMemberAvatar(long memberID, BufferedImage image) {
+        PartyMember memberById = this.getMemberById(memberID);
+        if (memberById != null) {
+            memberById.setAvatar(image);
+            this.eventBus.post(new PartyMemberAvatar(memberID, image));
+        }
+    }
 
-		// If there isn't already a session open, open one
-		if (!wsClient.sessionExists())
-		{
-			wsClient.changeSession(UUID.randomUUID());
-		}
+    private static long passphraseToId(String passphrase) {
+        return Hashing.sha256().hashBytes(passphrase.getBytes(StandardCharsets.UTF_8)).asLong() & Long.MAX_VALUE;
+    }
 
-		eventBus.post(new PartyChanged(partyPassphrase, partyId));
-		wsClient.join(partyId, memberId);
-	}
+    private static long randomMemberId() {
+        return new Random().nextLong() & Long.MAX_VALUE;
+    }
 
-	public <T extends PartyMessage> void send(T message)
-	{
-		if (!wsClient.isOpen())
-		{
-			log.debug("Reconnecting to server");
+    public long getPartyId() {
+        return this.partyId;
+    }
 
-			members.clear();
-
-			wsClient.connect();
-			wsClient.join(partyId, memberId);
-		}
-
-		wsClient.send(message);
-	}
-
-	@Subscribe(priority = 1) // run prior to plugins so that the member is joined by the time the plugins see it.
-	public void onUserJoin(final UserJoin message)
-	{
-		if (partyId != message.getPartyId())
-		{
-			// This can happen when a session is resumed server side after the client party
-			// changes when disconnected.
-			return;
-		}
-
-		PartyMember partyMember = getMemberById(message.getMemberId());
-		if (partyMember == null)
-		{
-			partyMember = new PartyMember(message.getMemberId());
-			members.add(partyMember);
-			log.debug("User {} joins party, {} members", partyMember, members.size());
-		}
-
-		final PartyMember localMember = getLocalMember();
-		// Send info to other clients that this user successfully finished joining party
-		if (localMember != null && localMember == partyMember)
-		{
-			log.debug("Requesting sync");
-			final UserSync userSync = new UserSync();
-			wsClient.send(userSync);
-		}
-	}
-
-	@Subscribe(priority = 1) // run prior to plugins so that the member is removed by the time the plugins see it.
-	public void onUserPart(final UserPart message)
-	{
-		if (members.removeIf(member -> member.getMemberId() == message.getMemberId()))
-		{
-			log.debug("User {} leaves party, {} members", message.getMemberId(), members.size());
-		}
-	}
-
-	@Subscribe
-	public void onPartyChatMessage(final PartyChatMessage message)
-	{
-		final PartyMember member = getMemberById(message.getMemberId());
-		if (member == null || !member.isLoggedIn())
-		{
-			log.debug("Dropping party chat from non logged-in member");
-			return;
-		}
-
-		// Remove non-printable characters, and <img> tags from message
-		String sentMesage = JAGEX_PRINTABLE_CHAR_MATCHER.retainFrom(message.getValue())
-			.replaceAll("<img=.+>", "");
-
-		// Cap the message length
-		if (sentMesage.length() > MAX_MESSAGE_LEN)
-		{
-			sentMesage = sentMesage.substring(0, MAX_MESSAGE_LEN);
-		}
-
-		chat.queue(QueuedMessage.builder()
-			.type(ChatMessageType.FRIENDSCHAT)
-			.sender("Party")
-			.name(member.getDisplayName())
-			.runeLiteFormattedMessage(sentMesage)
-			.build());
-	}
-
-	public PartyMember getLocalMember()
-	{
-		return getMemberById(memberId);
-	}
-
-	public PartyMember getMemberById(final long id)
-	{
-		for (PartyMember member : members)
-		{
-			if (id == member.getMemberId())
-			{
-				return member;
-			}
-		}
-
-		return null;
-	}
-
-	public List<PartyMember> getMembers()
-	{
-		return Collections.unmodifiableList(members);
-	}
-
-	public boolean isInParty()
-	{
-		return partyId != 0;
-	}
-
-	public void setPartyMemberAvatar(long memberID, BufferedImage image)
-	{
-		final PartyMember memberById = getMemberById(memberID);
-
-		if (memberById != null)
-		{
-			memberById.setAvatar(image);
-			eventBus.post(new PartyMemberAvatar(memberID, image));
-		}
-	}
-
-	private static long passphraseToId(String passphrase)
-	{
-		return Hashing.sha256().hashBytes(
-			passphrase.getBytes(StandardCharsets.UTF_8)
-		).asLong() & Long.MAX_VALUE;
-	}
-
-	private static long randomMemberId()
-	{
-		return new Random().nextLong() & Long.MAX_VALUE;
-	}
+    public String getPartyPassphrase() {
+        return this.partyPassphrase;
+    }
 }
+

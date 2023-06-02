@@ -1,26 +1,8 @@
 /*
- * Copyright (c) 2019, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Preconditions
  */
 package net.runelite.client.ui.overlay.infobox;
 
@@ -30,67 +12,67 @@ import java.awt.image.BufferedImage;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import lombok.Getter;
-import lombok.ToString;
 import net.runelite.client.plugins.Plugin;
+import net.runelite.client.ui.overlay.infobox.InfoBox;
 
-@Getter
-@ToString
-public class LoopTimer extends InfoBox
-{
-	private final Instant startTime;
-	private final Duration duration;
-	private final boolean reverse;
+public class LoopTimer
+extends InfoBox {
+    private final Instant startTime;
+    private final Duration duration;
+    private final boolean reverse;
 
-	public LoopTimer(long period, ChronoUnit unit, BufferedImage image, Plugin plugin, boolean reverse)
-	{
-		super(image, plugin);
+    public LoopTimer(long period, ChronoUnit unit, BufferedImage image, Plugin plugin, boolean reverse) {
+        super(image, plugin);
+        Preconditions.checkArgument((period > 0L ? 1 : 0) != 0, (Object)"negative period!");
+        this.startTime = Instant.now();
+        this.duration = Duration.of(period, unit);
+        this.reverse = reverse;
+    }
 
-		Preconditions.checkArgument(period > 0, "negative period!");
+    public LoopTimer(long period, ChronoUnit unit, BufferedImage image, Plugin plugin) {
+        this(period, unit, image, plugin, false);
+    }
 
-		startTime = Instant.now();
-		duration = Duration.of(period, unit);
-		this.reverse = reverse;
-	}
+    @Override
+    public String getText() {
+        Duration progress = this.getProgress();
+        int seconds = (int)(progress.toMillis() / 1000L);
+        int minutes = seconds % 3600 / 60;
+        int secs = seconds % 60;
+        return String.format("%d:%02d", minutes, secs);
+    }
 
-	public LoopTimer(long period, ChronoUnit unit, BufferedImage image, Plugin plugin)
-	{
-		this(period, unit, image, plugin, false);
-	}
+    @Override
+    public Color getTextColor() {
+        Duration progress = this.getProgress();
+        if ((double)progress.getSeconds() < (double)this.duration.getSeconds() * 0.1) {
+            return Color.RED.brighter();
+        }
+        return Color.WHITE;
+    }
 
-	@Override
-	public String getText()
-	{
-		final Duration progress = getProgress();
-		final int seconds = (int) (progress.toMillis() / 1000L);
-		final int minutes = (seconds % 3600) / 60;
-		final int secs = seconds % 60;
-		return String.format("%d:%02d", minutes, secs);
-	}
+    private Duration getProgress() {
+        Duration passed = Duration.between(this.startTime, Instant.now());
+        long passedMillis = passed.toMillis();
+        long durationMillis = this.duration.toMillis();
+        long progress = passedMillis % durationMillis;
+        return Duration.ofMillis(this.reverse ? durationMillis - progress : progress);
+    }
 
-	@Override
-	public Color getTextColor()
-	{
-		final Duration progress = getProgress();
+    public Instant getStartTime() {
+        return this.startTime;
+    }
 
-		// check if timer has 10% of time left
-		if (progress.getSeconds() < (duration.getSeconds() * .10))
-		{
-			return Color.RED.brighter();
-		}
+    public Duration getDuration() {
+        return this.duration;
+    }
 
-		return Color.WHITE;
-	}
+    public boolean isReverse() {
+        return this.reverse;
+    }
 
-	private Duration getProgress()
-	{
-		final Duration passed = Duration.between(startTime, Instant.now());
-		final long passedMillis = passed.toMillis();
-		final long durationMillis = duration.toMillis();
-		final long progress = passedMillis % durationMillis;
-
-		return Duration.ofMillis(reverse
-			? durationMillis - progress
-			: progress);
-	}
+    public String toString() {
+        return "LoopTimer(startTime=" + this.getStartTime() + ", duration=" + this.getDuration() + ", reverse=" + this.isReverse() + ")";
+    }
 }
+

@@ -1,26 +1,12 @@
 /*
- * Copyright (c) 2020, dekvall <https://github.com/dekvall>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  net.runelite.api.Actor
+ *  net.runelite.api.GameObject
+ *  net.runelite.api.NPC
+ *  net.runelite.api.Point
  */
 package net.runelite.client.plugins.driftnet;
 
@@ -28,91 +14,75 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import javax.inject.Inject;
+import net.runelite.api.Actor;
 import net.runelite.api.GameObject;
 import net.runelite.api.NPC;
 import net.runelite.api.Point;
+import net.runelite.client.plugins.driftnet.DriftNet;
+import net.runelite.client.plugins.driftnet.DriftNetConfig;
+import net.runelite.client.plugins.driftnet.DriftNetPlugin;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.OverlayUtil;
 
-class DriftNetOverlay extends Overlay
-{
-	private final DriftNetConfig config;
-	private final DriftNetPlugin plugin;
+class DriftNetOverlay
+extends Overlay {
+    private final DriftNetConfig config;
+    private final DriftNetPlugin plugin;
 
-	@Inject
-	private DriftNetOverlay(DriftNetConfig config, DriftNetPlugin plugin)
-	{
-		this.config = config;
-		this.plugin = plugin;
-		setPosition(OverlayPosition.DYNAMIC);
-		setPriority(OverlayPriority.LOW);
-		setLayer(OverlayLayer.ABOVE_SCENE);
-	}
+    @Inject
+    private DriftNetOverlay(DriftNetConfig config, DriftNetPlugin plugin) {
+        this.config = config;
+        this.plugin = plugin;
+        this.setPosition(OverlayPosition.DYNAMIC);
+        this.setPriority(OverlayPriority.LOW);
+        this.setLayer(OverlayLayer.ABOVE_SCENE);
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		if (!plugin.isInDriftNetArea())
-		{
-			return null;
-		}
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        if (!this.plugin.isInDriftNetArea()) {
+            return null;
+        }
+        if (this.config.highlightUntaggedFish()) {
+            this.renderFish(graphics);
+        }
+        if (this.config.showNetStatus()) {
+            this.renderNets(graphics);
+        }
+        if (this.config.tagAnnetteWhenNoNets()) {
+            this.renderAnnette(graphics);
+        }
+        return null;
+    }
 
-		if (config.highlightUntaggedFish())
-		{
-			renderFish(graphics);
-		}
-		if (config.showNetStatus())
-		{
-			renderNets(graphics);
-		}
-		if (config.tagAnnetteWhenNoNets())
-		{
-			renderAnnette(graphics);
-		}
+    private void renderFish(Graphics2D graphics) {
+        for (NPC fish : this.plugin.getFish()) {
+            if (this.plugin.getTaggedFish().containsKey((Object)fish)) continue;
+            OverlayUtil.renderActorOverlay(graphics, (Actor)fish, "", this.config.untaggedFishColor());
+        }
+    }
 
-		return null;
-	}
+    private void renderNets(Graphics2D graphics) {
+        for (DriftNet net : this.plugin.getNETS()) {
+            Shape polygon = net.getNet().getConvexHull();
+            if (polygon != null) {
+                OverlayUtil.renderPolygon(graphics, polygon, net.getStatus().getColor());
+            }
+            String text = net.getFormattedCountText();
+            Point textLocation = net.getNet().getCanvasTextLocation(graphics, text, 0);
+            if (textLocation == null) continue;
+            OverlayUtil.renderTextLocation(graphics, textLocation, text, this.config.countColor());
+        }
+    }
 
-	private void renderFish(Graphics2D graphics)
-	{
-		for (NPC fish : plugin.getFish())
-		{
-			if (!plugin.getTaggedFish().containsKey(fish))
-			{
-				OverlayUtil.renderActorOverlay(graphics, fish, "", config.untaggedFishColor());
-			}
-		}
-	}
-
-	private void renderNets(Graphics2D graphics)
-	{
-		for (DriftNet net : plugin.getNETS())
-		{
-			final Shape polygon = net.getNet().getConvexHull();
-
-			if (polygon != null)
-			{
-				OverlayUtil.renderPolygon(graphics, polygon, net.getStatus().getColor());
-			}
-
-			String text = net.getFormattedCountText();
-			Point textLocation = net.getNet().getCanvasTextLocation(graphics, text, 0);
-			if (textLocation != null)
-			{
-				OverlayUtil.renderTextLocation(graphics, textLocation, text, config.countColor());
-			}
-		}
-	}
-
-	private void renderAnnette(Graphics2D graphics)
-	{
-		GameObject annette = plugin.getAnnette();
-		if (annette != null && !plugin.isDriftNetsInInventory())
-		{
-			OverlayUtil.renderPolygon(graphics, annette.getConvexHull(), config.annetteTagColor());
-		}
-	}
+    private void renderAnnette(Graphics2D graphics) {
+        GameObject annette = this.plugin.getAnnette();
+        if (annette != null && !this.plugin.isDriftNetsInInventory()) {
+            OverlayUtil.renderPolygon(graphics, annette.getConvexHull(), this.config.annetteTagColor());
+        }
+    }
 }
+

@@ -1,26 +1,16 @@
 /*
- * Copyright (c) 2018, Cameron <https://github.com/noremac201>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
+ *  org.apache.commons.lang3.time.DurationFormatUtils
  */
 package net.runelite.client.plugins.reportbutton;
 
@@ -37,7 +27,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import javax.inject.Inject;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
 import net.runelite.api.GameState;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
@@ -49,208 +38,170 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.reportbutton.ReportButtonConfig;
+import net.runelite.client.plugins.reportbutton.TimeFormat;
+import net.runelite.client.plugins.reportbutton.TimeStyle;
 import net.runelite.client.task.Schedule;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 
-@PluginDescriptor(
-	name = "Report Button",
-	description = "Replace the text on the Report button with the current time",
-	tags = {"time", "utc", "clock"}
-)
-public class ReportButtonPlugin extends Plugin
-{
-	private static final ZoneId UTC = ZoneId.of("UTC");
-	private static final ZoneId JAGEX = ZoneId.of("Europe/London");
-	private static final DateFormat DATE_FORMAT = new SimpleDateFormat("MMM. dd, yyyy");
+@PluginDescriptor(name="Report Button", description="Replace the text on the Report button with the current time", tags={"time", "utc", "clock"})
+public class ReportButtonPlugin
+extends Plugin {
+    private static final ZoneId UTC = ZoneId.of("UTC");
+    private static final ZoneId JAGEX = ZoneId.of("Europe/London");
+    private static final DateFormat DATE_FORMAT = new SimpleDateFormat("MMM. dd, yyyy");
+    private DateTimeFormatter timeFormat;
+    private Instant loginTime;
+    private int ticksSinceLogin;
+    private boolean ready;
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private ReportButtonConfig config;
 
-	private DateTimeFormatter timeFormat;
-	private Instant loginTime;
-	private int ticksSinceLogin;
-	private boolean ready;
+    @Provides
+    ReportButtonConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(ReportButtonConfig.class);
+    }
 
-	@Inject
-	private Client client;
+    @Override
+    public void startUp() {
+        this.clientThread.invoke(this::updateReportButtonTime);
+        this.updateTimeFormat();
+    }
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    public void shutDown() {
+        this.clientThread.invoke(() -> {
+            Widget reportButton = this.client.getWidget(WidgetInfo.CHATBOX_REPORT_TEXT);
+            if (reportButton != null) {
+                reportButton.setText("Report");
+            }
+        });
+    }
 
-	@Inject
-	private ReportButtonConfig config;
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        GameState state = event.getGameState();
+        switch (state) {
+            case LOGGING_IN: 
+            case HOPPING: 
+            case CONNECTION_LOST: {
+                this.ready = true;
+                break;
+            }
+            case LOGGED_IN: {
+                if (!this.ready) break;
+                this.loginTime = Instant.now();
+                this.ticksSinceLogin = 0;
+                this.ready = false;
+            }
+        }
+    }
 
-	@Provides
-	ReportButtonConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(ReportButtonConfig.class);
-	}
+    @Subscribe
+    public void onGameTick(GameTick tick) {
+        ++this.ticksSinceLogin;
+        if (this.config.time() == TimeStyle.GAME_TICKS) {
+            this.updateReportButtonTime();
+        }
+    }
 
-	@Override
-	public void startUp()
-	{
-		clientThread.invoke(this::updateReportButtonTime);
-		updateTimeFormat();
-	}
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (event.getGroup().equals("reportButton") && event.getKey().equals("switchTimeFormat")) {
+            this.updateTimeFormat();
+        }
+    }
 
-	@Override
-	public void shutDown()
-	{
-		clientThread.invoke(() ->
-		{
-			Widget reportButton = client.getWidget(WidgetInfo.CHATBOX_REPORT_TEXT);
-			if (reportButton != null)
-			{
-				reportButton.setText("Report");
-			}
-		});
-	}
+    @Schedule(period=500L, unit=ChronoUnit.MILLIS)
+    public void updateSchedule() {
+        this.updateReportButtonTime();
+    }
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		GameState state = event.getGameState();
+    private void updateReportButtonTime() {
+        if (this.client.getGameState() != GameState.LOGGED_IN) {
+            return;
+        }
+        Widget reportButton = this.client.getWidget(WidgetInfo.CHATBOX_REPORT_TEXT);
+        if (reportButton == null) {
+            return;
+        }
+        switch (this.config.time()) {
+            case UTC: {
+                reportButton.setText(this.getUTCTime());
+                break;
+            }
+            case JAGEX: {
+                reportButton.setText(this.getJagexTime());
+                break;
+            }
+            case LOCAL_TIME: {
+                reportButton.setText(this.getLocalTime());
+                break;
+            }
+            case LOGIN_TIME: {
+                reportButton.setText(this.getLoginTime());
+                break;
+            }
+            case IDLE_TIME: {
+                reportButton.setText(this.getIdleTime());
+                break;
+            }
+            case DATE: {
+                reportButton.setText(ReportButtonPlugin.getDate());
+                break;
+            }
+            case GAME_TICKS: {
+                reportButton.setText(this.getGameTicks());
+                break;
+            }
+            case OFF: {
+                reportButton.setText("Report");
+            }
+        }
+    }
 
-		switch (state)
-		{
-			case LOGGING_IN:
-			case HOPPING:
-			case CONNECTION_LOST:
-				ready = true;
-				break;
-			case LOGGED_IN:
-				if (ready)
-				{
-					loginTime = Instant.now();
-					ticksSinceLogin = 0;
-					ready = false;
-				}
-				break;
-		}
-	}
+    private String getIdleTime() {
+        long lastActivity = Long.min(this.client.getMouseIdleTicks(), this.client.getKeyboardIdleTicks());
+        return DurationFormatUtils.formatDuration((long)(lastActivity * 20L), (String)"mm:ss");
+    }
 
-	@Subscribe
-	public void onGameTick(GameTick tick)
-	{
-		ticksSinceLogin++;
+    private String getLoginTime() {
+        if (this.loginTime == null) {
+            return "Report";
+        }
+        Duration duration = Duration.between(this.loginTime, Instant.now());
+        LocalTime time = LocalTime.ofSecondOfDay(duration.getSeconds());
+        return time.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+    }
 
-		if (config.time() == TimeStyle.GAME_TICKS)
-		{
-			updateReportButtonTime();
-		}
-	}
+    private String getGameTicks() {
+        return Integer.toString(this.ticksSinceLogin);
+    }
 
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		if (event.getGroup().equals("reportButton") && event.getKey().equals("switchTimeFormat"))
-		{
-			updateTimeFormat();
-		}
-	}
+    private String getLocalTime() {
+        return LocalTime.now().format(this.timeFormat);
+    }
 
-	@Schedule(
-		period = 500,
-		unit = ChronoUnit.MILLIS
-	)
-	public void updateSchedule()
-	{
-		updateReportButtonTime();
-	}
+    private String getUTCTime() {
+        LocalTime time = LocalTime.now(UTC);
+        return time.format(this.timeFormat);
+    }
 
-	private void updateReportButtonTime()
-	{
-		if (client.getGameState() != GameState.LOGGED_IN)
-		{
-			return;
-		}
+    private String getJagexTime() {
+        LocalTime time = LocalTime.now(JAGEX);
+        return time.format(this.timeFormat);
+    }
 
-		Widget reportButton = client.getWidget(WidgetInfo.CHATBOX_REPORT_TEXT);
-		if (reportButton == null)
-		{
-			return;
-		}
+    private static String getDate() {
+        return DATE_FORMAT.format(new Date());
+    }
 
-		switch (config.time())
-		{
-			case UTC:
-				reportButton.setText(getUTCTime());
-				break;
-			case JAGEX:
-				reportButton.setText(getJagexTime());
-				break;
-			case LOCAL_TIME:
-				reportButton.setText(getLocalTime());
-				break;
-			case LOGIN_TIME:
-				reportButton.setText(getLoginTime());
-				break;
-			case IDLE_TIME:
-				reportButton.setText(getIdleTime());
-				break;
-			case DATE:
-				reportButton.setText(getDate());
-				break;
-			case GAME_TICKS:
-				reportButton.setText(getGameTicks());
-				break;
-			case OFF:
-				reportButton.setText("Report");
-				break;
-		}
-	}
-
-	private String getIdleTime()
-	{
-		long lastActivity = Long.min(client.getMouseIdleTicks(), client.getKeyboardIdleTicks());
-		return DurationFormatUtils.formatDuration(lastActivity * Constants.CLIENT_TICK_LENGTH, "mm:ss");
-	}
-
-	private String getLoginTime()
-	{
-		if (loginTime == null)
-		{
-			return "Report";
-		}
-
-		Duration duration = Duration.between(loginTime, Instant.now());
-		LocalTime time = LocalTime.ofSecondOfDay(duration.getSeconds());
-		return time.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-	}
-
-	private String getGameTicks()
-	{
-		return Integer.toString(ticksSinceLogin);
-	}
-
-	private String getLocalTime()
-	{
-		return LocalTime.now().format(timeFormat);
-	}
-
-	private String getUTCTime()
-	{
-		LocalTime time = LocalTime.now(UTC);
-		return time.format(timeFormat);
-	}
-
-	private String getJagexTime()
-	{
-		LocalTime time = LocalTime.now(JAGEX);
-		return time.format(timeFormat);
-	}
-
-	private static String getDate()
-	{
-		return DATE_FORMAT.format(new Date());
-	}
-
-	private void updateTimeFormat()
-	{
-		if (config.switchTimeFormat() == TimeFormat.TIME_24H)
-		{
-			timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss");
-		}
-		else
-		{
-			timeFormat = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM);
-		}
-	}
+    private void updateTimeFormat() {
+        this.timeFormat = this.config.switchTimeFormat() == TimeFormat.TIME_24H ? DateTimeFormatter.ofPattern("HH:mm:ss") : DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM);
+    }
 }
+

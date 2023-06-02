@@ -1,27 +1,25 @@
 /*
- * Copyright (c) 2016-2017, Abel Briggs
- * Copyright (c) 2017, Kronos <https://github.com/KronosDesign>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Actor
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.Hitsplat
+ *  net.runelite.api.NPC
+ *  net.runelite.api.NPCComposition
+ *  net.runelite.api.Player
+ *  net.runelite.api.Skill
+ *  net.runelite.api.VarPlayer
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.AnimationChanged
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.GraphicChanged
+ *  net.runelite.api.events.HitsplatApplied
+ *  net.runelite.api.events.InteractingChanged
  */
 package net.runelite.client.plugins.idlenotifier;
 
@@ -32,18 +30,14 @@ import java.util.Arrays;
 import java.util.List;
 import javax.inject.Inject;
 import net.runelite.api.Actor;
-import static net.runelite.api.AnimationID.*;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
 import net.runelite.api.GameState;
-import net.runelite.api.GraphicID;
 import net.runelite.api.Hitsplat;
 import net.runelite.api.NPC;
 import net.runelite.api.NPCComposition;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
 import net.runelite.api.VarPlayer;
-import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameStateChanged;
@@ -56,767 +50,555 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-
-@PluginDescriptor(
-	name = "Idle Notifier",
-	description = "Send a notification when going idle, or when HP/Prayer reaches a threshold",
-	tags = {"health", "hitpoints", "notifications", "prayer"},
-	enabledByDefault = false
-)
-public class IdleNotifierPlugin extends Plugin
-{
-	// This must be more than 500 client ticks (10 seconds) before you get AFK kicked
-	private static final int LOGOUT_WARNING_MILLIS = (4 * 60 + 40) * 1000; // 4 minutes and 40 seconds
-	private static final int COMBAT_WARNING_MILLIS = 19 * 60 * 1000; // 19 minutes
-	private static final int LOGOUT_WARNING_CLIENT_TICKS = LOGOUT_WARNING_MILLIS / Constants.CLIENT_TICK_LENGTH;
-	private static final int COMBAT_WARNING_CLIENT_TICKS = COMBAT_WARNING_MILLIS / Constants.CLIENT_TICK_LENGTH;
-
-	private static final int HIGHEST_MONSTER_ATTACK_SPEED = 8; // Except Scarab Mage, but they are with other monsters
-	private static final Duration SIX_HOUR_LOGOUT_WARNING_AFTER_DURATION = Duration.ofMinutes(340);
-
-	private static final String FISHING_SPOT = "Fishing spot";
-
-	@Inject
-	private Notifier notifier;
-
-	@Inject
-	private Client client;
-
-	@Inject
-	private IdleNotifierConfig config;
-
-	private Instant lastAnimating;
-	private int lastAnimation = IDLE;
-	private Instant lastInteracting;
-	private Actor lastInteract;
-	private Instant lastMoving;
-	private WorldPoint lastPosition;
-	private boolean notifyPosition = false;
-	private boolean notifyHitpoints = true;
-	private boolean notifyPrayer = true;
-	private boolean shouldNotifyLowEnergy = false;
-	private boolean shouldNotifyHighEnergy = false;
-	private boolean notifyOxygen = true;
-	private boolean notifyIdleLogout = true;
-	private boolean notify6HourLogout = true;
-	private int lastSpecEnergy = 1000;
-	private int lastCombatCountdown = 0;
-	private Instant sixHourWarningTime;
-	private boolean ready;
-	private boolean lastInteractWasCombat;
-
-	@Provides
-	IdleNotifierConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(IdleNotifierConfig.class);
-	}
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		// can't tell when 6hr will be if enabled while already logged in
-		sixHourWarningTime = null;
-	}
-
-	@Subscribe
-	public void onAnimationChanged(AnimationChanged event)
-	{
-		if (client.getGameState() != GameState.LOGGED_IN)
-		{
-			return;
-		}
-
-		Player localPlayer = client.getLocalPlayer();
-		if (localPlayer != event.getActor())
-		{
-			return;
-		}
-
-		int graphic = localPlayer.getGraphic();
-		int animation = localPlayer.getAnimation();
-		switch (animation)
-		{
-			/* Woodcutting */
-			case WOODCUTTING_BRONZE:
-			case WOODCUTTING_IRON:
-			case WOODCUTTING_STEEL:
-			case WOODCUTTING_BLACK:
-			case WOODCUTTING_MITHRIL:
-			case WOODCUTTING_ADAMANT:
-			case WOODCUTTING_RUNE:
-			case WOODCUTTING_GILDED:
-			case WOODCUTTING_DRAGON:
-			case WOODCUTTING_DRAGON_OR:
-			case WOODCUTTING_INFERNAL:
-			case WOODCUTTING_3A_AXE:
-			case WOODCUTTING_CRYSTAL:
-			case WOODCUTTING_TRAILBLAZER:
-			/* Cooking(Fire, Range) */
-			case COOKING_FIRE:
-			case COOKING_RANGE:
-			case COOKING_WINE:
-			/* Crafting(Gem Cutting, Glassblowing, Spinning, Weaving, Battlestaves, Pottery) */
-			case GEM_CUTTING_OPAL:
-			case GEM_CUTTING_JADE:
-			case GEM_CUTTING_REDTOPAZ:
-			case GEM_CUTTING_SAPPHIRE:
-			case GEM_CUTTING_EMERALD:
-			case GEM_CUTTING_RUBY:
-			case GEM_CUTTING_DIAMOND:
-			case GEM_CUTTING_AMETHYST:
-			case CRAFTING_GLASSBLOWING:
-			case CRAFTING_SPINNING:
-			case CRAFTING_LOOM:
-			case CRAFTING_BATTLESTAVES:
-			case CRAFTING_LEATHER:
-			case CRAFTING_POTTERS_WHEEL:
-			case CRAFTING_POTTERY_OVEN:
-			/* Fletching(Cutting, Stringing, Adding feathers and heads) */
-			case FLETCHING_BOW_CUTTING:
-			case FLETCHING_STRING_NORMAL_SHORTBOW:
-			case FLETCHING_STRING_OAK_SHORTBOW:
-			case FLETCHING_STRING_WILLOW_SHORTBOW:
-			case FLETCHING_STRING_MAPLE_SHORTBOW:
-			case FLETCHING_STRING_YEW_SHORTBOW:
-			case FLETCHING_STRING_MAGIC_SHORTBOW:
-			case FLETCHING_STRING_NORMAL_LONGBOW:
-			case FLETCHING_STRING_OAK_LONGBOW:
-			case FLETCHING_STRING_WILLOW_LONGBOW:
-			case FLETCHING_STRING_MAPLE_LONGBOW:
-			case FLETCHING_STRING_YEW_LONGBOW:
-			case FLETCHING_STRING_MAGIC_LONGBOW:
-			case FLETCHING_ATTACH_FEATHERS_TO_ARROWSHAFT:
-			case FLETCHING_ATTACH_HEADS:
-			case FLETCHING_ATTACH_BOLT_TIPS_TO_BRONZE_BOLT:
-			case FLETCHING_ATTACH_BOLT_TIPS_TO_IRON_BROAD_BOLT:
-			case FLETCHING_ATTACH_BOLT_TIPS_TO_BLURITE_BOLT:
-			case FLETCHING_ATTACH_BOLT_TIPS_TO_STEEL_BOLT:
-			case FLETCHING_ATTACH_BOLT_TIPS_TO_MITHRIL_BOLT:
-			case FLETCHING_ATTACH_BOLT_TIPS_TO_ADAMANT_BOLT:
-			case FLETCHING_ATTACH_BOLT_TIPS_TO_RUNE_BOLT:
-			case FLETCHING_ATTACH_BOLT_TIPS_TO_DRAGON_BOLT:
-			/* Smithing(Anvil, Furnace, Cannonballs */
-			case SMITHING_ANVIL:
-			case SMITHING_IMCANDO_HAMMER:
-			case SMITHING_SMELTING:
-			case SMITHING_CANNONBALL:
-			/* Fishing */
-			case FISHING_CRUSHING_INFERNAL_EELS:
-			case FISHING_CUTTING_SACRED_EELS:
-			case FISHING_BIG_NET:
-			case FISHING_NET:
-			case FISHING_POLE_CAST:
-			case FISHING_CAGE:
-			case FISHING_HARPOON:
-			case FISHING_BARBTAIL_HARPOON:
-			case FISHING_DRAGON_HARPOON:
-			case FISHING_DRAGON_HARPOON_OR:
-			case FISHING_INFERNAL_HARPOON:
-			case FISHING_CRYSTAL_HARPOON:
-			case FISHING_TRAILBLAZER_HARPOON:
-			case FISHING_OILY_ROD:
-			case FISHING_KARAMBWAN:
-			case FISHING_BAREHAND:
-			case FISHING_PEARL_ROD:
-			case FISHING_PEARL_FLY_ROD:
-			case FISHING_PEARL_BARBARIAN_ROD:
-			case FISHING_PEARL_ROD_2:
-			case FISHING_PEARL_FLY_ROD_2:
-			case FISHING_PEARL_BARBARIAN_ROD_2:
-			case FISHING_PEARL_OILY_ROD:
-			/* Mining(Normal) */
-			case MINING_BRONZE_PICKAXE:
-			case MINING_IRON_PICKAXE:
-			case MINING_STEEL_PICKAXE:
-			case MINING_BLACK_PICKAXE:
-			case MINING_MITHRIL_PICKAXE:
-			case MINING_ADAMANT_PICKAXE:
-			case MINING_RUNE_PICKAXE:
-			case MINING_GILDED_PICKAXE:
-			case MINING_DRAGON_PICKAXE:
-			case MINING_DRAGON_PICKAXE_UPGRADED:
-			case MINING_DRAGON_PICKAXE_OR:
-			case MINING_DRAGON_PICKAXE_OR_TRAILBLAZER:
-			case MINING_INFERNAL_PICKAXE:
-			case MINING_3A_PICKAXE:
-			case MINING_CRYSTAL_PICKAXE:
-			case MINING_TRAILBLAZER_PICKAXE:
-			case MINING_TRAILBLAZER_PICKAXE_2:
-			case MINING_TRAILBLAZER_PICKAXE_3:
-			case DENSE_ESSENCE_CHIPPING:
-			case DENSE_ESSENCE_CHISELING:
-			/* Mining(Motherlode) */
-			case MINING_MOTHERLODE_BRONZE:
-			case MINING_MOTHERLODE_IRON:
-			case MINING_MOTHERLODE_STEEL:
-			case MINING_MOTHERLODE_BLACK:
-			case MINING_MOTHERLODE_MITHRIL:
-			case MINING_MOTHERLODE_ADAMANT:
-			case MINING_MOTHERLODE_RUNE:
-			case MINING_MOTHERLODE_GILDED:
-			case MINING_MOTHERLODE_DRAGON:
-			case MINING_MOTHERLODE_DRAGON_UPGRADED:
-			case MINING_MOTHERLODE_DRAGON_OR:
-			case MINING_MOTHERLODE_DRAGON_OR_TRAILBLAZER:
-			case MINING_MOTHERLODE_INFERNAL:
-			case MINING_MOTHERLODE_3A:
-			case MINING_MOTHERLODE_CRYSTAL:
-			case MINING_MOTHERLODE_TRAILBLAZER:
-			/* Herblore */
-			case HERBLORE_PESTLE_AND_MORTAR:
-			case HERBLORE_POTIONMAKING:
-			case HERBLORE_MAKE_TAR:
-			/* Magic */
-			case MAGIC_CHARGING_ORBS:
-			case MAGIC_LUNAR_PLANK_MAKE:
-			case MAGIC_LUNAR_STRING_JEWELRY:
-			case MAGIC_MAKE_TABLET:
-			case MAGIC_ENCHANTING_JEWELRY:
-			case MAGIC_ENCHANTING_AMULET_1:
-			case MAGIC_ENCHANTING_AMULET_2:
-			case MAGIC_ENCHANTING_AMULET_3:
-			case MAGIC_ENCHANTING_BOLTS:
-			/* Prayer */
-			case USING_GILDED_ALTAR:
-			case ECTOFUNTUS_FILL_SLIME_BUCKET:
-			case ECTOFUNTUS_INSERT_BONES:
-			case ECTOFUNTUS_GRIND_BONES:
-			case ECTOFUNTUS_EMPTY_BIN:
-			/* Farming */
-			case FARMING_MIX_ULTRACOMPOST:
-			case FARMING_HARVEST_BUSH:
-			case FARMING_HARVEST_HERB:
-			case FARMING_HARVEST_FRUIT_TREE:
-			case FARMING_HARVEST_FLOWER:
-			case FARMING_HARVEST_ALLOTMENT:
-			/* Misc */
-			case PISCARILIUS_CRANE_REPAIR:
-			case HOME_MAKE_TABLET:
-			case SAND_COLLECTION:
-			case LOOKING_INTO:
-				resetTimers();
-				lastAnimation = animation;
-				lastAnimating = Instant.now();
-				break;
-			case MAGIC_LUNAR_SHARED:
-				if (graphic == GraphicID.BAKE_PIE)
-				{
-					resetTimers();
-					lastAnimation = animation;
-					lastAnimating = Instant.now();
-					break;
-				}
-			case IDLE:
-				lastAnimating = Instant.now();
-				break;
-			default:
-				// On unknown animation simply assume the animation is invalid and dont throw notification
-				lastAnimation = IDLE;
-				lastAnimating = null;
-		}
-	}
-
-	@Subscribe
-	public void onInteractingChanged(InteractingChanged event)
-	{
-		final Actor source = event.getSource();
-		if (source != client.getLocalPlayer())
-		{
-			return;
-		}
-
-		final Actor target = event.getTarget();
-
-		// Reset last interact
-		if (target != null)
-		{
-			lastInteract = null;
-		}
-		else
-		{
-			lastInteracting = Instant.now();
-		}
-
-		final boolean isNpc = target instanceof NPC;
-
-		// If this is not NPC, do not process as we are not interested in other entities
-		if (!isNpc)
-		{
-			return;
-		}
-
-		final NPC npc = (NPC) target;
-		final NPCComposition npcComposition = npc.getComposition();
-		final List<String> npcMenuActions = Arrays.asList(npcComposition.getActions());
-
-		if (npcMenuActions.contains("Attack"))
-		{
-			// Player is most likely in combat with attack-able NPC
-			resetTimers();
-			lastInteract = target;
-			lastInteracting = Instant.now();
-			lastInteractWasCombat = true;
-		}
-		else if (target.getName() != null && target.getName().contains(FISHING_SPOT))
-		{
-			// Player is fishing
-			resetTimers();
-			lastInteract = target;
-			lastInteracting = Instant.now();
-			lastInteractWasCombat = false;
-		}
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		lastInteracting = null;
-
-		GameState state = gameStateChanged.getGameState();
-
-		switch (state)
-		{
-			case LOGIN_SCREEN:
-				resetTimers();
-				break;
-			case LOGGING_IN:
-			case HOPPING:
-			case CONNECTION_LOST:
-				ready = true;
-				break;
-			case LOGGED_IN:
-				if (ready)
-				{
-					sixHourWarningTime = Instant.now().plus(SIX_HOUR_LOGOUT_WARNING_AFTER_DURATION);
-					ready = false;
-					resetTimers();
-				}
-
-				break;
-		}
-	}
-
-	@Subscribe
-	public void onHitsplatApplied(HitsplatApplied event)
-	{
-		if (event.getActor() != client.getLocalPlayer())
-		{
-			return;
-		}
-
-		final Hitsplat hitsplat = event.getHitsplat();
-
-		if (hitsplat.getHitsplatType() == Hitsplat.HitsplatType.DAMAGE_ME
-			|| hitsplat.getHitsplatType() == Hitsplat.HitsplatType.BLOCK_ME)
-		{
-			lastCombatCountdown = HIGHEST_MONSTER_ATTACK_SPEED;
-		}
-	}
-
-	@Subscribe
-	public void onGraphicChanged(GraphicChanged event)
-	{
-		Actor actor = event.getActor();
-
-		if (actor != client.getLocalPlayer())
-		{
-			return;
-		}
-
-		if (actor.getGraphic() == GraphicID.SPLASH)
-		{
-			lastCombatCountdown = HIGHEST_MONSTER_ATTACK_SPEED;
-		}
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick event)
-	{
-		final Player local = client.getLocalPlayer();
-		final Duration waitDuration = Duration.ofMillis(config.getIdleNotificationDelay());
-		lastCombatCountdown = Math.max(lastCombatCountdown - 1, 0);
-
-		if (client.getGameState() != GameState.LOGGED_IN
-			|| local == null
-			// If user has clicked in the last second then they're not idle so don't send idle notification
-			|| System.currentTimeMillis() - client.getMouseLastPressedMillis() < 1000
-			|| client.getKeyboardIdleTicks() < 10)
-		{
-			resetTimers();
-			return;
-		}
-
-		if (config.logoutIdle() && checkIdleLogout())
-		{
-			notifier.notify("You are about to log out from idling too long!");
-		}
-
-		if (check6hrLogout())
-		{
-			notifier.notify("You are about to log out from being online for 6 hours!");
-		}
-
-		if (config.animationIdle() && checkAnimationIdle(waitDuration, local))
-		{
-			notifier.notify("You are now idle!");
-		}
-
-		if (config.movementIdle() && checkMovementIdle(waitDuration, local))
-		{
-			notifier.notify("You have stopped moving!");
-		}
-
-		if (config.interactionIdle() && checkInteractionIdle(waitDuration, local))
-		{
-			if (lastInteractWasCombat)
-			{
-				notifier.notify("You are now out of combat!");
-			}
-			else
-			{
-				notifier.notify("You are now idle!");
-			}
-		}
-
-		if (checkLowHitpoints())
-		{
-			notifier.notify("You have low hitpoints!");
-		}
-
-		if (checkLowPrayer())
-		{
-			notifier.notify("You have low prayer!");
-		}
-
-		if (checkLowEnergy())
-		{
-			notifier.notify("You have low run energy!");
-		}
-
-		if (checkHighEnergy())
-		{
-			notifier.notify("You have restored run energy!");
-		}
-
-		if (checkLowOxygen())
-		{
-			notifier.notify("You have low oxygen!");
-		}
-
-		if (checkFullSpecEnergy())
-		{
-			notifier.notify("You have restored spec energy!");
-		}
-	}
-
-	private boolean checkFullSpecEnergy()
-	{
-		int currentSpecEnergy = client.getVar(VarPlayer.SPECIAL_ATTACK_PERCENT);
-
-		int threshold = config.getSpecEnergyThreshold() * 10;
-		if (threshold == 0)
-		{
-			lastSpecEnergy = currentSpecEnergy;
-			return false;
-		}
-
-		// Check if we have regenerated over the threshold, and that the
-		// regen was small enough.
-		boolean notify = lastSpecEnergy < threshold && currentSpecEnergy >= threshold
-			&& currentSpecEnergy - lastSpecEnergy <= 100;
-		lastSpecEnergy = currentSpecEnergy;
-		return notify;
-	}
-
-	private boolean checkLowOxygen()
-	{
-		if (config.getOxygenThreshold() == 0)
-		{
-			return false;
-		}
-		if (config.getOxygenThreshold() >= client.getVarbitValue(Varbits.OXYGEN_LEVEL) * 0.1)
-		{
-			if (!notifyOxygen)
-			{
-				notifyOxygen = true;
-				return true;
-			}
-		}
-		else
-		{
-			notifyOxygen = false;
-		}
-		return false;
-	}
-
-	private boolean checkLowHitpoints()
-	{
-		if (config.getHitpointsThreshold() == 0)
-		{
-			return false;
-		}
-		if (client.getRealSkillLevel(Skill.HITPOINTS) > config.getHitpointsThreshold())
-		{
-			if (client.getBoostedSkillLevel(Skill.HITPOINTS) + client.getVarbitValue(Varbits.NMZ_ABSORPTION) <= config.getHitpointsThreshold())
-			{
-				if (!notifyHitpoints)
-				{
-					notifyHitpoints = true;
-					return true;
-				}
-			}
-			else
-			{
-				notifyHitpoints = false;
-			}
-		}
-
-		return false;
-	}
-
-	private boolean checkLowPrayer()
-	{
-		if (config.getPrayerThreshold() == 0)
-		{
-			return false;
-		}
-		if (client.getRealSkillLevel(Skill.PRAYER) > config.getPrayerThreshold())
-		{
-			if (client.getBoostedSkillLevel(Skill.PRAYER) <= config.getPrayerThreshold())
-			{
-				if (!notifyPrayer)
-				{
-					notifyPrayer = true;
-					return true;
-				}
-			}
-			else
-			{
-				notifyPrayer = false;
-			}
-		}
-
-		return false;
-	}
-
-	private boolean checkLowEnergy()
-	{
-		if (config.getLowEnergyThreshold() >= 100)
-		{
-			return false;
-		}
-
-		if (client.getEnergy() <= config.getLowEnergyThreshold())
-		{
-			if (shouldNotifyLowEnergy)
-			{
-				shouldNotifyLowEnergy = false;
-				return true;
-			}
-		}
-		else
-		{
-			shouldNotifyLowEnergy = true;
-		}
-
-		return false;
-	}
-
-	private boolean checkHighEnergy()
-	{
-		if (config.getHighEnergyThreshold() == 0)
-		{
-			return false;
-		}
-
-		if (client.getEnergy() >= config.getHighEnergyThreshold())
-		{
-			if (shouldNotifyHighEnergy)
-			{
-				shouldNotifyHighEnergy = false;
-				return true;
-			}
-		}
-		else
-		{
-			shouldNotifyHighEnergy = true;
-		}
-
-		return false;
-	}
-
-	private boolean checkInteractionIdle(Duration waitDuration, Player local)
-	{
-		if (lastInteract == null)
-		{
-			return false;
-		}
-
-		final Actor interact = local.getInteracting();
-
-		if (interact == null)
-		{
-			if (lastInteracting != null
-				&& Instant.now().compareTo(lastInteracting.plus(waitDuration)) >= 0
-				&& lastCombatCountdown == 0)
-			{
-				lastInteract = null;
-				lastInteracting = null;
-
-				// prevent animation notifications from firing too
-				lastAnimation = IDLE;
-				lastAnimating = null;
-
-				return true;
-			}
-		}
-		else
-		{
-			lastInteracting = Instant.now();
-		}
-
-		return false;
-	}
-
-	private boolean checkIdleLogout()
-	{
-		// Check clientside AFK first, because this is required for the server to disconnect you for being first
-		int idleClientTicks = client.getKeyboardIdleTicks();
-		if (client.getMouseIdleTicks() < idleClientTicks)
-		{
-			idleClientTicks = client.getMouseIdleTicks();
-		}
-
-		if (idleClientTicks < LOGOUT_WARNING_CLIENT_TICKS)
-		{
-			notifyIdleLogout = true;
-			return false;
-		}
-
-		// If we are not receiving hitsplats then we can be afk kicked
-		if (lastCombatCountdown <= 0)
-		{
-			boolean warn = notifyIdleLogout;
-			notifyIdleLogout = false;
-			return warn;
-		}
-
-		// We are in combat, so now we have to check for the timer that knocks you out of combat
-		// I think there are other conditions that I don't know about, because during testing I just didn't
-		// get removed from combat sometimes.
-		final long lastInteractionAgo = System.currentTimeMillis() - client.getMouseLastPressedMillis();
-		if (lastInteractionAgo < COMBAT_WARNING_MILLIS || client.getKeyboardIdleTicks() < COMBAT_WARNING_CLIENT_TICKS)
-		{
-			notifyIdleLogout = true;
-			return false;
-		}
-
-		boolean warn = notifyIdleLogout;
-		notifyIdleLogout = false;
-		return warn;
-	}
-
-	private boolean check6hrLogout()
-	{
-		if (sixHourWarningTime == null)
-		{
-			return false;
-		}
-
-		if (Instant.now().compareTo(sixHourWarningTime) >= 0)
-		{
-			if (notify6HourLogout)
-			{
-				notify6HourLogout = false;
-				return true;
-			}
-		}
-		else
-		{
-			notify6HourLogout = true;
-		}
-
-		return false;
-	}
-
-	private boolean checkAnimationIdle(Duration waitDuration, Player local)
-	{
-		if (lastAnimation == IDLE)
-		{
-			return false;
-		}
-
-		final int animation = local.getAnimation();
-
-		if (animation == IDLE)
-		{
-			if (lastAnimating != null && Instant.now().compareTo(lastAnimating.plus(waitDuration)) >= 0)
-			{
-				lastAnimation = IDLE;
-				lastAnimating = null;
-
-				// prevent interaction notifications from firing too
-				lastInteract = null;
-				lastInteracting = null;
-
-				return true;
-			}
-		}
-		else
-		{
-			lastAnimating = Instant.now();
-		}
-
-		return false;
-	}
-
-	private boolean checkMovementIdle(Duration waitDuration, Player local)
-	{
-		if (lastPosition == null)
-		{
-			lastPosition = local.getWorldLocation();
-			return false;
-		}
-
-		WorldPoint position = local.getWorldLocation();
-
-		if (lastPosition.equals(position))
-		{
-			if (notifyPosition
-				&& local.getAnimation() == IDLE
-				&& Instant.now().compareTo(lastMoving.plus(waitDuration)) >= 0)
-			{
-				notifyPosition = false;
-				// Return true only if we weren't just breaking out of an animation
-				return lastAnimation == IDLE;
-			}
-		}
-		else
-		{
-			notifyPosition = true;
-			lastPosition = position;
-			lastMoving = Instant.now();
-		}
-
-		return false;
-	}
-
-	private void resetTimers()
-	{
-		final Player local = client.getLocalPlayer();
-
-		// Reset animation idle timer
-		lastAnimating = null;
-		if (client.getGameState() == GameState.LOGIN_SCREEN || local == null || local.getAnimation() != lastAnimation)
-		{
-			lastAnimation = IDLE;
-		}
-
-		// Reset interaction idle timer
-		lastInteracting = null;
-		if (client.getGameState() == GameState.LOGIN_SCREEN || local == null || local.getInteracting() != lastInteract)
-		{
-			lastInteract = null;
-		}
-	}
+import net.runelite.client.plugins.idlenotifier.IdleNotifierConfig;
+
+@PluginDescriptor(name="Idle Notifier", description="Send a notification when going idle, or when HP/Prayer reaches a threshold", tags={"health", "hitpoints", "notifications", "prayer"}, enabledByDefault=false)
+public class IdleNotifierPlugin
+extends Plugin {
+    private static final int IDLE_LOGOUT_WARNING_BUFFER = 1000;
+    private static final int COMBAT_WARNING_MILLIS = 1140000;
+    private static final int COMBAT_WARNING_CLIENT_TICKS = 57000;
+    private static final int HIGHEST_MONSTER_ATTACK_SPEED = 8;
+    private static final Duration SIX_HOUR_LOGOUT_WARNING_AFTER_DURATION = Duration.ofMinutes(340L);
+    private static final String FISHING_SPOT = "Fishing spot";
+    @Inject
+    private Notifier notifier;
+    @Inject
+    private Client client;
+    @Inject
+    private IdleNotifierConfig config;
+    private Instant lastAnimating;
+    private int lastAnimation = -1;
+    private Instant lastInteracting;
+    private Actor lastInteract;
+    private Instant lastMoving;
+    private WorldPoint lastPosition;
+    private boolean notifyPosition = false;
+    private boolean notifyHitpoints = true;
+    private boolean notifyPrayer = true;
+    private boolean shouldNotifyLowEnergy = false;
+    private boolean shouldNotifyHighEnergy = false;
+    private boolean notifyOxygen = true;
+    private boolean notifyIdleLogout = true;
+    private boolean notify6HourLogout = true;
+    private int lastSpecEnergy = 1000;
+    private int lastCombatCountdown = 0;
+    private Instant sixHourWarningTime;
+    private boolean ready;
+    private boolean lastInteractWasCombat;
+
+    @Provides
+    IdleNotifierConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(IdleNotifierConfig.class);
+    }
+
+    @Override
+    protected void startUp() {
+        this.sixHourWarningTime = null;
+    }
+
+    @Subscribe
+    public void onAnimationChanged(AnimationChanged event) {
+        if (this.client.getGameState() != GameState.LOGGED_IN) {
+            return;
+        }
+        Player localPlayer = this.client.getLocalPlayer();
+        if (localPlayer != event.getActor()) {
+            return;
+        }
+        int graphic = localPlayer.getGraphic();
+        int animation = localPlayer.getAnimation();
+        switch (animation) {
+            case 24: 
+            case 88: 
+            case 335: 
+            case 363: 
+            case 364: 
+            case 618: 
+            case 619: 
+            case 620: 
+            case 621: 
+            case 622: 
+            case 623: 
+            case 624: 
+            case 625: 
+            case 626: 
+            case 627: 
+            case 628: 
+            case 629: 
+            case 642: 
+            case 719: 
+            case 720: 
+            case 721: 
+            case 726: 
+            case 827: 
+            case 830: 
+            case 832: 
+            case 867: 
+            case 869: 
+            case 871: 
+            case 873: 
+            case 875: 
+            case 877: 
+            case 879: 
+            case 883: 
+            case 884: 
+            case 886: 
+            case 887: 
+            case 888: 
+            case 889: 
+            case 890: 
+            case 891: 
+            case 892: 
+            case 894: 
+            case 895: 
+            case 896: 
+            case 897: 
+            case 898: 
+            case 899: 
+            case 931: 
+            case 1193: 
+            case 1248: 
+            case 1249: 
+            case 1648: 
+            case 1649: 
+            case 1650: 
+            case 2117: 
+            case 2270: 
+            case 2280: 
+            case 2281: 
+            case 2282: 
+            case 2292: 
+            case 2846: 
+            case 3705: 
+            case 3866: 
+            case 3873: 
+            case 4067: 
+            case 4068: 
+            case 4412: 
+            case 4462: 
+            case 4471: 
+            case 4481: 
+            case 4482: 
+            case 5108: 
+            case 5249: 
+            case 6295: 
+            case 6298: 
+            case 6678: 
+            case 6679: 
+            case 6680: 
+            case 6681: 
+            case 6682: 
+            case 6683: 
+            case 6684: 
+            case 6685: 
+            case 6686: 
+            case 6687: 
+            case 6688: 
+            case 6689: 
+            case 6709: 
+            case 6752: 
+            case 6753: 
+            case 6754: 
+            case 6755: 
+            case 6756: 
+            case 6757: 
+            case 6758: 
+            case 6932: 
+            case 7139: 
+            case 7151: 
+            case 7199: 
+            case 7201: 
+            case 7202: 
+            case 7264: 
+            case 7282: 
+            case 7283: 
+            case 7401: 
+            case 7402: 
+            case 7529: 
+            case 7531: 
+            case 7553: 
+            case 7699: 
+            case 8188: 
+            case 8189: 
+            case 8190: 
+            case 8191: 
+            case 8192: 
+            case 8193: 
+            case 8303: 
+            case 8312: 
+            case 8313: 
+            case 8324: 
+            case 8336: 
+            case 8344: 
+            case 8345: 
+            case 8346: 
+            case 8347: 
+            case 8472: 
+            case 8473: 
+            case 8474: 
+            case 8475: 
+            case 8476: 
+            case 8477: 
+            case 8478: 
+            case 8479: 
+            case 8480: 
+            case 8481: 
+            case 8778: 
+            case 8784: 
+            case 8786: 
+            case 8787: 
+            case 8788: 
+            case 8789: 
+            case 8886: 
+            case 8887: 
+            case 8911: 
+            case 9350: 
+            case 24975: {
+                this.resetTimers();
+                this.lastAnimation = animation;
+                this.lastAnimating = Instant.now();
+                break;
+            }
+            case 4413: {
+                if (graphic == 746) {
+                    this.resetTimers();
+                    this.lastAnimation = animation;
+                    this.lastAnimating = Instant.now();
+                    break;
+                }
+            }
+            case -1: {
+                this.lastAnimating = Instant.now();
+                break;
+            }
+            default: {
+                this.lastAnimation = -1;
+                this.lastAnimating = null;
+            }
+        }
+    }
+
+    @Subscribe
+    public void onInteractingChanged(InteractingChanged event) {
+        Actor source = event.getSource();
+        if (source != this.client.getLocalPlayer()) {
+            return;
+        }
+        Actor target = event.getTarget();
+        if (target != null) {
+            this.lastInteract = null;
+        } else {
+            this.lastInteracting = Instant.now();
+        }
+        boolean isNpc = target instanceof NPC;
+        if (!isNpc) {
+            return;
+        }
+        NPC npc = (NPC)target;
+        NPCComposition npcComposition = npc.getComposition();
+        List<String> npcMenuActions = Arrays.asList(npcComposition.getActions());
+        if (npcMenuActions.contains("Attack")) {
+            this.resetTimers();
+            this.lastInteract = target;
+            this.lastInteracting = Instant.now();
+            this.lastInteractWasCombat = true;
+        } else if (target.getName() != null && target.getName().contains(FISHING_SPOT)) {
+            this.resetTimers();
+            this.lastInteract = target;
+            this.lastInteracting = Instant.now();
+            this.lastInteractWasCombat = false;
+        }
+    }
+
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged gameStateChanged) {
+        this.lastInteracting = null;
+        GameState state = gameStateChanged.getGameState();
+        switch (state) {
+            case LOGIN_SCREEN: {
+                this.resetTimers();
+                break;
+            }
+            case LOGGING_IN: 
+            case HOPPING: 
+            case CONNECTION_LOST: {
+                this.ready = true;
+                break;
+            }
+            case LOGGED_IN: {
+                if (!this.ready) break;
+                this.sixHourWarningTime = Instant.now().plus(SIX_HOUR_LOGOUT_WARNING_AFTER_DURATION);
+                this.ready = false;
+                this.resetTimers();
+            }
+        }
+    }
+
+    @Subscribe
+    public void onHitsplatApplied(HitsplatApplied event) {
+        if (event.getActor() != this.client.getLocalPlayer()) {
+            return;
+        }
+        Hitsplat hitsplat = event.getHitsplat();
+        if (hitsplat.isMine()) {
+            this.lastCombatCountdown = 8;
+        }
+    }
+
+    @Subscribe
+    public void onGraphicChanged(GraphicChanged event) {
+        Actor actor = event.getActor();
+        if (actor != this.client.getLocalPlayer()) {
+            return;
+        }
+        if (actor.getGraphic() == 85) {
+            this.lastCombatCountdown = 8;
+        }
+    }
+
+    @Subscribe
+    public void onGameTick(GameTick event) {
+        Player local = this.client.getLocalPlayer();
+        Duration waitDuration = Duration.ofMillis(this.config.getIdleNotificationDelay());
+        this.lastCombatCountdown = Math.max(this.lastCombatCountdown - 1, 0);
+        if (this.client.getGameState() != GameState.LOGGED_IN || local == null || System.currentTimeMillis() - this.client.getMouseLastPressedMillis() < 1000L || this.client.getKeyboardIdleTicks() < 10) {
+            this.resetTimers();
+            return;
+        }
+        if (this.config.logoutIdle() && this.checkIdleLogout()) {
+            this.notifier.notify("You are about to log out from idling too long!");
+        }
+        if (this.check6hrLogout()) {
+            this.notifier.notify("You are about to log out from being online for 6 hours!");
+        }
+        if (this.config.animationIdle() && this.checkAnimationIdle(waitDuration, local)) {
+            this.notifier.notify("You are now idle!");
+        }
+        if (this.config.movementIdle() && this.checkMovementIdle(waitDuration, local)) {
+            this.notifier.notify("You have stopped moving!");
+        }
+        if (this.config.interactionIdle() && this.checkInteractionIdle(waitDuration, local)) {
+            if (this.lastInteractWasCombat) {
+                this.notifier.notify("You are now out of combat!");
+            } else {
+                this.notifier.notify("You are now idle!");
+            }
+        }
+        if (this.checkLowHitpoints()) {
+            this.notifier.notify("You have low hitpoints!");
+        }
+        if (this.checkLowPrayer()) {
+            this.notifier.notify("You have low prayer!");
+        }
+        if (this.checkLowEnergy()) {
+            this.notifier.notify("You have low run energy!");
+        }
+        if (this.checkHighEnergy()) {
+            this.notifier.notify("You have restored run energy!");
+        }
+        if (this.checkLowOxygen()) {
+            this.notifier.notify("You have low oxygen!");
+        }
+        if (this.checkFullSpecEnergy()) {
+            this.notifier.notify("You have restored spec energy!");
+        }
+    }
+
+    private boolean checkFullSpecEnergy() {
+        int currentSpecEnergy = this.client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT);
+        int threshold = this.config.getSpecEnergyThreshold() * 10;
+        if (threshold == 0) {
+            this.lastSpecEnergy = currentSpecEnergy;
+            return false;
+        }
+        boolean notify = this.lastSpecEnergy < threshold && currentSpecEnergy >= threshold && currentSpecEnergy - this.lastSpecEnergy <= 100;
+        this.lastSpecEnergy = currentSpecEnergy;
+        return notify;
+    }
+
+    private boolean checkLowOxygen() {
+        if (this.config.getOxygenThreshold() == 0) {
+            return false;
+        }
+        if ((double)this.config.getOxygenThreshold() >= (double)this.client.getVarbitValue(5811) * 0.1) {
+            if (!this.notifyOxygen) {
+                this.notifyOxygen = true;
+                return true;
+            }
+        } else {
+            this.notifyOxygen = false;
+        }
+        return false;
+    }
+
+    private boolean checkLowHitpoints() {
+        if (this.config.getHitpointsThreshold() == 0) {
+            return false;
+        }
+        if (this.client.getRealSkillLevel(Skill.HITPOINTS) > this.config.getHitpointsThreshold()) {
+            if (this.client.getBoostedSkillLevel(Skill.HITPOINTS) + this.client.getVarbitValue(3956) <= this.config.getHitpointsThreshold()) {
+                if (!this.notifyHitpoints) {
+                    this.notifyHitpoints = true;
+                    return true;
+                }
+            } else {
+                this.notifyHitpoints = false;
+            }
+        }
+        return false;
+    }
+
+    private boolean checkLowPrayer() {
+        if (this.config.getPrayerThreshold() == 0) {
+            return false;
+        }
+        if (this.client.getRealSkillLevel(Skill.PRAYER) > this.config.getPrayerThreshold()) {
+            if (this.client.getBoostedSkillLevel(Skill.PRAYER) <= this.config.getPrayerThreshold()) {
+                if (!this.notifyPrayer) {
+                    this.notifyPrayer = true;
+                    return true;
+                }
+            } else {
+                this.notifyPrayer = false;
+            }
+        }
+        return false;
+    }
+
+    private boolean checkLowEnergy() {
+        if (this.config.getLowEnergyThreshold() >= 100) {
+            return false;
+        }
+        if (this.client.getEnergy() <= this.config.getLowEnergyThreshold()) {
+            if (this.shouldNotifyLowEnergy) {
+                this.shouldNotifyLowEnergy = false;
+                return true;
+            }
+        } else {
+            this.shouldNotifyLowEnergy = true;
+        }
+        return false;
+    }
+
+    private boolean checkHighEnergy() {
+        if (this.config.getHighEnergyThreshold() == 0) {
+            return false;
+        }
+        if (this.client.getEnergy() >= this.config.getHighEnergyThreshold()) {
+            if (this.shouldNotifyHighEnergy) {
+                this.shouldNotifyHighEnergy = false;
+                return true;
+            }
+        } else {
+            this.shouldNotifyHighEnergy = true;
+        }
+        return false;
+    }
+
+    private boolean checkInteractionIdle(Duration waitDuration, Player local) {
+        if (this.lastInteract == null) {
+            return false;
+        }
+        Actor interact = local.getInteracting();
+        if (interact == null) {
+            if (this.lastInteracting != null && Instant.now().compareTo(this.lastInteracting.plus(waitDuration)) >= 0 && this.lastCombatCountdown == 0) {
+                this.lastInteract = null;
+                this.lastInteracting = null;
+                this.lastAnimation = -1;
+                this.lastAnimating = null;
+                return true;
+            }
+        } else {
+            this.lastInteracting = Instant.now();
+        }
+        return false;
+    }
+
+    private boolean checkIdleLogout() {
+        int idleClientTicks = Math.min(this.client.getKeyboardIdleTicks(), this.client.getMouseIdleTicks());
+        if (idleClientTicks < this.client.getIdleTimeout() - 1000) {
+            this.notifyIdleLogout = true;
+            return false;
+        }
+        if (this.lastCombatCountdown <= 0) {
+            boolean warn = this.notifyIdleLogout;
+            this.notifyIdleLogout = false;
+            return warn;
+        }
+        long lastInteractionAgo = System.currentTimeMillis() - this.client.getMouseLastPressedMillis();
+        if (lastInteractionAgo < 1140000L || this.client.getKeyboardIdleTicks() < 57000) {
+            this.notifyIdleLogout = true;
+            return false;
+        }
+        boolean warn = this.notifyIdleLogout;
+        this.notifyIdleLogout = false;
+        return warn;
+    }
+
+    private boolean check6hrLogout() {
+        if (this.sixHourWarningTime == null) {
+            return false;
+        }
+        if (Instant.now().compareTo(this.sixHourWarningTime) >= 0) {
+            if (this.notify6HourLogout) {
+                this.notify6HourLogout = false;
+                return true;
+            }
+        } else {
+            this.notify6HourLogout = true;
+        }
+        return false;
+    }
+
+    private boolean checkAnimationIdle(Duration waitDuration, Player local) {
+        if (this.lastAnimation == -1) {
+            return false;
+        }
+        int animation = local.getAnimation();
+        if (animation == -1) {
+            if (this.lastAnimating != null && Instant.now().compareTo(this.lastAnimating.plus(waitDuration)) >= 0) {
+                this.lastAnimation = -1;
+                this.lastAnimating = null;
+                this.lastInteract = null;
+                this.lastInteracting = null;
+                return true;
+            }
+        } else {
+            this.lastAnimating = Instant.now();
+        }
+        return false;
+    }
+
+    private boolean checkMovementIdle(Duration waitDuration, Player local) {
+        if (this.lastPosition == null) {
+            this.lastPosition = local.getWorldLocation();
+            return false;
+        }
+        WorldPoint position = local.getWorldLocation();
+        if (this.lastPosition.equals((Object)position)) {
+            if (this.notifyPosition && local.getAnimation() == -1 && Instant.now().compareTo(this.lastMoving.plus(waitDuration)) >= 0) {
+                this.notifyPosition = false;
+                return this.lastAnimation == -1;
+            }
+        } else {
+            this.notifyPosition = true;
+            this.lastPosition = position;
+            this.lastMoving = Instant.now();
+        }
+        return false;
+    }
+
+    private void resetTimers() {
+        Player local = this.client.getLocalPlayer();
+        this.lastAnimating = null;
+        if (this.client.getGameState() == GameState.LOGIN_SCREEN || local == null || local.getAnimation() != this.lastAnimation) {
+            this.lastAnimation = -1;
+        }
+        this.lastInteracting = null;
+        if (this.client.getGameState() == GameState.LOGIN_SCREEN || local == null || local.getInteracting() != this.lastInteract) {
+            this.lastInteract = null;
+        }
+    }
 }
+

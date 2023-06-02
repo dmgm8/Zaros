@@ -1,63 +1,26 @@
 /*
- * Copyright (c) 2021, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
  */
 package net.runelite.api.clan;
 
 import java.util.List;
 import javax.annotation.Nullable;
+import net.runelite.api.clan.ClanMember;
+import net.runelite.api.clan.ClanRank;
+import net.runelite.api.clan.ClanTitle;
 
-/**
- * A clan's settings.
- */
-public interface ClanSettings
-{
-	/**
-	 * The clan name
-	 * @return
-	 */
-	String getName();
+public interface ClanSettings {
+    public String getName();
 
-	/**
-	 * The members of the clan. This includes all members, whether online or offline.
-	 * @return
-	 */
-	List<ClanMember> getMembers();
+    public List<ClanMember> getMembers();
 
-	/**
-	 * Find a member of the clan.
-	 * @param name
-	 * @return
-	 */
-	@Nullable
-	ClanMember findMember(String name);
+    @Nullable
+    public ClanMember findMember(String var1);
 
-	/**
-	 * Get the clan title for a clan rank.
-	 * @param clanRank the rank
-	 * @see ClanRank
-	 * @return
-	 */
-	@Nullable
-	ClanTitle titleForRank(ClanRank clanRank);
+    @Nullable
+    public ClanTitle titleForRank(ClanRank var1);
 }
+

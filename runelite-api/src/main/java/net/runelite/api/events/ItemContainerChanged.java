@@ -1,53 +1,54 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.Value;
 import net.runelite.api.ItemContainer;
 
-/**
- * An event called whenever the stack size of an {@link net.runelite.api.Item}
- * in an {@link ItemContainer} is modified.
- * <p>
- * Examples of when this event may trigger include:
- * <ul>
- *     <li>Withdrawing an item from bank (triggers for both bank and player inv)
- *     <li>Picking up an item</li>
- *     <li>Dropping an item</li>
- * </ul>
- */
-@Value
-public class ItemContainerChanged
-{
-	/**
-	 * The modified container's ID.
-	 */
-	private final int containerId;
+public final class ItemContainerChanged {
+    private final int containerId;
+    private final ItemContainer itemContainer;
 
-	/**
-	 * The modified item container.
-	 */
-	private final ItemContainer itemContainer;
+    public ItemContainerChanged(int containerId, ItemContainer itemContainer) {
+        this.containerId = containerId;
+        this.itemContainer = itemContainer;
+    }
+
+    public int getContainerId() {
+        return this.containerId;
+    }
+
+    public ItemContainer getItemContainer() {
+        return this.itemContainer;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ItemContainerChanged)) {
+            return false;
+        }
+        ItemContainerChanged other = (ItemContainerChanged)o;
+        if (this.getContainerId() != other.getContainerId()) {
+            return false;
+        }
+        ItemContainer this$itemContainer = this.getItemContainer();
+        ItemContainer other$itemContainer = other.getItemContainer();
+        return !(this$itemContainer == null ? other$itemContainer != null : !this$itemContainer.equals(other$itemContainer));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getContainerId();
+        ItemContainer $itemContainer = this.getItemContainer();
+        result = result * 59 + ($itemContainer == null ? 43 : $itemContainer.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ItemContainerChanged(containerId=" + this.getContainerId() + ", itemContainer=" + this.getItemContainer() + ")";
+    }
 }
+

@@ -1,26 +1,5 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.hooks;
 
@@ -34,164 +13,51 @@ import net.runelite.api.Renderable;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetItem;
 
-/**
- * Interface of callbacks the injected client uses to send events
- */
-public interface Callbacks
-{
-	/**
-	 * Post an event. See the events in net.runelite.api.events.
-	 *
-	 * @param event the event
-	 */
-	void post(Object event);
+public interface Callbacks {
+    public void post(Object var1);
 
-	/**
-	 * Post a deferred event, which gets delayed until the next cycle.
-	 *
-	 * @param event the event
-	 */
-	void postDeferred(Object event);
+    public void postDeferred(Object var1);
 
-	/**
-	 * Called each tick
-	 */
-	void tick();
+    public void tick();
 
-	/**
-	 * Called each frame
-	 */
-	void frame();
+    public void frame();
 
-	/**
-	 * Called after receiving update NPCs packet from server.
-	 */
-	void updateNpcs();
+    public void updateNpcs();
 
-	/**
-	 * Called after the scene is drawn.
-	 */
-	void drawScene();
+    public void drawScene();
 
-	/**
-	 * Called after logic that is drawing 2D objects is processed.
-	 */
-	void drawAboveOverheads();
+    public void drawAboveOverheads();
 
-	/**
-	 * Client top-most draw method, rendering over top of most of game interfaces.
-	 *
-	 * @param mainBufferProvider the main buffer provider
-	 * @param graphics           the graphics
-	 * @param x                  the x
-	 * @param y                  the y
-	 */
-	void draw(MainBufferProvider mainBufferProvider, Graphics graphics, int x, int y);
+    public void draw(MainBufferProvider var1, Graphics var2, int var3, int var4);
 
-	/**
-	 * Called after an interface has been drawn
-	 * @param interfaceId the interface id
-	 * @param widgetItems Widget items within the interface
-	 */
-	void drawInterface(int interfaceId, List<WidgetItem> widgetItems);
+    public void drawInterface(int var1, List<WidgetItem> var2);
 
-	/**
-	 * Called after a widget layer has been drawn
-	 * @param layer The layer
-	 * @param widgetItems Widget items within the layer
-	 */
-	void drawLayer(Widget layer, List<WidgetItem> widgetItems);
+    public void drawLayer(Widget var1, List<WidgetItem> var2);
 
-	/**
-	 * Mouse pressed event. If this event will be consumed it will not be propagated further to client.
-	 *
-	 * @param mouseEvent the mouse event
-	 * @return the mouse event
-	 */
-	MouseEvent mousePressed(MouseEvent mouseEvent);
+    public MouseEvent mousePressed(MouseEvent var1);
 
-	/**
-	 * Mouse released event. If this event will be consumed it will not be propagated further to client.
-	 *
-	 * @param mouseEvent the mouse event
-	 * @return the mouse event
-	 */
-	MouseEvent mouseReleased(MouseEvent mouseEvent);
+    public MouseEvent mouseReleased(MouseEvent var1);
 
-	/**
-	 * Mouse clicked event. If this event will be consumed it will not be propagated further to client.
-	 *
-	 * @param mouseEvent the mouse event
-	 * @return the mouse event
-	 */
-	MouseEvent mouseClicked(MouseEvent mouseEvent);
+    public MouseEvent mouseClicked(MouseEvent var1);
 
-	/**
-	 * Mouse entered event. If this event will be consumed it will not be propagated further to client.
-	 *
-	 * @param mouseEvent the mouse event
-	 * @return the mouse event
-	 */
-	MouseEvent mouseEntered(MouseEvent mouseEvent);
+    public MouseEvent mouseEntered(MouseEvent var1);
 
-	/**
-	 * Mouse exited event. If this event will be consumed it will not be propagated further to client.
-	 *
-	 * @param mouseEvent the mouse event
-	 * @return the mouse event
-	 */
-	MouseEvent mouseExited(MouseEvent mouseEvent);
+    public MouseEvent mouseExited(MouseEvent var1);
 
-	/**
-	 * Mouse dragged event. If this event will be consumed it will not be propagated further to client.
-	 *
-	 * @param mouseEvent the mouse event
-	 * @return the mouse event
-	 */
-	MouseEvent mouseDragged(MouseEvent mouseEvent);
+    public MouseEvent mouseDragged(MouseEvent var1);
 
-	/**
-	 * Mouse moved event. If this event will be consumed it will not be propagated further to client.
-	 *
-	 * @param mouseEvent the mouse event
-	 * @return the mouse event
-	 */
-	MouseEvent mouseMoved(MouseEvent mouseEvent);
+    public MouseEvent mouseMoved(MouseEvent var1);
 
-	/**
-	 * Mouse wheel moved event. If this event will be consumed it will not be propagated further to client.
-	 *
-	 * @param event the event
-	 * @return the mouse wheel event
-	 */
-	MouseWheelEvent mouseWheelMoved(MouseWheelEvent event);
+    public MouseWheelEvent mouseWheelMoved(MouseWheelEvent var1);
 
-	/**
-	 * Key pressed event.
-	 *
-	 * @param keyEvent the key event
-	 */
-	void keyPressed(KeyEvent keyEvent);
+    public void keyPressed(KeyEvent var1);
 
-	/**
-	 * Key released event.
-	 *
-	 * @param keyEvent the key event
-	 */
-	void keyReleased(KeyEvent keyEvent);
+    public void keyReleased(KeyEvent var1);
 
-	/**
-	 * Key typed event.
-	 *
-	 * @param keyEvent the key event
-	 */
-	void keyTyped(KeyEvent keyEvent);
+    public void keyTyped(KeyEvent var1);
 
-	/**
-	 * Called to test if a renderable should be drawn this frame
-	 * @param renderable the renderable
-	 * @param drawingUi if this is the 2d ui, such as hp bars or hitsplats
-	 * @return false to prevent drawing
-	 */
-	boolean draw(Renderable renderable, boolean drawingUi);
+    public boolean draw(Renderable var1, boolean var2);
+
+    public void error(String var1, Throwable var2);
 }
+

@@ -1,164 +1,75 @@
 /*
- * Copyright (c) 2016-2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
  */
 package net.runelite.api;
 
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
+import net.runelite.api.Actor;
+import net.runelite.api.MenuAction;
+import net.runelite.api.NPC;
+import net.runelite.api.Player;
 import net.runelite.api.widgets.Widget;
 
-/**
- * A menu entry in a right-click menu.
- */
-public interface MenuEntry
-{
-	/**
-	 * The option text added to the menu. (ie. "Walk here", "Use")
-	 */
-	String getOption();
-	MenuEntry setOption(String option);
+public interface MenuEntry {
+    public String getOption();
 
-	/**
-	 * The target of the action. (ie. Item or Actor name)
-	 * <p>
-	 * If the option does not apply to any target, this field
-	 * will be set to empty string.
-	 */
-	String getTarget();
-	MenuEntry setTarget(String target);
+    public MenuEntry setOption(String var1);
 
-	/**
-	 * An identifier value for the target of the action.
-	 */
-	int getIdentifier();
-	MenuEntry setIdentifier(int identifier);
+    public String getTarget();
 
-	/**
-	 * The action the entry will trigger.
-	 */
-	MenuAction getType();
-	MenuEntry setType(MenuAction type);
+    public MenuEntry setTarget(String var1);
 
-	/**
-	 * An additional parameter for the action.
-	 */
-	int getParam0();
-	MenuEntry setParam0(int param0);
+    public int getIdentifier();
 
-	/**
-	 * A second additional parameter for the action.
-	 */
-	int getParam1();
-	MenuEntry setParam1(int param1);
+    public MenuEntry setIdentifier(int var1);
 
-	/**
-	 * If this is true and you have single mouse button on and this entry is
-	 * the top entry the right click menu will not be opened when you left click
-	 *
-	 * This is used  for shift click
-	 */
-	boolean isForceLeftClick();
-	MenuEntry setForceLeftClick(boolean forceLeftClick);
+    public MenuAction getType();
 
-	/**
-	 * Deprioritized menus are sorted in the menu to be below the other menu entries.
-	 * @return
-	 */
-	boolean isDeprioritized();
-	MenuEntry setDeprioritized(boolean deprioritized);
+    public MenuEntry setType(MenuAction var1);
 
-	/**
-	 * Set a callback to be called when this menu option is clicked
-	 * @param callback
-	 * @return
-	 */
-	MenuEntry onClick(Consumer<MenuEntry> callback);
+    public int getParam0();
 
-	/**
-	 * Test if this menu entry is an item op. "Use" and "Examine" are not considered item ops.
-	 * @return
-	 */
-	boolean isItemOp();
+    public MenuEntry setParam0(int var1);
 
-	/**
-	 * If this menu entry is an item op, get the item op id
-	 * @return 1-5
-	 */
-	int getItemOp();
+    public int getParam1();
 
-	/**
-	 * If this menu entry is an item op, get the item id
-	 * @return
-	 * @see ItemID
-	 * @see NullItemID
-	 */
-	int getItemId();
+    public MenuEntry setParam1(int var1);
 
-	/**
-	 * Get the widget this menu entry is on, if this is a menu entry
-	 * with an associated widget. Such as eg, CC_OP.
-	 * @return
-	 */
-	@Nullable
-	Widget getWidget();
+    public boolean isForceLeftClick();
 
-	/**
-	 * Get the {@link NPC} this menu entry is targeting, if any.
-	 * @return
-	 */
-	@Nullable
-	NPC getNpc();
+    public MenuEntry setForceLeftClick(boolean var1);
 
-	/**
-	 * Get the {@link Player} this menu entry is targeting, if any.
-	 * @return
-	 */
-	@Nullable
-	Player getPlayer();
+    public boolean isDeprioritized();
 
-	/**
-	 * Get the {@link Actor} this menu entry is targeting, if any.
-	 * @return
-	 */
-	@Nullable
-	Actor getActor();
+    public MenuEntry setDeprioritized(boolean var1);
 
-	@Deprecated
-	int getOpcode();
-	@Deprecated
-	void setOpcode(int opcode);
+    public MenuEntry onClick(Consumer<MenuEntry> var1);
 
-	@Deprecated
-	int getActionParam0();
-	@Deprecated
-	void setActionParam0(int param0);
+    public MenuEntry setParent(MenuEntry var1);
 
-	@Deprecated
-	int getActionParam1();
-	@Deprecated
-	void setActionParam1(int param0);
+    @Nullable
+    public MenuEntry getParent();
 
-	@Deprecated
-	MenuAction getMenuAction();
+    public boolean isItemOp();
+
+    public int getItemOp();
+
+    public int getItemId();
+
+    @Nullable
+    public Widget getWidget();
+
+    @Nullable
+    public NPC getNpc();
+
+    @Nullable
+    public Player getPlayer();
+
+    @Nullable
+    public Actor getActor();
 }
+

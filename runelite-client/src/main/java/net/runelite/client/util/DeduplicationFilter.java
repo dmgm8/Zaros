@@ -1,26 +1,13 @@
 /*
- * Copyright (c) 2021, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  ch.qos.logback.classic.Level
+ *  ch.qos.logback.classic.Logger
+ *  ch.qos.logback.classic.turbo.TurboFilter
+ *  ch.qos.logback.core.spi.FilterReply
+ *  org.slf4j.Marker
+ *  org.slf4j.MarkerFactory
  */
 package net.runelite.client.util;
 
@@ -28,69 +15,91 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.turbo.TurboFilter;
 import ch.qos.logback.core.spi.FilterReply;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import lombok.EqualsAndHashCode;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-public class DeduplicationFilter extends TurboFilter
-{
-	private static final Marker deduplicateMarker = MarkerFactory.getMarker("DEDUPLICATE");
-	private static final int CACHE_SIZE = 8;
-	private static final int DUPLICATE_LOG_COUNT = 1000;
+public class DeduplicationFilter
+extends TurboFilter {
+    private static final Marker deduplicateMarker = MarkerFactory.getMarker((String)"DEDUPLICATE");
+    private static final int CACHE_SIZE = 8;
+    private static final int DUPLICATE_LOG_COUNT = 1000;
+    private final Deque<LogException> cache = new ConcurrentLinkedDeque<LogException>();
 
-	@RequiredArgsConstructor
-	@EqualsAndHashCode(exclude = {"count"})
-	private static class LogException
-	{
-		private final String message;
-		private final StackTraceElement[] stackTraceElements;
-		private volatile int count;
-	}
+    public void stop() {
+        this.cache.clear();
+        super.stop();
+    }
 
-	private final Deque<LogException> cache = new ConcurrentLinkedDeque<>();
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    public FilterReply decide(Marker marker, Logger logger, Level level, String s, Object[] objects, Throwable throwable) {
+        if (marker != deduplicateMarker || logger.isDebugEnabled() || throwable == null) {
+            return FilterReply.NEUTRAL;
+        }
+        LogException logException = new LogException(s, throwable.getStackTrace());
+        for (LogException e : this.cache) {
+            if (!logException.equals(e)) continue;
+            if (++e.count % 1000 == 0) {
+                logger.warn("following log message logged 1000 times!");
+                return FilterReply.NEUTRAL;
+            }
+            return FilterReply.DENY;
+        }
+        Deque<LogException> deque = this.cache;
+        synchronized (deque) {
+            if (this.cache.size() >= 8) {
+                this.cache.pop();
+            }
+            this.cache.push(logException);
+        }
+        return FilterReply.NEUTRAL;
+    }
 
-	@Override
-	public void stop()
-	{
-		cache.clear();
-		super.stop();
-	}
+    private static class LogException {
+        private final String message;
+        private final StackTraceElement[] stackTraceElements;
+        private volatile int count;
 
-	@Override
-	public FilterReply decide(Marker marker, Logger logger, Level level, String s, Object[] objects, Throwable throwable)
-	{
-		if (marker != deduplicateMarker || logger.isDebugEnabled() || throwable == null)
-		{
-			return FilterReply.NEUTRAL;
-		}
+        public LogException(String message, StackTraceElement[] stackTraceElements) {
+            this.message = message;
+            this.stackTraceElements = stackTraceElements;
+        }
 
-		LogException logException = new LogException(s, throwable.getStackTrace());
-		for (LogException e : cache)
-		{
-			if (logException.equals(e))
-			{
-				// this iinc is not atomic, but doesn't matter in practice
-				if (++e.count % DUPLICATE_LOG_COUNT == 0)
-				{
-					logger.warn("following log message logged " + DUPLICATE_LOG_COUNT + " times!");
-					return FilterReply.NEUTRAL;
-				}
-				return FilterReply.DENY;
-			}
-		}
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof LogException)) {
+                return false;
+            }
+            LogException other = (LogException)o;
+            if (!other.canEqual(this)) {
+                return false;
+            }
+            String this$message = this.message;
+            String other$message = other.message;
+            if (this$message == null ? other$message != null : !this$message.equals(other$message)) {
+                return false;
+            }
+            return Arrays.deepEquals(this.stackTraceElements, other.stackTraceElements);
+        }
 
-		synchronized (cache)
-		{
-			if (cache.size() >= CACHE_SIZE)
-			{
-				cache.pop();
-			}
-			cache.push(logException);
-		}
+        protected boolean canEqual(Object other) {
+            return other instanceof LogException;
+        }
 
-		return FilterReply.NEUTRAL;
-	}
+        public int hashCode() {
+            int PRIME = 59;
+            int result = 1;
+            String $message = this.message;
+            result = result * 59 + ($message == null ? 43 : $message.hashCode());
+            result = result * 59 + Arrays.deepHashCode(this.stackTraceElements);
+            return result;
+        }
+    }
 }
+

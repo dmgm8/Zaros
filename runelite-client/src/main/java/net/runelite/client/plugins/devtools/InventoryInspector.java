@@ -1,30 +1,22 @@
 /*
- * Copyright (c) 2020, TheStonedTurtle <https://github.com/TheStonedTurtle>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.Item
+ *  net.runelite.api.ItemComposition
+ *  net.runelite.api.events.ItemContainerChanged
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.devtools;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
@@ -47,7 +39,6 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
@@ -57,290 +48,209 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.plugins.devtools.DevToolsFrame;
+import net.runelite.client.plugins.devtools.InventoryDeltaPanel;
+import net.runelite.client.plugins.devtools.InventoryItem;
+import net.runelite.client.plugins.devtools.InventoryLog;
+import net.runelite.client.plugins.devtools.InventoryLogNode;
+import net.runelite.client.plugins.devtools.InventoryTreeNode;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.ColorScheme;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 @Singleton
-class InventoryInspector extends DevToolsFrame
-{
-	private static final int MAX_LOG_ENTRIES = 25;
+class InventoryInspector
+extends DevToolsFrame {
+    private static final Logger log = LoggerFactory.getLogger(InventoryInspector.class);
+    private static final int MAX_LOG_ENTRIES = 25;
+    private final Client client;
+    private final EventBus eventBus;
+    private final ItemManager itemManager;
+    private final Map<Integer, InventoryTreeNode> nodeMap = new HashMap<Integer, InventoryTreeNode>();
+    private final Map<Integer, InventoryLog> logMap = new HashMap<Integer, InventoryLog>();
+    private final DefaultMutableTreeNode trackerRootNode = new DefaultMutableTreeNode();
+    private final JTree tree = new JTree(this.trackerRootNode);
+    private final InventoryDeltaPanel deltaPanel;
 
-	private final Client client;
-	private final EventBus eventBus;
-	private final ItemManager itemManager;
+    @Inject
+    InventoryInspector(Client client, EventBus eventBus, ItemManager itemManager, ClientThread clientThread) {
+        this.client = client;
+        this.eventBus = eventBus;
+        this.itemManager = itemManager;
+        this.deltaPanel = new InventoryDeltaPanel(itemManager);
+        this.setLayout(new BorderLayout());
+        this.setTitle("RuneLite Inventory Inspector");
+        this.setIconImage(ClientUI.ICON);
+        this.tree.setBorder(new EmptyBorder(2, 2, 2, 2));
+        this.tree.setRootVisible(false);
+        this.tree.setShowsRootHandles(true);
+        this.tree.addTreeSelectionListener(e -> {
+            if (e.getNewLeadSelectionPath() == null) {
+                return;
+            }
+            Object node = e.getNewLeadSelectionPath().getLastPathComponent();
+            if (node instanceof InventoryLogNode) {
+                clientThread.invoke(() -> this.displayItemSnapshot((InventoryLogNode)node));
+            }
+        });
+        this.tree.setModel(new DefaultTreeModel(this.trackerRootNode));
+        JPanel leftSide = new JPanel();
+        leftSide.setLayout(new BorderLayout());
+        JScrollPane trackerScroller = new JScrollPane(this.tree);
+        trackerScroller.setPreferredSize(new Dimension(200, 400));
+        final JScrollBar vertical = trackerScroller.getVerticalScrollBar();
+        vertical.addAdjustmentListener(new AdjustmentListener(){
+            int lastMaximum = this.actualMax();
 
-	private final Map<Integer, InventoryTreeNode> nodeMap = new HashMap<>();
-	private final Map<Integer, InventoryLog> logMap = new HashMap<>();
-	private final DefaultMutableTreeNode trackerRootNode = new DefaultMutableTreeNode();
-	private final JTree tree = new JTree(trackerRootNode);
-	private final InventoryDeltaPanel deltaPanel;
+            private int actualMax() {
+                return vertical.getMaximum() - vertical.getModel().getExtent();
+            }
 
-	@Inject
-	InventoryInspector(Client client, EventBus eventBus, ItemManager itemManager, ClientThread clientThread)
-	{
-		this.client = client;
-		this.eventBus = eventBus;
-		this.itemManager = itemManager;
+            @Override
+            public void adjustmentValueChanged(AdjustmentEvent e) {
+                if (vertical.getValue() >= this.lastMaximum) {
+                    vertical.setValue(this.actualMax());
+                }
+                this.lastMaximum = this.actualMax();
+            }
+        });
+        leftSide.add((Component)trackerScroller, "Center");
+        JButton refreshBtn = new JButton("Refresh");
+        refreshBtn.setFocusable(false);
+        refreshBtn.addActionListener(e -> this.refreshTracker());
+        JButton clearBtn = new JButton("Clear");
+        clearBtn.setFocusable(false);
+        clearBtn.addActionListener(e -> this.clearTracker());
+        JPanel bottomRow = new JPanel();
+        bottomRow.add(refreshBtn);
+        bottomRow.add(clearBtn);
+        leftSide.add((Component)bottomRow, "South");
+        JScrollPane gridScroller = new JScrollPane(this.deltaPanel);
+        gridScroller.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
+        gridScroller.setPreferredSize(new Dimension(200, 400));
+        JSplitPane split = new JSplitPane(1, leftSide, gridScroller);
+        this.add((Component)split, "Center");
+        this.pack();
+    }
 
-		this.deltaPanel = new InventoryDeltaPanel(itemManager);
+    @Override
+    public void open() {
+        this.eventBus.register(this);
+        super.open();
+    }
 
-		setLayout(new BorderLayout());
-		setTitle("OpenOSRS Inventory Inspector");
-		setIconImage(ClientUI.ICON);
+    @Override
+    public void close() {
+        this.eventBus.unregister(this);
+        this.clearTracker();
+        super.close();
+    }
 
-		tree.setBorder(new EmptyBorder(2, 2, 2, 2));
-		tree.setRootVisible(false);
-		tree.setShowsRootHandles(true);
-		tree.addTreeSelectionListener(e ->
-		{
-			if (e.getNewLeadSelectionPath() == null)
-			{
-				return;
-			}
+    @Subscribe
+    public void onItemContainerChanged(ItemContainerChanged event) {
+        int id = event.getContainerId();
+        InventoryLog log = new InventoryLog(id, InventoryInspector.getNameForInventoryID(id), event.getItemContainer().getItems(), this.client.getTickCount());
+        this.logMap.put(id, log);
+    }
 
-			final Object node = e.getNewLeadSelectionPath().getLastPathComponent();
-			if (node instanceof InventoryLogNode)
-			{
-				clientThread.invoke(() -> displayItemSnapshot((InventoryLogNode) node));
-			}
-		});
-		tree.setModel(new DefaultTreeModel(trackerRootNode));
+    private void addLog(InventoryLog invLog) {
+        InventoryTreeNode node = this.nodeMap.computeIfAbsent(invLog.getContainerId(), k -> new InventoryTreeNode(invLog.getContainerId(), invLog.getContainerName()));
+        node.add(new InventoryLogNode(invLog));
+        while (node.getChildCount() > 25) {
+            node.remove(0);
+        }
+    }
 
-		final JPanel leftSide = new JPanel();
-		leftSide.setLayout(new BorderLayout());
+    private void clearTracker() {
+        this.logMap.clear();
+        this.nodeMap.clear();
+        this.deltaPanel.clear();
+        this.trackerRootNode.removeAllChildren();
+        this.tree.setModel(new DefaultTreeModel(this.trackerRootNode));
+    }
 
-		final JScrollPane trackerScroller = new JScrollPane(tree);
-		trackerScroller.setPreferredSize(new Dimension(200, 400));
+    private void refreshTracker() {
+        this.deltaPanel.clear();
+        if (this.logMap.size() > 0) {
+            this.logMap.values().forEach(this::addLog);
+            this.logMap.clear();
+        }
+        SwingUtilities.invokeLater(() -> {
+            this.trackerRootNode.removeAllChildren();
+            this.nodeMap.values().forEach(this.trackerRootNode::add);
+            this.tree.setModel(new DefaultTreeModel(this.trackerRootNode));
+        });
+    }
 
-		final JScrollBar vertical = trackerScroller.getVerticalScrollBar();
-		vertical.addAdjustmentListener(new AdjustmentListener()
-		{
-			int lastMaximum = actualMax();
+    private void displayItemSnapshot(InventoryLogNode logNode) {
+        TreeNode prevNode;
+        InventoryTreeNode treeNode = this.nodeMap.get(logNode.getLog().getContainerId());
+        if (treeNode == null) {
+            log.warn("Clicked on a JTree node that doesn't map anywhere: {}", (Object)logNode);
+            return;
+        }
+        Item[] curItems = logNode.getLog().getItems();
+        InventoryItem[] curInventory = this.convertToInventoryItems(curItems);
+        InventoryItem[][] deltas = null;
+        if (treeNode.getIndex(logNode) > 0 && (prevNode = treeNode.getChildBefore(logNode)) instanceof InventoryLogNode) {
+            InventoryLogNode prevLogNode = (InventoryLogNode)prevNode;
+            deltas = this.compareItemSnapshots(prevLogNode.getLog().getItems(), curItems);
+        }
+        InventoryItem[] added = deltas == null ? null : deltas[0];
+        InventoryItem[] removed = deltas == null ? null : deltas[1];
+        SwingUtilities.invokeLater(() -> this.deltaPanel.displayItems(curInventory, added, removed));
+    }
 
-			private int actualMax()
-			{
-				return vertical.getMaximum() - vertical.getModel().getExtent();
-			}
+    private InventoryItem[] convertToInventoryItems(Item[] items) {
+        InventoryItem[] out = new InventoryItem[items.length];
+        for (int i = 0; i < items.length; ++i) {
+            Item item = items[i];
+            ItemComposition c = this.itemManager.getItemComposition(item.getId());
+            out[i] = new InventoryItem(i, item, c.getMembersName(), c.isStackable());
+        }
+        return out;
+    }
 
-			@Override
-			public void adjustmentValueChanged(AdjustmentEvent e)
-			{
-				if (vertical.getValue() >= lastMaximum)
-				{
-					vertical.setValue(actualMax());
-				}
-				lastMaximum = actualMax();
-			}
-		});
+    private InventoryItem[][] compareItemSnapshots(Item[] previous, Item[] current) {
+        HashMap<Integer, Integer> qtyMap = new HashMap<Integer, Integer>();
+        int maxSlots = Math.max(previous.length, current.length);
+        for (int i2 = 0; i2 < maxSlots; ++i2) {
+            Item cur;
+            Item prev = previous.length > i2 ? previous[i2] : null;
+            Item item2 = cur = current.length > i2 ? current[i2] : null;
+            if (prev != null) {
+                qtyMap.merge(prev.getId(), -1 * prev.getQuantity(), Integer::sum);
+            }
+            if (cur == null) continue;
+            qtyMap.merge(cur.getId(), cur.getQuantity(), Integer::sum);
+        }
+        Map<Boolean, List<InventoryItem>> result = qtyMap.entrySet().stream().filter(e -> (Integer)e.getValue() != 0).flatMap(e -> {
+            int id = (Integer)e.getKey();
+            int qty = (Integer)e.getValue();
+            ItemComposition c = this.itemManager.getItemComposition((Integer)e.getKey());
+            InventoryItem[] items = new InventoryItem[]{new InventoryItem(-1, new Item(id, qty), c.getMembersName(), c.isStackable())};
+            if (!(c.isStackable() || qty <= 1 && qty >= -1)) {
+                items = new InventoryItem[Math.abs(qty)];
+                for (int i = 0; i < Math.abs(qty); ++i) {
+                    Item item = new Item(id, Integer.signum(qty));
+                    items[i] = new InventoryItem(-1, item, c.getMembersName(), c.isStackable());
+                }
+            }
+            return Arrays.stream(items);
+        }).collect(Collectors.partitioningBy(item -> item.getItem().getQuantity() > 0));
+        InventoryItem[] added = result.get(true).toArray(new InventoryItem[0]);
+        InventoryItem[] removed = (InventoryItem[])result.get(false).stream().peek(i -> i.setItem(new Item(i.getItem().getId(), -i.getItem().getQuantity()))).toArray(InventoryItem[]::new);
+        return new InventoryItem[][]{added, removed};
+    }
 
-		leftSide.add(trackerScroller, BorderLayout.CENTER);
-
-		final JButton refreshBtn = new JButton("Refresh");
-		refreshBtn.setFocusable(false);
-		refreshBtn.addActionListener(e -> refreshTracker());
-
-		final JButton clearBtn = new JButton("Clear");
-		clearBtn.setFocusable(false);
-		clearBtn.addActionListener(e -> clearTracker());
-
-		final JPanel bottomRow = new JPanel();
-		bottomRow.add(refreshBtn);
-		bottomRow.add(clearBtn);
-
-		leftSide.add(bottomRow, BorderLayout.SOUTH);
-
-		final JScrollPane gridScroller = new JScrollPane(deltaPanel);
-		gridScroller.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
-		gridScroller.setPreferredSize(new Dimension(200, 400));
-
-		final JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftSide, gridScroller);
-		add(split, BorderLayout.CENTER);
-
-		pack();
-	}
-
-	@Override
-	public void open()
-	{
-		eventBus.register(this);
-		super.open();
-	}
-
-	@Override
-	public void close()
-	{
-		eventBus.unregister(this);
-		clearTracker();
-		super.close();
-	}
-
-	@Subscribe
-	public void onItemContainerChanged(ItemContainerChanged event)
-	{
-		final int id = event.getContainerId();
-		final InventoryLog log = new InventoryLog(id, getNameForInventoryID(id), event.getItemContainer().getItems(), client.getTickCount());
-
-		// Delay updates until refresh button is pressed
-		logMap.put(id, log);
-	}
-
-	private void addLog(final InventoryLog invLog)
-	{
-		final InventoryTreeNode node = nodeMap.computeIfAbsent(invLog.getContainerId(), (k) -> new InventoryTreeNode(invLog.getContainerId(), invLog.getContainerName()));
-		node.add(new InventoryLogNode(invLog));
-
-		// Cull very old stuff
-		while (node.getChildCount() > MAX_LOG_ENTRIES)
-		{
-			node.remove(0);
-		}
-	}
-
-	private void clearTracker()
-	{
-		logMap.clear();
-		nodeMap.clear();
-		deltaPanel.clear();
-		trackerRootNode.removeAllChildren();
-		tree.setModel(new DefaultTreeModel(trackerRootNode));
-	}
-
-	private void refreshTracker()
-	{
-		deltaPanel.clear();
-
-		if (logMap.size() > 0)
-		{
-			logMap.values().forEach(this::addLog);
-			logMap.clear();
-		}
-
-		SwingUtilities.invokeLater(() ->
-		{
-			trackerRootNode.removeAllChildren();
-			nodeMap.values().forEach(trackerRootNode::add);
-			tree.setModel(new DefaultTreeModel(trackerRootNode));
-		});
-	}
-
-	private void displayItemSnapshot(final InventoryLogNode logNode)
-	{
-		final InventoryTreeNode treeNode = nodeMap.get(logNode.getLog().getContainerId());
-		if (treeNode == null)
-		{
-			log.warn("Clicked on a JTree node that doesn't map anywhere: {}", logNode);
-			return;
-		}
-
-		final Item[] curItems = logNode.getLog().getItems();
-		final InventoryItem[] curInventory = convertToInventoryItems(curItems);
-
-		InventoryItem[][] deltas = null;
-		// Compare against previous snapshot
-		if (treeNode.getIndex(logNode) > 0)
-		{
-			final TreeNode prevNode = treeNode.getChildBefore(logNode);
-			if (prevNode instanceof InventoryLogNode)
-			{
-				final InventoryLogNode prevLogNode = (InventoryLogNode) prevNode;
-				deltas = compareItemSnapshots(prevLogNode.getLog().getItems(), curItems);
-			}
-		}
-
-		final InventoryItem[] added = deltas == null ? null : deltas[0];
-		final InventoryItem[] removed = deltas == null ? null : deltas[1];
-
-		SwingUtilities.invokeLater(() -> deltaPanel.displayItems(curInventory, added, removed));
-	}
-
-	private InventoryItem[] convertToInventoryItems(final Item[] items)
-	{
-		final InventoryItem[] out = new InventoryItem[items.length];
-		for (int i = 0; i < items.length; i++)
-		{
-			final Item item = items[i];
-			final ItemComposition c = itemManager.getItemComposition(item.getId());
-			out[i] = new InventoryItem(i, item, c.getName(), c.isStackable());
-		}
-
-		return out;
-	}
-
-	/**
-	 * Compares the current inventory to the old one returning the InventoryItems that were added and removed.
-	 * @param previous old snapshot
-	 * @param current new snapshot
-	 * @return The first InventoryItem[] contains the items that were added and the second contains the items that were removed
-	 */
-	private InventoryItem[][] compareItemSnapshots(final Item[] previous, final Item[] current)
-	{
-		final Map<Integer, Integer> qtyMap = new HashMap<>();
-
-		// ItemContainers shouldn't become smaller over time, but just in case
-		final int maxSlots = Math.max(previous.length, current.length);
-		for (int i = 0; i < maxSlots; i++)
-		{
-			final Item prev = previous.length > i ? previous[i] : null;
-			final Item cur = current.length > i ? current[i] : null;
-
-			if (prev != null)
-			{
-				qtyMap.merge(prev.getId(), -1 * prev.getQuantity(), Integer::sum);
-			}
-			if (cur != null)
-			{
-				qtyMap.merge(cur.getId(), cur.getQuantity(), Integer::sum);
-			}
-		}
-
-		final Map<Boolean, List<InventoryItem>> result = qtyMap.entrySet().stream()
-			.filter(e -> e.getValue() != 0)
-			.flatMap(e ->
-			{
-				final int id = e.getKey();
-				final int qty = e.getValue();
-				final ItemComposition c = itemManager.getItemComposition(e.getKey());
-
-				InventoryItem[] items = {
-					new InventoryItem(-1, new Item(id, qty), c.getName(), c.isStackable())
-				};
-				if (!c.isStackable() && (qty > 1 || qty < -1))
-				{
-					items = new InventoryItem[Math.abs(qty)];
-					for (int i = 0; i < Math.abs(qty); i++)
-					{
-						final Item item = new Item(id, Integer.signum(qty));
-						items[i] = new InventoryItem(-1, item, c.getName(), c.isStackable());
-					}
-				}
-
-				return Arrays.stream(items);
-			})
-			.collect(Collectors.partitioningBy(item -> item.getItem().getQuantity() > 0));
-
-		final InventoryItem[] added = result.get(true).toArray(new InventoryItem[0]);
-		final InventoryItem[] removed = result.get(false).stream()
-			// Make quantities positive now that its been sorted.
-			.peek(i -> i.setItem(new Item(i.getItem().getId(), -i.getItem().getQuantity())))
-			.toArray(InventoryItem[]::new);
-
-		return new InventoryItem[][]{
-			added, removed
-		};
-	}
-
-	@Nullable
-	private static String getNameForInventoryID(final int id)
-	{
-		for (final InventoryID inv : InventoryID.values())
-		{
-			if (inv.getId() == id)
-			{
-				return inv.name();
-			}
-		}
-
-		return null;
-	}
+    @Nullable
+    private static String getNameForInventoryID(int id) {
+        for (InventoryID inv : InventoryID.values()) {
+            if (inv.getId() != id) continue;
+            return inv.name();
+        }
+        return null;
+    }
 }
+

@@ -1,26 +1,9 @@
 /*
- * Copyright (c) 2020 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.events;
 
@@ -29,44 +12,65 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Value
-@Slf4j
-public class ClientShutdown
-{
-	private Queue<Future<?>> tasks = new ConcurrentLinkedQueue<>();
+public final class ClientShutdown {
+    private static final Logger log = LoggerFactory.getLogger(ClientShutdown.class);
+    private final Queue<Future<?>> tasks = new ConcurrentLinkedQueue();
 
-	public void waitFor(Future<?> future)
-	{
-		tasks.add(future);
-	}
+    public void waitFor(Future<?> future) {
+        this.tasks.add(future);
+    }
 
-	public void waitForAllConsumers(Duration totalTimeout)
-	{
-		long deadline = System.nanoTime() + totalTimeout.toNanos();
-		for (Future<?> task; (task = tasks.poll()) != null; )
-		{
-			long timeout = deadline - System.nanoTime();
-			if (timeout < 0)
-			{
-				log.warn("Timed out waiting for task completion");
-				return;
-			}
+    public void waitForAllConsumers(Duration totalTimeout) {
+        Future<?> task;
+        long deadline = System.nanoTime() + totalTimeout.toNanos();
+        while ((task = this.tasks.poll()) != null) {
+            long timeout = deadline - System.nanoTime();
+            if (timeout < 0L) {
+                log.warn("Timed out waiting for task completion");
+                return;
+            }
+            try {
+                task.get(timeout, TimeUnit.NANOSECONDS);
+            }
+            catch (ThreadDeath d) {
+                throw d;
+            }
+            catch (Throwable t) {
+                log.warn("Error during shutdown: ", t);
+            }
+        }
+    }
 
-			try
-			{
-				task.get(timeout, TimeUnit.NANOSECONDS);
-			}
-			catch (ThreadDeath d)
-			{
-				throw d;
-			}
-			catch (Throwable t)
-			{
-				log.warn("Error during shutdown: ", t);
-			}
-		}
-	}
+    public Queue<Future<?>> getTasks() {
+        return this.tasks;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ClientShutdown)) {
+            return false;
+        }
+        ClientShutdown other = (ClientShutdown)o;
+        Queue<Future<?>> this$tasks = this.getTasks();
+        Queue<Future<?>> other$tasks = other.getTasks();
+        return !(this$tasks == null ? other$tasks != null : !this$tasks.equals(other$tasks));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Queue<Future<?>> $tasks = this.getTasks();
+        result = result * 59 + ($tasks == null ? 43 : $tasks.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ClientShutdown(tasks=" + this.getTasks() + ")";
+    }
 }
+

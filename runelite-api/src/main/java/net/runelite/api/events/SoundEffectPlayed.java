@@ -1,45 +1,100 @@
 /*
- * Copyright (c) 2018, WooxSolo <https://github.com/WooxSolo>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
  */
 package net.runelite.api.events;
 
 import javax.annotation.Nullable;
-import lombok.Data;
 import net.runelite.api.Actor;
 
-@Data
-public class SoundEffectPlayed
-{
-	@Nullable
-	private final Actor source;
-	private int soundId;
-	private int delay;
+public class SoundEffectPlayed {
+    @Nullable
+    private final Actor source;
+    private int soundId;
+    private int delay;
+    private boolean consumed;
 
-	private boolean consumed;
+    public void consume() {
+        this.consumed = true;
+    }
 
-	public void consume()
-	{
-		consumed = true;
-	}
+    public SoundEffectPlayed(@Nullable Actor source) {
+        this.source = source;
+    }
+
+    @Nullable
+    public Actor getSource() {
+        return this.source;
+    }
+
+    public int getSoundId() {
+        return this.soundId;
+    }
+
+    public int getDelay() {
+        return this.delay;
+    }
+
+    public boolean isConsumed() {
+        return this.consumed;
+    }
+
+    public void setSoundId(int soundId) {
+        this.soundId = soundId;
+    }
+
+    public void setDelay(int delay) {
+        this.delay = delay;
+    }
+
+    public void setConsumed(boolean consumed) {
+        this.consumed = consumed;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof SoundEffectPlayed)) {
+            return false;
+        }
+        SoundEffectPlayed other = (SoundEffectPlayed)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getSoundId() != other.getSoundId()) {
+            return false;
+        }
+        if (this.getDelay() != other.getDelay()) {
+            return false;
+        }
+        if (this.isConsumed() != other.isConsumed()) {
+            return false;
+        }
+        Actor this$source = this.getSource();
+        Actor other$source = other.getSource();
+        return !(this$source == null ? other$source != null : !this$source.equals(other$source));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof SoundEffectPlayed;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getSoundId();
+        result = result * 59 + this.getDelay();
+        result = result * 59 + (this.isConsumed() ? 79 : 97);
+        Actor $source = this.getSource();
+        result = result * 59 + ($source == null ? 43 : $source.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "SoundEffectPlayed(source=" + this.getSource() + ", soundId=" + this.getSoundId() + ", delay=" + this.getDelay() + ", consumed=" + this.isConsumed() + ")";
+    }
 }
+

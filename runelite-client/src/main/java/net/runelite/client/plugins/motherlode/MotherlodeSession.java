@@ -1,186 +1,178 @@
 /*
- * Copyright (c) 2018, Seth <Sethtroll3@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Singleton
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.motherlode;
 
 import java.time.Duration;
 import java.time.Instant;
 import javax.inject.Singleton;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ItemID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 @Singleton
-public class MotherlodeSession
-{
-	private static final Duration HOUR = Duration.ofHours(1);
+public class MotherlodeSession {
+    private static final Logger log = LoggerFactory.getLogger(MotherlodeSession.class);
+    private static final Duration HOUR = Duration.ofHours(1L);
+    private int perHour;
+    private Instant lastPayDirtMined;
+    private int totalMined;
+    private Instant recentPayDirtMined;
+    private int recentMined;
+    private Instant lastGemFound;
+    private int diamondsFound;
+    private int rubiesFound;
+    private int emeraldsFound;
+    private int sapphiresFound;
+    private int nuggetsFound;
+    private int coalFound;
+    private int goldFound;
+    private int mithrilFound;
+    private int adamantiteFound;
+    private int runiteFound;
 
-	private int perHour;
+    void incrementGemFound(int gemID) {
+        this.lastGemFound = Instant.now();
+        switch (gemID) {
+            case 1617: {
+                ++this.diamondsFound;
+                break;
+            }
+            case 1619: {
+                ++this.rubiesFound;
+                break;
+            }
+            case 1621: {
+                ++this.emeraldsFound;
+                break;
+            }
+            case 1623: {
+                ++this.sapphiresFound;
+                break;
+            }
+            default: {
+                log.debug("Invalid gem type specified. The gem count will not be incremented.");
+            }
+        }
+    }
 
-	private Instant lastPayDirtMined;
-	private int totalMined;
+    void updateOreFound(int item, int count) {
+        switch (item) {
+            case 12012: {
+                this.nuggetsFound += count;
+                break;
+            }
+            case 453: {
+                this.coalFound += count;
+                break;
+            }
+            case 444: {
+                this.goldFound += count;
+                break;
+            }
+            case 447: {
+                this.mithrilFound += count;
+                break;
+            }
+            case 449: {
+                this.adamantiteFound += count;
+                break;
+            }
+            case 451: {
+                this.runiteFound += count;
+                break;
+            }
+            default: {
+                log.debug("Invalid ore specified. The ore count will not be updated.");
+            }
+        }
+    }
 
-	private Instant recentPayDirtMined;
-	private int recentMined;
+    public void incrementPayDirtMined() {
+        Instant now;
+        this.lastPayDirtMined = now = Instant.now();
+        ++this.totalMined;
+        if (this.recentMined == 0) {
+            this.recentPayDirtMined = now;
+        }
+        ++this.recentMined;
+        Duration timeSinceStart = Duration.between(this.recentPayDirtMined, now);
+        if (!timeSinceStart.isZero()) {
+            this.perHour = (int)((double)this.recentMined * (double)HOUR.toMillis() / (double)timeSinceStart.toMillis());
+        }
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private Instant lastGemFound;
+    public void resetRecent() {
+        this.recentPayDirtMined = null;
+        this.recentMined = 0;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int diamondsFound;
+    public int getPerHour() {
+        return this.perHour;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int rubiesFound;
+    public Instant getLastPayDirtMined() {
+        return this.lastPayDirtMined;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int emeraldsFound;
+    public int getTotalMined() {
+        return this.totalMined;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int sapphiresFound;
+    public Instant getRecentPayDirtMined() {
+        return this.recentPayDirtMined;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int nuggetsFound;
+    public int getRecentMined() {
+        return this.recentMined;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int coalFound;
+    Instant getLastGemFound() {
+        return this.lastGemFound;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int goldFound;
+    int getDiamondsFound() {
+        return this.diamondsFound;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int mithrilFound;
+    int getRubiesFound() {
+        return this.rubiesFound;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int adamantiteFound;
+    int getEmeraldsFound() {
+        return this.emeraldsFound;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private int runiteFound;
+    int getSapphiresFound() {
+        return this.sapphiresFound;
+    }
 
-	void incrementGemFound(int gemID)
-	{
-		lastGemFound = Instant.now();
+    int getNuggetsFound() {
+        return this.nuggetsFound;
+    }
 
-		switch (gemID)
-		{
-			case ItemID.UNCUT_DIAMOND:
-				diamondsFound++;
-				break;
+    int getCoalFound() {
+        return this.coalFound;
+    }
 
-			case ItemID.UNCUT_RUBY:
-				rubiesFound++;
-				break;
+    int getGoldFound() {
+        return this.goldFound;
+    }
 
-			case ItemID.UNCUT_EMERALD:
-				emeraldsFound++;
-				break;
+    int getMithrilFound() {
+        return this.mithrilFound;
+    }
 
-			case ItemID.UNCUT_SAPPHIRE:
-				sapphiresFound++;
-				break;
+    int getAdamantiteFound() {
+        return this.adamantiteFound;
+    }
 
-			default:
-				log.debug("Invalid gem type specified. The gem count will not be incremented.");
-		}
-	}
-
-	void updateOreFound(int item, int count)
-	{
-		switch (item)
-		{
-			case ItemID.GOLDEN_NUGGET:
-				nuggetsFound += count;
-				break;
-			case ItemID.COAL:
-				coalFound += count;
-				break;
-			case ItemID.GOLD_ORE:
-				goldFound += count;
-				break;
-			case ItemID.MITHRIL_ORE:
-				mithrilFound += count;
-				break;
-			case ItemID.ADAMANTITE_ORE:
-				adamantiteFound += count;
-				break;
-			case ItemID.RUNITE_ORE:
-				runiteFound += count;
-				break;
-			default:
-				log.debug("Invalid ore specified. The ore count will not be updated.");
-		}
-	}
-
-	public void incrementPayDirtMined()
-	{
-		Instant now = Instant.now();
-
-		lastPayDirtMined = now;
-		++totalMined;
-
-		if (recentMined == 0)
-		{
-			recentPayDirtMined = now;
-		}
-		++recentMined;
-
-		Duration timeSinceStart = Duration.between(recentPayDirtMined, now);
-		if (!timeSinceStart.isZero())
-		{
-			perHour = (int) ((double) recentMined * (double) HOUR.toMillis() / (double) timeSinceStart.toMillis());
-		}
-	}
-
-	public void resetRecent()
-	{
-		recentPayDirtMined = null;
-		recentMined = 0;
-	}
-
-	public int getPerHour()
-	{
-		return perHour;
-	}
-
-	public Instant getLastPayDirtMined()
-	{
-		return lastPayDirtMined;
-	}
-
-	public int getTotalMined()
-	{
-		return totalMined;
-	}
-
-	public Instant getRecentPayDirtMined()
-	{
-		return recentPayDirtMined;
-	}
-
-	public int getRecentMined()
-	{
-		return recentMined;
-	}
+    int getRuniteFound() {
+        return this.runiteFound;
+    }
 }
+

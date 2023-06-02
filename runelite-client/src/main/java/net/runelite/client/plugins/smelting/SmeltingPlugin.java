@@ -1,26 +1,13 @@
 /*
- * Copyright (c) 2019, Stephen <stepzhu@umich.edu>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.events.ChatMessage
+ *  net.runelite.api.events.GameTick
  */
 package net.runelite.client.plugins.smelting;
 
@@ -28,8 +15,6 @@ import com.google.inject.Provides;
 import java.time.Duration;
 import java.time.Instant;
 import javax.inject.Inject;
-import lombok.AccessLevel;
-import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.MenuAction;
 import net.runelite.api.events.ChatMessage;
@@ -40,101 +25,88 @@ import net.runelite.client.events.OverlayMenuClicked;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.smelting.SmeltingConfig;
+import net.runelite.client.plugins.smelting.SmeltingOverlay;
+import net.runelite.client.plugins.smelting.SmeltingSession;
 import net.runelite.client.plugins.xptracker.XpTrackerPlugin;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.OverlayMenuEntry;
 
-@PluginDescriptor(
-	name = "Smelting",
-	description = "Show Smelting stats",
-	tags = {"overlay", "skilling"}
-)
-@PluginDependency(XpTrackerPlugin.class)
-public class SmeltingPlugin extends Plugin
-{
-	@Inject
-	private SmeltingConfig config;
+@PluginDescriptor(name="Smelting", description="Show Smelting stats", tags={"overlay", "skilling"})
+@PluginDependency(value=XpTrackerPlugin.class)
+public class SmeltingPlugin
+extends Plugin {
+    @Inject
+    private SmeltingConfig config;
+    @Inject
+    private SmeltingOverlay overlay;
+    @Inject
+    private OverlayManager overlayManager;
+    private SmeltingSession session;
+    private int cannonBallsMade;
 
-	@Inject
-	private SmeltingOverlay overlay;
+    @Provides
+    SmeltingConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(SmeltingConfig.class);
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Override
+    protected void startUp() {
+        this.session = null;
+        this.overlayManager.add(this.overlay);
+        this.cannonBallsMade = 0;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private SmeltingSession session;
+    @Override
+    protected void shutDown() {
+        this.overlayManager.remove(this.overlay);
+        this.session = null;
+        this.cannonBallsMade = 0;
+    }
 
-	@Provides
-	SmeltingConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(SmeltingConfig.class);
-	}
+    @Subscribe
+    public void onOverlayMenuClicked(OverlayMenuClicked overlayMenuClicked) {
+        OverlayMenuEntry overlayMenuEntry = overlayMenuClicked.getEntry();
+        if (overlayMenuEntry.getMenuAction() == MenuAction.RUNELITE_OVERLAY && overlayMenuClicked.getEntry().getOption().equals("Reset") && overlayMenuClicked.getOverlay() == this.overlay) {
+            this.session = null;
+        }
+    }
 
-	@Override
-	protected void startUp()
-	{
-		session = null;
-		overlayManager.add(overlay);
-	}
+    @Subscribe
+    public void onChatMessage(ChatMessage event) {
+        if (event.getType() != ChatMessageType.SPAM) {
+            return;
+        }
+        if (event.getMessage().startsWith("You retrieve a bar of")) {
+            if (this.session == null) {
+                this.session = new SmeltingSession();
+            }
+            this.session.increaseBarsSmelted();
+        } else if (event.getMessage().endsWith(" to form 8 cannonballs.")) {
+            this.cannonBallsMade = 8;
+        } else if (event.getMessage().endsWith(" to form 4 cannonballs.")) {
+            this.cannonBallsMade = 4;
+        } else if (event.getMessage().startsWith("You remove the cannonballs from the mould")) {
+            if (this.session == null) {
+                this.session = new SmeltingSession();
+            }
+            this.session.increaseCannonBallsSmelted(this.cannonBallsMade);
+        }
+    }
 
-	@Override
-	protected void shutDown()
-	{
-		overlayManager.remove(overlay);
-		session = null;
-	}
+    @Subscribe
+    public void onGameTick(GameTick event) {
+        if (this.session != null) {
+            Duration statTimeout = Duration.ofMinutes(this.config.statTimeout());
+            Duration sinceCaught = Duration.between(this.session.getLastItemSmelted(), Instant.now());
+            if (sinceCaught.compareTo(statTimeout) >= 0) {
+                this.session = null;
+            }
+        }
+    }
 
-	@Subscribe
-	public void onOverlayMenuClicked(OverlayMenuClicked overlayMenuClicked)
-	{
-		OverlayMenuEntry overlayMenuEntry = overlayMenuClicked.getEntry();
-		if (overlayMenuEntry.getMenuAction() == MenuAction.RUNELITE_OVERLAY
-			&& overlayMenuClicked.getEntry().getOption().equals(SmeltingOverlay.SMELTING_RESET)
-			&& overlayMenuClicked.getOverlay() == overlay)
-		{
-			session = null;
-		}
-	}
-
-	@Subscribe
-	public void onChatMessage(ChatMessage event)
-	{
-		if (event.getType() != ChatMessageType.SPAM)
-		{
-			return;
-		}
-
-		if (event.getMessage().startsWith("You retrieve a bar of"))
-		{
-			if (session == null)
-			{
-				session = new SmeltingSession();
-			}
-			session.increaseBarsSmelted();
-		}
-		else if (event.getMessage().startsWith("You remove the cannonballs from the mould"))
-		{
-			if (session == null)
-			{
-				session = new SmeltingSession();
-			}
-			session.increaseCannonBallsSmelted();
-		}
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick event)
-	{
-		if (session != null)
-		{
-			final Duration statTimeout = Duration.ofMinutes(config.statTimeout());
-			final Duration sinceCaught = Duration.between(session.getLastItemSmelted(), Instant.now());
-
-			if (sinceCaught.compareTo(statTimeout) >= 0)
-			{
-				session = null;
-			}
-		}
-	}
+    SmeltingSession getSession() {
+        return this.session;
+    }
 }
 

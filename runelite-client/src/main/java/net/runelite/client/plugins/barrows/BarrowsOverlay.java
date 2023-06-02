@@ -1,26 +1,14 @@
 /*
- * Copyright (c) 2018, Seth <Sethtroll3@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.Perspective
+ *  net.runelite.api.Point
+ *  net.runelite.api.coords.LocalPoint
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.widgets.Widget
  */
 package net.runelite.client.plugins.barrows;
 
@@ -33,76 +21,59 @@ import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.plugins.barrows.BarrowsBrothers;
+import net.runelite.client.plugins.barrows.BarrowsConfig;
+import net.runelite.client.plugins.barrows.BarrowsPlugin;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 
-class BarrowsOverlay extends Overlay
-{
-	private final Client client;
-	private final BarrowsPlugin plugin;
-	private final BarrowsConfig config;
+class BarrowsOverlay
+extends Overlay {
+    private final Client client;
+    private final BarrowsPlugin plugin;
+    private final BarrowsConfig config;
 
-	@Inject
-	private BarrowsOverlay(Client client, BarrowsPlugin plugin, BarrowsConfig config)
-	{
-		setPosition(OverlayPosition.DYNAMIC);
-		setLayer(OverlayLayer.ABOVE_WIDGETS);
-		this.client = client;
-		this.plugin = plugin;
-		this.config = config;
-	}
+    @Inject
+    private BarrowsOverlay(Client client, BarrowsPlugin plugin, BarrowsConfig config) {
+        this.setPosition(OverlayPosition.DYNAMIC);
+        this.setLayer(OverlayLayer.ABOVE_WIDGETS);
+        this.client = client;
+        this.plugin = plugin;
+        this.config = config;
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		if (plugin.isBarrowsLoaded() && config.showBrotherLoc())
-		{
-			renderBarrowsBrothers(graphics);
-		}
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        Widget puzzleAnswer;
+        if (this.plugin.isBarrowsLoaded() && this.config.showBrotherLoc()) {
+            this.renderBarrowsBrothers(graphics);
+        }
+        if ((puzzleAnswer = this.plugin.getPuzzleAnswer()) != null && this.config.showPuzzleAnswer() && !puzzleAnswer.isHidden()) {
+            Rectangle answerRect = puzzleAnswer.getBounds();
+            graphics.setColor(Color.GREEN);
+            graphics.draw(answerRect);
+        }
+        return null;
+    }
 
-		Widget puzzleAnswer = plugin.getPuzzleAnswer();
-		if (puzzleAnswer != null && config.showPuzzleAnswer() && !puzzleAnswer.isHidden())
-		{
-			Rectangle answerRect = puzzleAnswer.getBounds();
-			graphics.setColor(Color.GREEN);
-			graphics.draw(answerRect);
-		}
-
-		return null;
-	}
-
-	private void renderBarrowsBrothers(Graphics2D graphics)
-	{
-		for (BarrowsBrothers brother : BarrowsBrothers.values())
-		{
-			LocalPoint localLocation = LocalPoint.fromWorld(client, brother.getLocation());
-			if (localLocation == null)
-			{
-				continue;
-			}
-
-			String brotherLetter = Character.toString(brother.getName().charAt(0));
-			Point miniMapLocation = Perspective.getCanvasTextMiniMapLocation(client, graphics,
-				localLocation, brotherLetter);
-
-			if (miniMapLocation != null)
-			{
-				graphics.setColor(Color.black);
-				graphics.drawString(brotherLetter, miniMapLocation.getX() + 1, miniMapLocation.getY() + 1);
-
-				if (client.getVarbitValue(brother.getKilledVarbit()) > 0)
-				{
-					graphics.setColor(config.deadBrotherLocColor());
-				}
-				else
-				{
-					graphics.setColor(config.brotherLocColor());
-				}
-
-				graphics.drawString(brotherLetter, miniMapLocation.getX(), miniMapLocation.getY());
-			}
-		}
-	}
+    private void renderBarrowsBrothers(Graphics2D graphics) {
+        for (BarrowsBrothers brother : BarrowsBrothers.values()) {
+            String brotherLetter;
+            Point miniMapLocation;
+            LocalPoint localLocation = LocalPoint.fromWorld((Client)this.client, (WorldPoint)brother.getLocation());
+            if (localLocation == null || (miniMapLocation = Perspective.getCanvasTextMiniMapLocation((Client)this.client, (Graphics2D)graphics, (LocalPoint)localLocation, (String)(brotherLetter = Character.toString(brother.getName().charAt(0))))) == null) continue;
+            graphics.setColor(Color.black);
+            graphics.drawString(brotherLetter, miniMapLocation.getX() + 1, miniMapLocation.getY() + 1);
+            if (this.client.getVarbitValue(brother.getKilledVarbit()) > 0) {
+                graphics.setColor(this.config.deadBrotherLocColor());
+            } else {
+                graphics.setColor(this.config.brotherLocColor());
+            }
+            graphics.drawString(brotherLetter, miniMapLocation.getX(), miniMapLocation.getY());
+        }
+    }
 }
+

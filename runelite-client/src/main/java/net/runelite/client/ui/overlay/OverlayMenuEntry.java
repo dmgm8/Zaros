@@ -1,36 +1,73 @@
 /*
- * Copyright (c) 2019, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.MenuAction
  */
 package net.runelite.client.ui.overlay;
 
-import lombok.Value;
 import net.runelite.api.MenuAction;
 
-@Value
-public class OverlayMenuEntry
-{
-	private MenuAction menuAction;
-	private String option;
-	private String target;
+public final class OverlayMenuEntry {
+    private final MenuAction menuAction;
+    private final String option;
+    private final String target;
+
+    public OverlayMenuEntry(MenuAction menuAction, String option, String target) {
+        this.menuAction = menuAction;
+        this.option = option;
+        this.target = target;
+    }
+
+    public MenuAction getMenuAction() {
+        return this.menuAction;
+    }
+
+    public String getOption() {
+        return this.option;
+    }
+
+    public String getTarget() {
+        return this.target;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof OverlayMenuEntry)) {
+            return false;
+        }
+        OverlayMenuEntry other = (OverlayMenuEntry)o;
+        MenuAction this$menuAction = this.getMenuAction();
+        MenuAction other$menuAction = other.getMenuAction();
+        if (this$menuAction == null ? other$menuAction != null : !this$menuAction.equals((Object)other$menuAction)) {
+            return false;
+        }
+        String this$option = this.getOption();
+        String other$option = other.getOption();
+        if (this$option == null ? other$option != null : !this$option.equals(other$option)) {
+            return false;
+        }
+        String this$target = this.getTarget();
+        String other$target = other.getTarget();
+        return !(this$target == null ? other$target != null : !this$target.equals(other$target));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        MenuAction $menuAction = this.getMenuAction();
+        result = result * 59 + ($menuAction == null ? 43 : $menuAction.hashCode());
+        String $option = this.getOption();
+        result = result * 59 + ($option == null ? 43 : $option.hashCode());
+        String $target = this.getTarget();
+        result = result * 59 + ($target == null ? 43 : $target.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "OverlayMenuEntry(menuAction=" + (Object)this.getMenuAction() + ", option=" + this.getOption() + ", target=" + this.getTarget() + ")";
+    }
 }
+

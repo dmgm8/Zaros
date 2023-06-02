@@ -1,27 +1,16 @@
 /*
- * Copyright (c) 2018, Joris K <kjorisje@gmail.com>
- * Copyright (c) 2018, Lasse <cronick@zytex.dk>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.Client
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.Player
+ *  net.runelite.api.events.ChatMessage
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.GraphicChanged
  */
 package net.runelite.client.plugins.cooking;
 
@@ -30,12 +19,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import javax.inject.Inject;
-import lombok.AccessLevel;
-import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.GraphicID;
-import net.runelite.api.ItemID;
 import net.runelite.api.MenuAction;
 import net.runelite.api.Player;
 import net.runelite.api.events.ChatMessage;
@@ -48,165 +33,112 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.cooking.CookingConfig;
+import net.runelite.client.plugins.cooking.CookingOverlay;
+import net.runelite.client.plugins.cooking.CookingSession;
+import net.runelite.client.plugins.cooking.FermentTimer;
 import net.runelite.client.plugins.xptracker.XpTrackerPlugin;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.OverlayMenuEntry;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 
-@PluginDescriptor(
-	name = "Cooking",
-	description = "Show cooking statistics",
-	tags = {"overlay", "skilling", "cook"}
-)
-@PluginDependency(XpTrackerPlugin.class)
-public class CookingPlugin extends Plugin
-{
-	@Inject
-	private Client client;
+@PluginDescriptor(name="Cooking", description="Show cooking statistics", tags={"overlay", "skilling", "cook"})
+@PluginDependency(value=XpTrackerPlugin.class)
+public class CookingPlugin
+extends Plugin {
+    @Inject
+    private Client client;
+    @Inject
+    private CookingConfig config;
+    @Inject
+    private CookingOverlay overlay;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private InfoBoxManager infoBoxManager;
+    @Inject
+    private ItemManager itemManager;
+    private CookingSession session;
 
-	@Inject
-	private CookingConfig config;
+    @Provides
+    CookingConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(CookingConfig.class);
+    }
 
-	@Inject
-	private CookingOverlay overlay;
+    @Override
+    protected void startUp() throws Exception {
+        this.session = null;
+        this.overlayManager.add(this.overlay);
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Override
+    protected void shutDown() throws Exception {
+        this.infoBoxManager.removeIf(FermentTimer.class::isInstance);
+        this.overlayManager.remove(this.overlay);
+        this.session = null;
+    }
 
-	@Inject
-	private InfoBoxManager infoBoxManager;
+    @Subscribe
+    public void onOverlayMenuClicked(OverlayMenuClicked overlayMenuClicked) {
+        OverlayMenuEntry overlayMenuEntry = overlayMenuClicked.getEntry();
+        if (overlayMenuEntry.getMenuAction() == MenuAction.RUNELITE_OVERLAY && overlayMenuClicked.getEntry().getOption().equals("Reset") && overlayMenuClicked.getOverlay() == this.overlay) {
+            this.session = null;
+        }
+    }
 
-	@Inject
-	private ItemManager itemManager;
+    @Subscribe
+    public void onGameTick(GameTick gameTick) {
+        if (this.session == null || this.config.statTimeout() == 0) {
+            return;
+        }
+        Duration statTimeout = Duration.ofMinutes(this.config.statTimeout());
+        Duration sinceCooked = Duration.between(this.session.getLastCookingAction(), Instant.now());
+        if (sinceCooked.compareTo(statTimeout) >= 0) {
+            this.session = null;
+        }
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private CookingSession session;
+    @Subscribe
+    public void onGraphicChanged(GraphicChanged graphicChanged) {
+        Player player = this.client.getLocalPlayer();
+        if (graphicChanged.getActor() != player) {
+            return;
+        }
+        if (player.getGraphic() == 47 && this.config.fermentTimer()) {
+            Optional<FermentTimer> fermentTimerOpt = this.infoBoxManager.getInfoBoxes().stream().filter(FermentTimer.class::isInstance).map(FermentTimer.class::cast).findAny();
+            if (fermentTimerOpt.isPresent()) {
+                FermentTimer fermentTimer = fermentTimerOpt.get();
+                fermentTimer.reset();
+            } else {
+                FermentTimer fermentTimer = new FermentTimer(this.itemManager.getImage(1993), this);
+                this.infoBoxManager.addInfoBox(fermentTimer);
+            }
+        }
+    }
 
-	@Provides
-	CookingConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(CookingConfig.class);
-	}
+    @Subscribe
+    public void onChatMessage(ChatMessage event) {
+        if (event.getType() != ChatMessageType.SPAM) {
+            return;
+        }
+        String message = event.getMessage();
+        if (message.startsWith("You successfully cook") || message.startsWith("You successfully bake") || message.startsWith("You successfully fry") || message.startsWith("You manage to cook") || message.startsWith("You roast a") || message.startsWith("You spit-roast") || message.startsWith("You cook") || message.startsWith("Eventually the Jubbly") || message.startsWith("You half-cook") || message.startsWith("The undead meat is now cooked") || message.startsWith("The undead chicken is now cooked") || message.startsWith("You successfully scramble") || message.startsWith("You dry a piece of meat")) {
+            if (this.session == null) {
+                this.session = new CookingSession();
+            }
+            this.session.updateLastCookingAction();
+            this.session.increaseCookAmount();
+        } else if (message.startsWith("You accidentally burn") || message.equals("You burn the mushroom in the fire.") || message.startsWith("Unfortunately the Jubbly") || message.startsWith("You accidentally spoil")) {
+            if (this.session == null) {
+                this.session = new CookingSession();
+            }
+            this.session.updateLastCookingAction();
+            this.session.increaseBurnAmount();
+        }
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		session = null;
-		overlayManager.add(overlay);
-	}
-
-	@Override
-	protected void shutDown() throws Exception
-	{
-		infoBoxManager.removeIf(FermentTimer.class::isInstance);
-		overlayManager.remove(overlay);
-		session = null;
-	}
-
-	@Subscribe
-	public void onOverlayMenuClicked(OverlayMenuClicked overlayMenuClicked)
-	{
-		OverlayMenuEntry overlayMenuEntry = overlayMenuClicked.getEntry();
-		if (overlayMenuEntry.getMenuAction() == MenuAction.RUNELITE_OVERLAY
-			&& overlayMenuClicked.getEntry().getOption().equals(CookingOverlay.COOKING_RESET)
-			&& overlayMenuClicked.getOverlay() == overlay)
-		{
-			session = null;
-		}
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick gameTick)
-	{
-		if (session == null || config.statTimeout() == 0)
-		{
-			return;
-		}
-
-		Duration statTimeout = Duration.ofMinutes(config.statTimeout());
-		Duration sinceCooked = Duration.between(session.getLastCookingAction(), Instant.now());
-
-		if (sinceCooked.compareTo(statTimeout) >= 0)
-		{
-			session = null;
-		}
-	}
-
-	@Subscribe
-	public void onGraphicChanged(GraphicChanged graphicChanged)
-	{
-		Player player = client.getLocalPlayer();
-
-		if (graphicChanged.getActor() != player)
-		{
-			return;
-		}
-
-		if (player.getGraphic() == GraphicID.WINE_MAKE && config.fermentTimer())
-		{
-			Optional<FermentTimer> fermentTimerOpt = infoBoxManager.getInfoBoxes().stream()
-				.filter(FermentTimer.class::isInstance)
-				.map(FermentTimer.class::cast)
-				.findAny();
-
-			if (fermentTimerOpt.isPresent())
-			{
-				FermentTimer fermentTimer = fermentTimerOpt.get();
-				fermentTimer.reset();
-			}
-			else
-			{
-				FermentTimer fermentTimer = new FermentTimer(itemManager.getImage(ItemID.JUG_OF_WINE), this);
-				infoBoxManager.addInfoBox(fermentTimer);
-			}
-		}
-	}
-
-	@Subscribe
-	public void onChatMessage(ChatMessage event)
-	{
-		if (event.getType() != ChatMessageType.SPAM)
-		{
-			return;
-		}
-
-		final String message = event.getMessage();
-
-		if (message.startsWith("You successfully cook")
-			|| message.startsWith("You successfully bake")
-			|| message.startsWith("You successfully fry")
-			|| message.startsWith("You manage to cook")
-			|| message.startsWith("You roast a")
-			|| message.startsWith("You spit-roast")
-			|| message.startsWith("You cook")
-			|| message.startsWith("Eventually the Jubbly")
-			|| message.startsWith("You half-cook")
-			|| message.startsWith("The undead meat is now cooked")
-			|| message.startsWith("The undead chicken is now cooked")
-			|| message.startsWith("You successfully scramble")
-			|| message.startsWith("You dry a piece of meat"))
-		{
-			if (session == null)
-			{
-				session = new CookingSession();
-			}
-
-			session.updateLastCookingAction();
-			session.increaseCookAmount();
-
-		}
-		else if (message.startsWith("You accidentally burn")
-			|| message.equals("You burn the mushroom in the fire.")
-			|| message.startsWith("Unfortunately the Jubbly")
-			|| message.startsWith("You accidentally spoil"))
-		{
-			if (session == null)
-			{
-				session = new CookingSession();
-			}
-
-			session.updateLastCookingAction();
-			session.increaseBurnAmount();
-		}
-	}
+    CookingSession getSession() {
+        return this.session;
+    }
 }
+

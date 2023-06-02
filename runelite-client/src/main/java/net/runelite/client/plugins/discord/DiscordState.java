@@ -1,27 +1,11 @@
 /*
- * Copyright (c) 2018, Tomas Slusny <slusnucky@gmail.com>
- * Copyright (c) 2021, Jonathan Rousseau <https://github.com/JoRouss>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.MoreObjects
+ *  com.google.common.collect.ComparisonChain
+ *  javax.inject.Inject
+ *  javax.inject.Named
  */
 package net.runelite.client.plugins.discord;
 
@@ -35,200 +19,186 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Named;
-import lombok.Data;
 import net.runelite.client.discord.DiscordPresence;
 import net.runelite.client.discord.DiscordService;
+import net.runelite.client.plugins.discord.DiscordConfig;
+import net.runelite.client.plugins.discord.DiscordGameEventType;
 
-/**
- * This class contains data about currently active discord state.
- */
-class DiscordState
-{
-	@Data
-	private static class EventWithTime
-	{
-		private final DiscordGameEventType type;
-		private Instant start;
-		private Instant updated;
-	}
+class DiscordState {
+    private final List<EventWithTime> events = new ArrayList<EventWithTime>();
+    private final DiscordService discordService;
+    private final DiscordConfig config;
+    private final String runeliteTitle;
+    private final String runeliteVersion;
+    private DiscordPresence lastPresence;
 
-	private final List<EventWithTime> events = new ArrayList<>();
-	private final DiscordService discordService;
-	private final DiscordConfig config;
-	private final String runeliteTitle;
-	private final String runeliteVersion;
-	private DiscordPresence lastPresence;
+    @Inject
+    private DiscordState(DiscordService discordService, DiscordConfig config, @Named(value="runelite.title") String runeliteTitle, @Named(value="runelite.version") String runeliteVersion) {
+        this.discordService = discordService;
+        this.config = config;
+        this.runeliteTitle = runeliteTitle;
+        this.runeliteVersion = runeliteVersion;
+    }
 
-	@Inject
-	private DiscordState(
-		final DiscordService discordService,
-		final DiscordConfig config,
-		@Named("runelite.title") final String runeliteTitle,
-		@Named("runelite.version") final String runeliteVersion
-	)
-	{
-		this.discordService = discordService;
-		this.config = config;
-		this.runeliteTitle = runeliteTitle;
-		this.runeliteVersion = runeliteVersion;
-	}
+    void reset() {
+        this.discordService.clearPresence();
+        this.events.clear();
+        this.lastPresence = null;
+    }
 
-	/**
-	 * Reset state.
-	 */
-	void reset()
-	{
-		discordService.clearPresence();
-		events.clear();
-		lastPresence = null;
-	}
+    void triggerEvent(DiscordGameEventType eventType) {
+        EventWithTime event;
+        Optional<EventWithTime> foundEvent = this.events.stream().filter(e -> ((EventWithTime)e).type == eventType).findFirst();
+        if (foundEvent.isPresent()) {
+            event = foundEvent.get();
+        } else {
+            event = new EventWithTime(eventType);
+            event.setStart(Instant.now());
+            this.events.add(event);
+        }
+        event.setUpdated(Instant.now());
+        if (event.getType().isShouldClear()) {
+            this.events.removeIf(e -> e.getType() != eventType && e.getType().isShouldBeCleared());
+        }
+        if (event.getType().isShouldRestart()) {
+            event.setStart(Instant.now());
+        }
+        this.events.sort((a, b) -> ComparisonChain.start().compare(b.getType().getPriority(), a.getType().getPriority()).compare((Comparable)b.getUpdated(), (Comparable)a.getUpdated()).result());
+        this.updatePresenceWithLatestEvent();
+    }
 
-	/**
-	 * Trigger new discord state update.
-	 *
-	 * @param eventType discord event type
-	 */
-	void triggerEvent(final DiscordGameEventType eventType)
-	{
-		final Optional<EventWithTime> foundEvent = events.stream().filter(e -> e.type == eventType).findFirst();
-		final EventWithTime event;
+    private void updatePresenceWithLatestEvent() {
+        Instant startTime;
+        if (this.events.isEmpty()) {
+            this.reset();
+            return;
+        }
+        EventWithTime event = this.events.get(0);
+        String imageKey = null;
+        String state = null;
+        String details = null;
+        for (EventWithTime eventWithTime : this.events) {
+            if (imageKey == null) {
+                imageKey = eventWithTime.getType().getImageKey();
+            }
+            if (details == null) {
+                details = eventWithTime.getType().getDetails();
+            }
+            if (state == null) {
+                state = eventWithTime.getType().getState();
+            }
+            if (imageKey == null || details == null || state == null) continue;
+            break;
+        }
+        String versionShortHand = this.runeliteVersion.replace("-SNAPSHOT", "+");
+        DiscordPresence.DiscordPresenceBuilder presenceBuilder = DiscordPresence.builder().state((String)MoreObjects.firstNonNull(state, (Object)"")).details((String)MoreObjects.firstNonNull((Object)details, (Object)"")).largeImageText(this.runeliteTitle + " v" + versionShortHand).smallImageKey(imageKey);
+        switch (this.config.elapsedTimeType()) {
+            case HIDDEN: {
+                startTime = null;
+                break;
+            }
+            case TOTAL: {
+                startTime = this.events.stream().filter(e -> e.getType().isRoot()).sorted((a, b) -> b.getUpdated().compareTo(a.getUpdated())).map(EventWithTime::getStart).findFirst().orElse(event.getStart());
+                break;
+            }
+            default: {
+                startTime = event.getStart();
+            }
+        }
+        presenceBuilder.startTimestamp(startTime);
+        DiscordPresence presence = presenceBuilder.build();
+        if (!presence.equals(this.lastPresence)) {
+            this.lastPresence = presence;
+            this.discordService.updatePresence(presence);
+        }
+    }
 
-		if (foundEvent.isPresent())
-		{
-			event = foundEvent.get();
-		}
-		else
-		{
-			event = new EventWithTime(eventType);
-			event.setStart(Instant.now());
-			events.add(event);
-		}
+    void checkForTimeout() {
+        if (this.events.isEmpty()) {
+            return;
+        }
+        Duration actionTimeout = Duration.ofMinutes(this.config.actionTimeout());
+        Instant now = Instant.now();
+        boolean removedAny = this.events.removeAll(this.events.stream().filter(event -> event.getType().isShouldBeCleared()).filter(event -> event.getType().isShouldTimeout() && now.isAfter(event.getUpdated().plus(actionTimeout))).collect(Collectors.toList()));
+        if (removedAny) {
+            this.updatePresenceWithLatestEvent();
+        }
+    }
 
-		event.setUpdated(Instant.now());
+    private static class EventWithTime {
+        private final DiscordGameEventType type;
+        private Instant start;
+        private Instant updated;
 
-		if (event.getType().isShouldClear())
-		{
-			events.removeIf(e -> e.getType() != eventType && e.getType().isShouldBeCleared());
-		}
+        public EventWithTime(DiscordGameEventType type) {
+            this.type = type;
+        }
 
-		if (event.getType().isShouldRestart())
-		{
-			event.setStart(Instant.now());
-		}
+        public DiscordGameEventType getType() {
+            return this.type;
+        }
 
-		events.sort((a, b) -> ComparisonChain.start()
-			.compare(b.getType().getPriority(), a.getType().getPriority())
-			.compare(b.getUpdated(), a.getUpdated())
-			.result());
+        public Instant getStart() {
+            return this.start;
+        }
 
-		updatePresenceWithLatestEvent();
-	}
+        public Instant getUpdated() {
+            return this.updated;
+        }
 
-	private void updatePresenceWithLatestEvent()
-	{
-		if (events.isEmpty())
-		{
-			reset();
-			return;
-		}
+        public void setStart(Instant start) {
+            this.start = start;
+        }
 
-		final EventWithTime event = events.get(0);
+        public void setUpdated(Instant updated) {
+            this.updated = updated;
+        }
 
-		String imageKey = null;
-		String state = null;
-		String details = null;
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof EventWithTime)) {
+                return false;
+            }
+            EventWithTime other = (EventWithTime)o;
+            if (!other.canEqual(this)) {
+                return false;
+            }
+            DiscordGameEventType this$type = this.getType();
+            DiscordGameEventType other$type = other.getType();
+            if (this$type == null ? other$type != null : !((Object)((Object)this$type)).equals((Object)other$type)) {
+                return false;
+            }
+            Instant this$start = this.getStart();
+            Instant other$start = other.getStart();
+            if (this$start == null ? other$start != null : !((Object)this$start).equals(other$start)) {
+                return false;
+            }
+            Instant this$updated = this.getUpdated();
+            Instant other$updated = other.getUpdated();
+            return !(this$updated == null ? other$updated != null : !((Object)this$updated).equals(other$updated));
+        }
 
-		for (EventWithTime eventWithTime : events)
-		{
-			if (imageKey == null)
-			{
-				imageKey = eventWithTime.getType().getImageKey();
-			}
+        protected boolean canEqual(Object other) {
+            return other instanceof EventWithTime;
+        }
 
-			if (details == null)
-			{
-				details = eventWithTime.getType().getDetails();
-			}
+        public int hashCode() {
+            int PRIME = 59;
+            int result = 1;
+            DiscordGameEventType $type = this.getType();
+            result = result * 59 + ($type == null ? 43 : ((Object)((Object)$type)).hashCode());
+            Instant $start = this.getStart();
+            result = result * 59 + ($start == null ? 43 : ((Object)$start).hashCode());
+            Instant $updated = this.getUpdated();
+            result = result * 59 + ($updated == null ? 43 : ((Object)$updated).hashCode());
+            return result;
+        }
 
-			if (state == null)
-			{
-				state = eventWithTime.getType().getState();
-			}
-
-			if (imageKey != null && details != null && state != null)
-			{
-				break;
-			}
-		}
-
-		// Replace snapshot with + to make tooltip shorter (so it will span only 1 line)
-		final String versionShortHand = runeliteVersion.replace("-SNAPSHOT", "+");
-
-		final DiscordPresence.DiscordPresenceBuilder presenceBuilder = DiscordPresence.builder()
-			.state(MoreObjects.firstNonNull(state, ""))
-			.details(MoreObjects.firstNonNull(details, ""))
-			.largeImageText(runeliteTitle + " v" + versionShortHand)
-			.smallImageKey(imageKey);
-
-		final Instant startTime;
-		switch (config.elapsedTimeType())
-		{
-			case HIDDEN:
-				startTime = null;
-				break;
-			case TOTAL:
-				// We are tracking total time spent instead of per activity time so try to find
-				// root event as this indicates start of tracking and find last updated one
-				// to determine correct state we are in
-				startTime = events.stream()
-					.filter(e -> e.getType().isRoot())
-					.sorted((a, b) -> b.getUpdated().compareTo(a.getUpdated()))
-					.map(EventWithTime::getStart)
-					.findFirst()
-					.orElse(event.getStart());
-				break;
-			case ACTIVITY:
-			default:
-				startTime = event.getStart();
-				break;
-		}
-
-		presenceBuilder.startTimestamp(startTime);
-
-		final DiscordPresence presence = presenceBuilder.build();
-
-		// This is to reduce amount of RPC calls
-		if (!presence.equals(lastPresence))
-		{
-			lastPresence = presence;
-			discordService.updatePresence(presence);
-		}
-	}
-
-	/**
-	 * Check for current state timeout and act upon it.
-	 */
-	void checkForTimeout()
-	{
-		if (events.isEmpty())
-		{
-			return;
-		}
-
-		final Duration actionTimeout = Duration.ofMinutes(config.actionTimeout());
-		final Instant now = Instant.now();
-
-		final boolean removedAny = events.removeAll(events.stream()
-			// Only include clearable events
-			.filter(event -> event.getType().isShouldBeCleared())
-			// Find only events that should time out
-			.filter(event -> event.getType().isShouldTimeout() && now.isAfter(event.getUpdated().plus(actionTimeout)))
-			.collect(Collectors.toList())
-		);
-
-		if (removedAny)
-		{
-			updatePresenceWithLatestEvent();
-		}
-	}
+        public String toString() {
+            return "DiscordState.EventWithTime(type=" + (Object)((Object)this.getType()) + ", start=" + this.getStart() + ", updated=" + this.getUpdated() + ")";
+        }
+    }
 }
+

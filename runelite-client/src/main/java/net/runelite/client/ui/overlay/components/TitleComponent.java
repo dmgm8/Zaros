@@ -1,26 +1,5 @@
 /*
- * Copyright (c) 2018, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.ui.overlay.components;
 
@@ -30,45 +9,150 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import net.runelite.client.ui.overlay.components.LayoutableRenderableEntity;
+import net.runelite.client.ui.overlay.components.TextComponent;
 
-@Setter
-@Builder
-public class TitleComponent implements LayoutableRenderableEntity
-{
-	private String text;
+public class TitleComponent
+implements LayoutableRenderableEntity {
+    private String text;
+    private Color color;
+    private Point preferredLocation;
+    private Dimension preferredSize;
+    private final Rectangle bounds;
 
-	@Builder.Default
-	private Color color = Color.WHITE;
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        int baseX = this.preferredLocation.x;
+        int baseY = this.preferredLocation.y;
+        FontMetrics metrics = graphics.getFontMetrics();
+        TextComponent titleComponent = new TextComponent();
+        titleComponent.setText(this.text);
+        titleComponent.setColor(this.color);
+        titleComponent.setPosition(new Point(baseX + (this.preferredSize.width - metrics.stringWidth(this.text)) / 2, baseY + metrics.getHeight()));
+        Dimension rendered = titleComponent.render(graphics);
+        Dimension dimension = new Dimension(this.preferredSize.width, rendered.height);
+        this.bounds.setLocation(this.preferredLocation);
+        this.bounds.setSize(dimension);
+        return dimension;
+    }
 
-	@Builder.Default
-	private Point preferredLocation = new Point();
+    private static Color $default$color() {
+        return Color.WHITE;
+    }
 
-	@Builder.Default
-	private Dimension preferredSize = new Dimension(ComponentConstants.STANDARD_WIDTH, 0);
+    private static Point $default$preferredLocation() {
+        return new Point();
+    }
 
-	@Builder.Default
-	@Getter
-	private final Rectangle bounds = new Rectangle();
+    private static Dimension $default$preferredSize() {
+        return new Dimension(129, 0);
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		final int baseX = preferredLocation.x;
-		final int baseY = preferredLocation.y;
-		final FontMetrics metrics = graphics.getFontMetrics();
-		final TextComponent titleComponent = new TextComponent();
-		titleComponent.setText(text);
-		titleComponent.setColor(color);
-		titleComponent.setPosition(new Point(
-			baseX + ((preferredSize.width - metrics.stringWidth(text)) / 2),
-			baseY + metrics.getHeight()));
-		final Dimension rendered = titleComponent.render(graphics);
-		final Dimension dimension = new Dimension(preferredSize.width, rendered.height);
-		bounds.setLocation(preferredLocation);
-		bounds.setSize(dimension);
-		return dimension;
-	}
+    private static Rectangle $default$bounds() {
+        return new Rectangle();
+    }
+
+    TitleComponent(String text, Color color, Point preferredLocation, Dimension preferredSize, Rectangle bounds) {
+        this.text = text;
+        this.color = color;
+        this.preferredLocation = preferredLocation;
+        this.preferredSize = preferredSize;
+        this.bounds = bounds;
+    }
+
+    public static TitleComponentBuilder builder() {
+        return new TitleComponentBuilder();
+    }
+
+    public void setText(String text) {
+        this.text = text;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
+    }
+
+    @Override
+    public void setPreferredLocation(Point preferredLocation) {
+        this.preferredLocation = preferredLocation;
+    }
+
+    @Override
+    public void setPreferredSize(Dimension preferredSize) {
+        this.preferredSize = preferredSize;
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        return this.bounds;
+    }
+
+    public static class TitleComponentBuilder {
+        private String text;
+        private boolean color$set;
+        private Color color$value;
+        private boolean preferredLocation$set;
+        private Point preferredLocation$value;
+        private boolean preferredSize$set;
+        private Dimension preferredSize$value;
+        private boolean bounds$set;
+        private Rectangle bounds$value;
+
+        TitleComponentBuilder() {
+        }
+
+        public TitleComponentBuilder text(String text) {
+            this.text = text;
+            return this;
+        }
+
+        public TitleComponentBuilder color(Color color) {
+            this.color$value = color;
+            this.color$set = true;
+            return this;
+        }
+
+        public TitleComponentBuilder preferredLocation(Point preferredLocation) {
+            this.preferredLocation$value = preferredLocation;
+            this.preferredLocation$set = true;
+            return this;
+        }
+
+        public TitleComponentBuilder preferredSize(Dimension preferredSize) {
+            this.preferredSize$value = preferredSize;
+            this.preferredSize$set = true;
+            return this;
+        }
+
+        public TitleComponentBuilder bounds(Rectangle bounds) {
+            this.bounds$value = bounds;
+            this.bounds$set = true;
+            return this;
+        }
+
+        public TitleComponent build() {
+            Color color$value = this.color$value;
+            if (!this.color$set) {
+                color$value = TitleComponent.$default$color();
+            }
+            Point preferredLocation$value = this.preferredLocation$value;
+            if (!this.preferredLocation$set) {
+                preferredLocation$value = TitleComponent.$default$preferredLocation();
+            }
+            Dimension preferredSize$value = this.preferredSize$value;
+            if (!this.preferredSize$set) {
+                preferredSize$value = TitleComponent.$default$preferredSize();
+            }
+            Rectangle bounds$value = this.bounds$value;
+            if (!this.bounds$set) {
+                bounds$value = TitleComponent.$default$bounds();
+            }
+            return new TitleComponent(this.text, color$value, preferredLocation$value, preferredSize$value, bounds$value);
+        }
+
+        public String toString() {
+            return "TitleComponent.TitleComponentBuilder(text=" + this.text + ", color$value=" + this.color$value + ", preferredLocation$value=" + this.preferredLocation$value + ", preferredSize$value=" + this.preferredSize$value + ", bounds$value=" + this.bounds$value + ")";
+        }
+    }
 }
+

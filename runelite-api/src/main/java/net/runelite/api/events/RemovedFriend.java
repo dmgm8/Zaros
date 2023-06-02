@@ -1,40 +1,44 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.Value;
 import net.runelite.api.Nameable;
 
-/**
- * An event trigger when a player is removed from the friend or ignore list.
- */
-@Value
-public class RemovedFriend
-{
-	/**
-	 * The removed friend or ignore entry
-	 */
-	private final Nameable nameable;
+public final class RemovedFriend {
+    private final Nameable nameable;
+
+    public RemovedFriend(Nameable nameable) {
+        this.nameable = nameable;
+    }
+
+    public Nameable getNameable() {
+        return this.nameable;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof RemovedFriend)) {
+            return false;
+        }
+        RemovedFriend other = (RemovedFriend)o;
+        Nameable this$nameable = this.getNameable();
+        Nameable other$nameable = other.getNameable();
+        return !(this$nameable == null ? other$nameable != null : !this$nameable.equals(other$nameable));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Nameable $nameable = this.getNameable();
+        result = result * 59 + ($nameable == null ? 43 : $nameable.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "RemovedFriend(nameable=" + this.getNameable() + ")";
+    }
 }
+

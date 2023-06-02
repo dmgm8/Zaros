@@ -1,39 +1,94 @@
 /*
- * Copyright (c) 2020, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.menuentryswapper;
 
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import lombok.Value;
 
-@Value
-public class Swap
-{
-	private Predicate<String> optionPredicate;
-	private Predicate<String> targetPredicate;
-	private String swappedOption;
-	private Supplier<Boolean> enabled;
-	private boolean strict;
+final class Swap {
+    private final Predicate<String> optionPredicate;
+    private final Predicate<String> targetPredicate;
+    private final String swappedOption;
+    private final Supplier<Boolean> enabled;
+    private final boolean strict;
+
+    public Swap(Predicate<String> optionPredicate, Predicate<String> targetPredicate, String swappedOption, Supplier<Boolean> enabled, boolean strict) {
+        this.optionPredicate = optionPredicate;
+        this.targetPredicate = targetPredicate;
+        this.swappedOption = swappedOption;
+        this.enabled = enabled;
+        this.strict = strict;
+    }
+
+    public Predicate<String> getOptionPredicate() {
+        return this.optionPredicate;
+    }
+
+    public Predicate<String> getTargetPredicate() {
+        return this.targetPredicate;
+    }
+
+    public String getSwappedOption() {
+        return this.swappedOption;
+    }
+
+    public Supplier<Boolean> getEnabled() {
+        return this.enabled;
+    }
+
+    public boolean isStrict() {
+        return this.strict;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof Swap)) {
+            return false;
+        }
+        Swap other = (Swap)o;
+        if (this.isStrict() != other.isStrict()) {
+            return false;
+        }
+        Predicate<String> this$optionPredicate = this.getOptionPredicate();
+        Predicate<String> other$optionPredicate = other.getOptionPredicate();
+        if (this$optionPredicate == null ? other$optionPredicate != null : !this$optionPredicate.equals(other$optionPredicate)) {
+            return false;
+        }
+        Predicate<String> this$targetPredicate = this.getTargetPredicate();
+        Predicate<String> other$targetPredicate = other.getTargetPredicate();
+        if (this$targetPredicate == null ? other$targetPredicate != null : !this$targetPredicate.equals(other$targetPredicate)) {
+            return false;
+        }
+        String this$swappedOption = this.getSwappedOption();
+        String other$swappedOption = other.getSwappedOption();
+        if (this$swappedOption == null ? other$swappedOption != null : !this$swappedOption.equals(other$swappedOption)) {
+            return false;
+        }
+        Supplier<Boolean> this$enabled = this.getEnabled();
+        Supplier<Boolean> other$enabled = other.getEnabled();
+        return !(this$enabled == null ? other$enabled != null : !this$enabled.equals(other$enabled));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + (this.isStrict() ? 79 : 97);
+        Predicate<String> $optionPredicate = this.getOptionPredicate();
+        result = result * 59 + ($optionPredicate == null ? 43 : $optionPredicate.hashCode());
+        Predicate<String> $targetPredicate = this.getTargetPredicate();
+        result = result * 59 + ($targetPredicate == null ? 43 : $targetPredicate.hashCode());
+        String $swappedOption = this.getSwappedOption();
+        result = result * 59 + ($swappedOption == null ? 43 : $swappedOption.hashCode());
+        Supplier<Boolean> $enabled = this.getEnabled();
+        result = result * 59 + ($enabled == null ? 43 : $enabled.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "Swap(optionPredicate=" + this.getOptionPredicate() + ", targetPredicate=" + this.getTargetPredicate() + ", swappedOption=" + this.getSwappedOption() + ", enabled=" + this.getEnabled() + ", strict=" + this.isStrict() + ")";
+    }
 }
+

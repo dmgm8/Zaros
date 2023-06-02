@@ -1,54 +1,70 @@
 /*
- * Copyright (c) 2021, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
  */
 package net.runelite.api.events;
 
 import javax.annotation.Nullable;
-import lombok.Value;
 import net.runelite.api.clan.ClanChannel;
-import net.runelite.api.clan.ClanID;
-import org.intellij.lang.annotations.MagicConstant;
 
-/**
- * An event fired when the local player joins or leaves a clan channel.
- */
-@Value
-public class ClanChannelChanged
-{
-	/**
-	 * The clan channel
-	 */
-	@Nullable
-	private final ClanChannel clanChannel;
-	/**
-	 * The clan id, or -1 for guest clan
-	 * @see net.runelite.api.clan.ClanID
-	 */
-	@MagicConstant(valuesFromClass = ClanID.class)
-	private int clanId;
-	/**
-	 * Whether or not this was the guest clan channel
-	 */
-	private boolean guest;
+public final class ClanChannelChanged {
+    @Nullable
+    private final ClanChannel clanChannel;
+    private final int clanId;
+    private final boolean guest;
+
+    public ClanChannelChanged(@Nullable ClanChannel clanChannel, int clanId, boolean guest) {
+        this.clanChannel = clanChannel;
+        this.clanId = clanId;
+        this.guest = guest;
+    }
+
+    @Nullable
+    public ClanChannel getClanChannel() {
+        return this.clanChannel;
+    }
+
+    public int getClanId() {
+        return this.clanId;
+    }
+
+    public boolean isGuest() {
+        return this.guest;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ClanChannelChanged)) {
+            return false;
+        }
+        ClanChannelChanged other = (ClanChannelChanged)o;
+        if (this.getClanId() != other.getClanId()) {
+            return false;
+        }
+        if (this.isGuest() != other.isGuest()) {
+            return false;
+        }
+        ClanChannel this$clanChannel = this.getClanChannel();
+        ClanChannel other$clanChannel = other.getClanChannel();
+        return !(this$clanChannel == null ? other$clanChannel != null : !this$clanChannel.equals(other$clanChannel));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getClanId();
+        result = result * 59 + (this.isGuest() ? 79 : 97);
+        ClanChannel $clanChannel = this.getClanChannel();
+        result = result * 59 + ($clanChannel == null ? 43 : $clanChannel.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ClanChannelChanged(clanChannel=" + this.getClanChannel() + ", clanId=" + this.getClanId() + ", guest=" + this.isGuest() + ")";
+    }
 }
+

@@ -1,45 +1,149 @@
 /*
- * Copyright (c) 2018, Kamiel, <https://github.com/Kamielvf>
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.screenmarkers;
 
 import java.awt.Color;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ScreenMarker
-{
-	private long id;
-	private String name;
-	private int borderThickness;
-	private Color color;
-	private Color fill;
-	private boolean visible;
-	private boolean labelled;
+public class ScreenMarker {
+    private long id;
+    private String name;
+    private int borderThickness;
+    private Color color;
+    private Color fill;
+    private boolean visible;
+    private boolean labelled;
+
+    public long getId() {
+        return this.id;
+    }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public int getBorderThickness() {
+        return this.borderThickness;
+    }
+
+    public Color getColor() {
+        return this.color;
+    }
+
+    public Color getFill() {
+        return this.fill;
+    }
+
+    public boolean isVisible() {
+        return this.visible;
+    }
+
+    public boolean isLabelled() {
+        return this.labelled;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setBorderThickness(int borderThickness) {
+        this.borderThickness = borderThickness;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
+    }
+
+    public void setFill(Color fill) {
+        this.fill = fill;
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
+
+    public void setLabelled(boolean labelled) {
+        this.labelled = labelled;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ScreenMarker)) {
+            return false;
+        }
+        ScreenMarker other = (ScreenMarker)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getId() != other.getId()) {
+            return false;
+        }
+        if (this.getBorderThickness() != other.getBorderThickness()) {
+            return false;
+        }
+        if (this.isVisible() != other.isVisible()) {
+            return false;
+        }
+        if (this.isLabelled() != other.isLabelled()) {
+            return false;
+        }
+        String this$name = this.getName();
+        String other$name = other.getName();
+        if (this$name == null ? other$name != null : !this$name.equals(other$name)) {
+            return false;
+        }
+        Color this$color = this.getColor();
+        Color other$color = other.getColor();
+        if (this$color == null ? other$color != null : !((Object)this$color).equals(other$color)) {
+            return false;
+        }
+        Color this$fill = this.getFill();
+        Color other$fill = other.getFill();
+        return !(this$fill == null ? other$fill != null : !((Object)this$fill).equals(other$fill));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof ScreenMarker;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        long $id = this.getId();
+        result = result * 59 + (int)($id >>> 32 ^ $id);
+        result = result * 59 + this.getBorderThickness();
+        result = result * 59 + (this.isVisible() ? 79 : 97);
+        result = result * 59 + (this.isLabelled() ? 79 : 97);
+        String $name = this.getName();
+        result = result * 59 + ($name == null ? 43 : $name.hashCode());
+        Color $color = this.getColor();
+        result = result * 59 + ($color == null ? 43 : ((Object)$color).hashCode());
+        Color $fill = this.getFill();
+        result = result * 59 + ($fill == null ? 43 : ((Object)$fill).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ScreenMarker(id=" + this.getId() + ", name=" + this.getName() + ", borderThickness=" + this.getBorderThickness() + ", color=" + this.getColor() + ", fill=" + this.getFill() + ", visible=" + this.isVisible() + ", labelled=" + this.isLabelled() + ")";
+    }
+
+    public ScreenMarker() {
+    }
+
+    public ScreenMarker(long id, String name, int borderThickness, Color color, Color fill, boolean visible, boolean labelled) {
+        this.id = id;
+        this.name = name;
+        this.borderThickness = borderThickness;
+        this.color = color;
+        this.fill = fill;
+        this.visible = visible;
+        this.labelled = labelled;
+    }
 }
+

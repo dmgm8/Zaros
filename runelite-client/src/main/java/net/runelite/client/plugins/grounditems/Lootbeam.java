@@ -1,33 +1,21 @@
 /*
- * Copyright (c) 2021, Trevor <https://github.com/Trevor159>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.Animation
+ *  net.runelite.api.Client
+ *  net.runelite.api.JagexColor
+ *  net.runelite.api.Model
+ *  net.runelite.api.ModelData
+ *  net.runelite.api.RuneLiteObject
+ *  net.runelite.api.coords.LocalPoint
+ *  net.runelite.api.coords.WorldPoint
  */
 package net.runelite.client.plugins.grounditems;
 
+import java.awt.Color;
 import java.util.function.Function;
-import lombok.RequiredArgsConstructor;
 import net.runelite.api.Animation;
-import net.runelite.api.AnimationID;
 import net.runelite.api.Client;
 import net.runelite.api.JagexColor;
 import net.runelite.api.Model;
@@ -35,116 +23,91 @@ import net.runelite.api.ModelData;
 import net.runelite.api.RuneLiteObject;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
-import java.awt.Color;
 import net.runelite.client.callback.ClientThread;
 
-class Lootbeam
-{
-	private final RuneLiteObject runeLiteObject;
-	private final Client client;
-	private final ClientThread clientThread;
-	private Color color;
-	private Style style;
+class Lootbeam {
+    private final RuneLiteObject runeLiteObject;
+    private final Client client;
+    private final ClientThread clientThread;
+    private Color color;
+    private Style style;
 
-	@RequiredArgsConstructor
-	public enum Style
-	{
-		LIGHT(l -> l.client.loadModel(
-			5809,
-			new short[]{6371},
-			new short[]{JagexColor.rgbToHSL(l.color.getRGB(), 1.0d)}
-		), anim(AnimationID.RAID_LIGHT_ANIMATION)),
-		MODERN(l ->
-		{
-			ModelData md = l.client.loadModelData(43330);
-			if (md == null)
-			{
-				return null;
-			}
+    private static Function<Lootbeam, Animation> anim(int id) {
+        return b -> b.client.loadAnimation(id);
+    }
 
-			short hsl = JagexColor.rgbToHSL(l.color.getRGB(), 1.0d);
-			int hue = JagexColor.unpackHue(hsl);
-			int sat = JagexColor.unpackSaturation(hsl);
-			int lum = JagexColor.unpackLuminance(hsl);
-			int satDelta = sat > 2 ? 1 : 0;
+    public Lootbeam(Client client, ClientThread clientThread, WorldPoint worldPoint, Color color, Style style) {
+        this.client = client;
+        this.clientThread = clientThread;
+        this.runeLiteObject = client.createRuneLiteObject();
+        this.color = color;
+        this.style = style;
+        this.update();
+        this.runeLiteObject.setShouldLoop(true);
+        LocalPoint lp = LocalPoint.fromWorld((Client)client, (WorldPoint)worldPoint);
+        this.runeLiteObject.setLocation(lp, client.getPlane());
+        this.runeLiteObject.setActive(true);
+    }
 
-			return md.cloneColors()
-				.recolor((short) 26432, JagexColor.packHSL(hue, sat - satDelta, lum))
-				.recolor((short) 26584, JagexColor.packHSL(hue, sat, Math.min(lum + 24, JagexColor.LUMINANCE_MAX)))
-				.light(75 + ModelData.DEFAULT_AMBIENT, 1875 + ModelData.DEFAULT_CONTRAST,
-					ModelData.DEFAULT_X, ModelData.DEFAULT_Y, ModelData.DEFAULT_Z);
-		}, anim(AnimationID.LOOTBEAM_ANIMATION)),
-		;
+    public void setColor(Color color) {
+        if (this.color != null && this.color.equals(color)) {
+            return;
+        }
+        this.color = color;
+        this.update();
+    }
 
-		private final Function<Lootbeam, Model> modelSupplier;
-		private final Function<Lootbeam, Animation> animationSupplier;
-	}
+    public void setStyle(Style style) {
+        if (this.style == style) {
+            return;
+        }
+        this.style = style;
+        this.update();
+    }
 
-	private static Function<Lootbeam, Animation> anim(int id)
-	{
-		return b -> b.client.loadAnimation(id);
-	}
+    private void update() {
+        this.clientThread.invoke(() -> {
+            Model model = (Model)this.style.modelSupplier.apply(this);
+            if (model == null) {
+                return false;
+            }
+            Animation anim = (Animation)this.style.animationSupplier.apply(this);
+            this.runeLiteObject.setAnimation(anim);
+            this.runeLiteObject.setModel(model);
+            return true;
+        });
+    }
 
-	public Lootbeam(Client client, ClientThread clientThread, WorldPoint worldPoint, Color color, Style style)
-	{
-		this.client = client;
-		this.clientThread = clientThread;
-		runeLiteObject = client.createRuneLiteObject();
+    public void remove() {
+        this.runeLiteObject.setActive(false);
+    }
 
-		this.color = color;
-		this.style = style;
-		update();
-		runeLiteObject.setShouldLoop(true);
+    static /* synthetic */ Function access$000(int x0) {
+        return Lootbeam.anim(x0);
+    }
 
-		LocalPoint lp = LocalPoint.fromWorld(client, worldPoint);
-		runeLiteObject.setLocation(lp, client.getPlane());
+    public static enum Style {
+        LIGHT(l -> ((Lootbeam)l).client.loadModel(5809, new short[]{6371}, new short[]{JagexColor.rgbToHSL((int)((Lootbeam)l).color.getRGB(), (double)1.0)}), Lootbeam.access$000(3101)),
+        MODERN(l -> {
+            ModelData md = ((Lootbeam)l).client.loadModelData(43330);
+            if (md == null) {
+                return null;
+            }
+            short hsl = JagexColor.rgbToHSL((int)((Lootbeam)l).color.getRGB(), (double)1.0);
+            int hue = JagexColor.unpackHue((short)hsl);
+            int sat = JagexColor.unpackSaturation((short)hsl);
+            int lum = JagexColor.unpackLuminance((short)hsl);
+            int satDelta = sat > 2 ? 1 : 0;
+            return md.cloneColors().recolor((short)26432, JagexColor.packHSL((int)hue, (int)(sat - satDelta), (int)lum)).recolor((short)26584, JagexColor.packHSL((int)hue, (int)sat, (int)Math.min(lum + 24, 127))).light(139, 2643, -50, -10, -50);
+        }, Lootbeam.access$000(9260));
 
-		runeLiteObject.setActive(true);
-	}
+        private final Function<Lootbeam, Model> modelSupplier;
+        private final Function<Lootbeam, Animation> animationSupplier;
 
-	public void setColor(Color color)
-	{
-		if (this.color != null && this.color.equals(color))
-		{
-			return;
-		}
-
-		this.color = color;
-		update();
-	}
-
-	public void setStyle(Style style)
-	{
-		if (this.style == style)
-		{
-			return;
-		}
-
-		this.style = style;
-		update();
-	}
-
-	private void update()
-	{
-		clientThread.invoke(() ->
-		{
-			Model model = style.modelSupplier.apply(this);
-			if (model == null)
-			{
-				return false;
-			}
-
-			Animation anim = style.animationSupplier.apply(this);
-
-			runeLiteObject.setAnimation(anim);
-			runeLiteObject.setModel(model);
-			return true;
-		});
-	}
-
-	public void remove()
-	{
-		runeLiteObject.setActive(false);
-	}
-
+        private Style(Function<Lootbeam, Model> modelSupplier, Function<Lootbeam, Animation> animationSupplier) {
+            this.modelSupplier = modelSupplier;
+            this.animationSupplier = animationSupplier;
+        }
+    }
 }
+

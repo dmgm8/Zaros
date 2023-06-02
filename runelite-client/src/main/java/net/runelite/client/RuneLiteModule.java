@@ -1,30 +1,25 @@
 /*
- * Copyright (c) 2016-2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Strings
+ *  com.google.common.math.DoubleMath
+ *  com.google.gson.Gson
+ *  com.google.inject.AbstractModule
+ *  com.google.inject.Provides
+ *  com.google.inject.binder.ConstantBindingBuilder
+ *  com.google.inject.name.Names
+ *  javax.annotation.Nullable
+ *  javax.inject.Named
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.hooks.Callbacks
+ *  net.runelite.http.api.RuneLiteAPI
+ *  okhttp3.HttpUrl
+ *  okhttp3.OkHttpClient
  */
 package net.runelite.client;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.common.base.Strings;
 import com.google.common.math.DoubleMath;
 import com.google.gson.Gson;
@@ -32,24 +27,22 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.binder.ConstantBindingBuilder;
 import com.google.inject.name.Names;
-import com.openosrs.client.config.OpenOSRSConfig;
 import java.applet.Applet;
 import java.io.File;
+import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.inject.Named;
 import javax.inject.Singleton;
-import lombok.AllArgsConstructor;
 import net.runelite.api.Client;
 import net.runelite.api.hooks.Callbacks;
+import net.runelite.client.RuneLiteProperties;
+import net.runelite.client.RuntimeConfig;
+import net.runelite.client.TelemetryClient;
 import net.runelite.client.account.SessionManager;
 import net.runelite.client.callback.Hooks;
 import net.runelite.client.chat.ChatMessageManager;
@@ -67,167 +60,136 @@ import net.runelite.http.api.RuneLiteAPI;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 
-@AllArgsConstructor
-public class RuneLiteModule extends AbstractModule
-{
-	private final OkHttpClient okHttpClient;
-	private final Supplier<Applet> clientLoader;
-	private final Supplier<RuntimeConfig> configSupplier;
-	private final boolean developerMode;
-	private final boolean safeMode;
-	private final File sessionfile;
-	private final File config;
+public class RuneLiteModule
+extends AbstractModule {
+    private final OkHttpClient okHttpClient;
+    private final Supplier<Applet> clientLoader;
+    private final Supplier<RuntimeConfig> configSupplier;
+    private final boolean developerMode;
+    private final boolean safeMode;
+    private final boolean disableTelemetry;
+    private final boolean vanilla;
+    private final File sessionfile;
+    private final File config;
 
-	@Override
-	protected void configure()
-	{
-		// bind properties
-		Properties properties = RuneLiteProperties.getProperties();
-		for (String key : properties.stringPropertyNames())
-		{
-			String value = properties.getProperty(key);
-			bindConstant().annotatedWith(Names.named(key)).to(value);
-		}
+    protected void configure() {
+        Properties properties = RuneLiteProperties.getProperties();
+        for (String key : properties.stringPropertyNames()) {
+            String value = properties.getProperty(key);
+            this.bindConstant().annotatedWith((Annotation)Names.named((String)key)).to(value);
+        }
+        RuntimeConfig runtimeConfig = this.configSupplier.get();
+        if (runtimeConfig != null && runtimeConfig.getProps() != null) {
+            for (Map.Entry<String, ?> entry : runtimeConfig.getProps().entrySet()) {
+                ConstantBindingBuilder binder;
+                if (entry.getValue() instanceof String) {
+                    binder = this.bindConstant().annotatedWith((Annotation)Names.named((String)entry.getKey()));
+                    binder.to((String)entry.getValue());
+                    continue;
+                }
+                if (!(entry.getValue() instanceof Double)) continue;
+                binder = this.bindConstant().annotatedWith((Annotation)Names.named((String)entry.getKey()));
+                if (DoubleMath.isMathematicalInteger((double)((Double)entry.getValue()))) {
+                    binder.to((int)((Double)entry.getValue()).doubleValue());
+                    continue;
+                }
+                binder.to(((Double)entry.getValue()).doubleValue());
+            }
+        }
+        this.bindConstant().annotatedWith((Annotation)Names.named((String)"developerMode")).to(this.developerMode);
+        this.bindConstant().annotatedWith((Annotation)Names.named((String)"safeMode")).to(this.safeMode);
+        this.bindConstant().annotatedWith((Annotation)Names.named((String)"disableTelemetry")).to(this.disableTelemetry);
+        this.bindConstant().annotatedWith((Annotation)Names.named((String)"vanilla")).to(this.vanilla);
+        this.bind(File.class).annotatedWith((Annotation)Names.named((String)"sessionfile")).toInstance((Object)this.sessionfile);
+        this.bind(File.class).annotatedWith((Annotation)Names.named((String)"config")).toInstance((Object)this.config);
+        this.bind(ScheduledExecutorService.class).toInstance((Object)new ExecutorServiceExceptionLogger(Executors.newSingleThreadScheduledExecutor()));
+        this.bind(OkHttpClient.class).toInstance((Object)this.okHttpClient);
+        this.bind(MenuManager.class);
+        this.bind(ChatMessageManager.class);
+        this.bind(ItemManager.class);
+        this.bind(Scheduler.class);
+        this.bind(PluginManager.class);
+        this.bind(SessionManager.class);
+        this.bind(Gson.class).toInstance((Object)RuneLiteAPI.GSON);
+        this.bind(Callbacks.class).to(Hooks.class);
+        this.bind(EventBus.class).toInstance((Object)new EventBus());
+        this.bind(EventBus.class).annotatedWith((Annotation)Names.named((String)"Deferred EventBus")).to(DeferredEventBus.class);
+    }
 
-		// bind runtime config
-		RuntimeConfig runtimeConfig = configSupplier.get();
-		if (runtimeConfig != null && runtimeConfig.getProps() != null)
-		{
-			for (Map.Entry<String, ?> entry : runtimeConfig.getProps().entrySet())
-			{
-				if (entry.getValue() instanceof String)
-				{
-					ConstantBindingBuilder binder = bindConstant().annotatedWith(Names.named(entry.getKey()));
-					binder.to((String) entry.getValue());
-				}
-				else if (entry.getValue() instanceof Double)
-				{
-					ConstantBindingBuilder binder = bindConstant().annotatedWith(Names.named(entry.getKey()));
-					if (DoubleMath.isMathematicalInteger((double) entry.getValue()))
-					{
-						binder.to((int) (double) entry.getValue());
-					}
-					else
-					{
-						binder.to((double) entry.getValue());
-					}
-				}
-			}
-		}
+    @Provides
+    @Singleton
+    Applet provideApplet() {
+        return this.clientLoader.get();
+    }
 
-		bindConstant().annotatedWith(Names.named("developerMode")).to(developerMode);
-		bindConstant().annotatedWith(Names.named("safeMode")).to(safeMode);
-		bind(File.class).annotatedWith(Names.named("sessionfile")).toInstance(sessionfile);
-		bind(File.class).annotatedWith(Names.named("config")).toInstance(config);
-		bind(ScheduledExecutorService.class).toInstance(new ExecutorServiceExceptionLogger(Executors.newSingleThreadScheduledExecutor()));
-		bind(OkHttpClient.class).toInstance(okHttpClient);
-		bind(MenuManager.class);
-		bind(ChatMessageManager.class);
-		bind(ItemManager.class);
-		bind(Scheduler.class);
-		bind(PluginManager.class);
-		bind(SessionManager.class);
+    @Provides
+    @Singleton
+    Client provideClient(@Nullable Applet applet) {
+        return applet instanceof Client ? (Client)applet : null;
+    }
 
-		bind(Gson.class).toInstance(RuneLiteAPI.GSON);
+    @Provides
+    @Singleton
+    RuntimeConfig provideRuntimeConfig() {
+        return this.configSupplier.get();
+    }
 
-		bind(Callbacks.class).to(Hooks.class);
+    @Provides
+    @Singleton
+    RuneLiteConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(RuneLiteConfig.class);
+    }
 
-		bind(EventBus.class)
-			.toInstance(new EventBus());
+    @Provides
+    @Singleton
+    ChatColorConfig provideChatColorConfig(ConfigManager configManager) {
+        return configManager.getConfig(ChatColorConfig.class);
+    }
 
-		bind(EventBus.class)
-			.annotatedWith(Names.named("Deferred EventBus"))
-			.to(DeferredEventBus.class);
-	}
+    @Provides
+    @Named(value="runelite.api.base")
+    HttpUrl provideApiBase(@Named(value="runelite.api.base") String s) {
+        String prop = System.getProperty("runelite.http-service.url");
+        return HttpUrl.get((String)(Strings.isNullOrEmpty((String)prop) ? s : prop));
+    }
 
-	@Provides
-	@Singleton
-	Applet provideApplet()
-	{
-		return clientLoader.get();
-	}
+    @Provides
+    @Named(value="runelite.session")
+    HttpUrl provideSession(@Named(value="runelite.session") String s) {
+        String prop = System.getProperty("runelite.session.url");
+        return HttpUrl.get((String)(Strings.isNullOrEmpty((String)prop) ? s : prop));
+    }
 
-	@Provides
-	@Singleton
-	Client provideClient(@Nullable Applet applet)
-	{
-		return applet instanceof Client ? (Client) applet : null;
-	}
+    @Provides
+    @Named(value="runelite.static.base")
+    HttpUrl provideStaticBase(@Named(value="runelite.static.base") String s) {
+        String prop = System.getProperty("runelite.static.url");
+        return HttpUrl.get((String)(Strings.isNullOrEmpty((String)prop) ? s : prop));
+    }
 
-	@Provides
-	@Singleton
-	RuntimeConfig provideRuntimeConfig()
-	{
-		return configSupplier.get();
-	}
+    @Provides
+    @Named(value="runelite.ws")
+    HttpUrl provideWs(@Named(value="runelite.ws") String s) {
+        String prop = System.getProperty("runelite.ws.url");
+        return HttpUrl.get((String)(Strings.isNullOrEmpty((String)prop) ? s : prop));
+    }
 
-	@Provides
-	@Singleton
-	RuneLiteConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(RuneLiteConfig.class);
-	}
+    @Provides
+    @Singleton
+    TelemetryClient provideTelemetry(OkHttpClient okHttpClient, Gson gson, @Named(value="runelite.api.base") HttpUrl apiBase) {
+        return this.disableTelemetry ? null : new TelemetryClient(okHttpClient, gson, apiBase);
+    }
 
-	@Provides
-	@Singleton
-	ChatColorConfig provideChatColorConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(ChatColorConfig.class);
-	}
-
-	@Provides
-	@Named("runelite.api.base")
-	HttpUrl provideApiBase(@Named("runelite.api.base") String s)
-	{
-		final String prop = System.getProperty("runelite.http-service.url");
-		return HttpUrl.get(Strings.isNullOrEmpty(prop) ? s : prop);
-	}
-
-	@Provides
-	@Named("runelite.session")
-	HttpUrl provideSession(@Named("runelite.session") String s)
-	{
-		final String prop = System.getProperty("runelite.session.url");
-		return HttpUrl.get(Strings.isNullOrEmpty(prop) ? s : prop);
-	}
-
-	@Provides
-	@Named("runelite.static.base")
-	HttpUrl provideStaticBase(@Named("runelite.static.base") String s)
-	{
-		final String prop = System.getProperty("runelite.static.url");
-		return HttpUrl.get(Strings.isNullOrEmpty(prop) ? s : prop);
-	}
-
-	@Provides
-	@Named("runelite.ws")
-	HttpUrl provideWs(@Named("runelite.ws") String s)
-	{
-		final String prop = System.getProperty("runelite.ws.url");
-		return HttpUrl.get(Strings.isNullOrEmpty(prop) ? s : prop);
-	}
-
-	@Provides
-	@Singleton
-	OpenOSRSConfig provideOpenOSRSConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(OpenOSRSConfig.class);
-	}
-
-	@Provides
-	@Singleton
-	ExecutorService provideExecutorService()
-	{
-		int poolSize = 2 * Runtime.getRuntime().availableProcessors();
-
-		// Will start up to poolSize threads (because of allowCoreThreadTimeOut) as necessary, and times out
-		// unused threads after 1 minute
-		ThreadPoolExecutor executor = new ThreadPoolExecutor(poolSize, poolSize,
-			60L, TimeUnit.SECONDS,
-			new LinkedBlockingQueue<>(),
-			new ThreadFactoryBuilder().setNameFormat("worker-%d").build());
-		executor.allowCoreThreadTimeOut(true);
-
-		return new NonScheduledExecutorServiceExceptionLogger(executor);
-	}
+    public RuneLiteModule(OkHttpClient okHttpClient, Supplier<Applet> clientLoader, Supplier<RuntimeConfig> configSupplier, boolean developerMode, boolean safeMode, boolean disableTelemetry, boolean vanilla, File sessionfile, File config) {
+        this.okHttpClient = okHttpClient;
+        this.clientLoader = clientLoader;
+        this.configSupplier = configSupplier;
+        this.developerMode = developerMode;
+        this.safeMode = safeMode;
+        this.disableTelemetry = disableTelemetry;
+        this.vanilla = vanilla;
+        this.sessionfile = sessionfile;
+        this.config = config;
+    }
 }
+

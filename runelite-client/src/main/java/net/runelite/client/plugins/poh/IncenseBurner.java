@@ -1,46 +1,63 @@
 /*
- * Copyright (c) 2018, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.poh;
 
 import java.time.Instant;
-import lombok.Getter;
-import lombok.Setter;
 
-@Getter
-@Setter
-class IncenseBurner
-{
-	private Instant start;
-	private boolean lit;
-	private double countdownTimer;
-	private double randomTimer;
-	private Instant end;
+class IncenseBurner {
+    private Instant start;
+    private boolean lit;
+    private double countdownTimer;
+    private double randomTimer;
+    private Instant end;
 
-	void reset()
-	{
-		countdownTimer = 0;
-		randomTimer = 0;
-	}
+    IncenseBurner() {
+    }
+
+    void reset() {
+        this.countdownTimer = 0.0;
+        this.randomTimer = 0.0;
+    }
+
+    public Instant getStart() {
+        return this.start;
+    }
+
+    public boolean isLit() {
+        return this.lit;
+    }
+
+    public double getCountdownTimer() {
+        return this.countdownTimer;
+    }
+
+    public double getRandomTimer() {
+        return this.randomTimer;
+    }
+
+    public Instant getEnd() {
+        return this.end;
+    }
+
+    public void setStart(Instant start) {
+        this.start = start;
+    }
+
+    public void setLit(boolean lit) {
+        this.lit = lit;
+    }
+
+    public void setCountdownTimer(double countdownTimer) {
+        this.countdownTimer = countdownTimer;
+    }
+
+    public void setRandomTimer(double randomTimer) {
+        this.randomTimer = randomTimer;
+    }
+
+    public void setEnd(Instant end) {
+        this.end = end;
+    }
 }
+

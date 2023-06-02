@@ -1,39 +1,94 @@
 /*
- * Copyright (c) 2019, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.discord;
 
-import lombok.EqualsAndHashCode;
-import lombok.Value;
 import net.runelite.client.party.messages.PartyMemberMessage;
 
-@Value
-@EqualsAndHashCode(callSuper = true)
-class DiscordUserInfo extends PartyMemberMessage
-{
-	private final String userId;
-	private final String username;
-	private final String discriminator;
-	private final String avatarId;
+final class DiscordUserInfo
+extends PartyMemberMessage {
+    private final String userId;
+    private final String username;
+    private final String discriminator;
+    private final String avatarId;
+
+    public DiscordUserInfo(String userId, String username, String discriminator, String avatarId) {
+        this.userId = userId;
+        this.username = username;
+        this.discriminator = discriminator;
+        this.avatarId = avatarId;
+    }
+
+    public String getUserId() {
+        return this.userId;
+    }
+
+    public String getUsername() {
+        return this.username;
+    }
+
+    public String getDiscriminator() {
+        return this.discriminator;
+    }
+
+    public String getAvatarId() {
+        return this.avatarId;
+    }
+
+    public String toString() {
+        return "DiscordUserInfo(userId=" + this.getUserId() + ", username=" + this.getUsername() + ", discriminator=" + this.getDiscriminator() + ", avatarId=" + this.getAvatarId() + ")";
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof DiscordUserInfo)) {
+            return false;
+        }
+        DiscordUserInfo other = (DiscordUserInfo)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        String this$userId = this.getUserId();
+        String other$userId = other.getUserId();
+        if (this$userId == null ? other$userId != null : !this$userId.equals(other$userId)) {
+            return false;
+        }
+        String this$username = this.getUsername();
+        String other$username = other.getUsername();
+        if (this$username == null ? other$username != null : !this$username.equals(other$username)) {
+            return false;
+        }
+        String this$discriminator = this.getDiscriminator();
+        String other$discriminator = other.getDiscriminator();
+        if (this$discriminator == null ? other$discriminator != null : !this$discriminator.equals(other$discriminator)) {
+            return false;
+        }
+        String this$avatarId = this.getAvatarId();
+        String other$avatarId = other.getAvatarId();
+        return !(this$avatarId == null ? other$avatarId != null : !this$avatarId.equals(other$avatarId));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof DiscordUserInfo;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = super.hashCode();
+        String $userId = this.getUserId();
+        result = result * 59 + ($userId == null ? 43 : $userId.hashCode());
+        String $username = this.getUsername();
+        result = result * 59 + ($username == null ? 43 : $username.hashCode());
+        String $discriminator = this.getDiscriminator();
+        result = result * 59 + ($discriminator == null ? 43 : $discriminator.hashCode());
+        String $avatarId = this.getAvatarId();
+        result = result * 59 + ($avatarId == null ? 43 : $avatarId.hashCode());
+        return result;
+    }
 }
+

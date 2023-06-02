@@ -1,27 +1,27 @@
 /*
- * Copyright (c) 2017, Tyler <https://github.com/tylerthardy>
- * Copyright (c) 2020, dekvall <https://github.com/dekvall>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ImmutableList
+ *  com.google.common.collect.ImmutableSet
+ *  com.google.common.collect.Lists
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.TileObject
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.GameObjectDespawned
+ *  net.runelite.api.events.GameObjectSpawned
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GroundObjectDespawned
+ *  net.runelite.api.events.GroundObjectSpawned
+ *  net.runelite.api.events.MenuOptionClicked
+ *  net.runelite.api.events.VarbitChanged
+ *  org.apache.commons.lang3.ArrayUtils
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.herbiboars;
 
@@ -35,24 +35,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.MenuAction;
-import static net.runelite.api.ObjectID.DRIFTWOOD_30523;
-import static net.runelite.api.ObjectID.MUSHROOM_30520;
-import static net.runelite.api.ObjectID.ROCK_30519;
-import static net.runelite.api.ObjectID.ROCK_30521;
-import static net.runelite.api.ObjectID.ROCK_30522;
 import net.runelite.api.TileObject;
-import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.GameObjectChanged;
 import net.runelite.api.events.GameObjectDespawned;
 import net.runelite.api.events.GameObjectSpawned;
 import net.runelite.api.events.GameStateChanged;
-import net.runelite.api.events.GroundObjectChanged;
 import net.runelite.api.events.GroundObjectDespawned;
 import net.runelite.api.events.GroundObjectSpawned;
 import net.runelite.api.events.MenuOptionClicked;
@@ -62,345 +52,301 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.herbiboars.HerbiboarConfig;
+import net.runelite.client.plugins.herbiboars.HerbiboarMinimapOverlay;
+import net.runelite.client.plugins.herbiboars.HerbiboarOverlay;
+import net.runelite.client.plugins.herbiboars.HerbiboarRule;
+import net.runelite.client.plugins.herbiboars.HerbiboarSearchSpot;
+import net.runelite.client.plugins.herbiboars.HerbiboarStart;
+import net.runelite.client.plugins.herbiboars.TrailToSpot;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.Text;
 import org.apache.commons.lang3.ArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@PluginDescriptor(
-	name = "Herbiboar",
-	description = "Highlight starting rocks, trails, and the objects to search at the end of each trail",
-	tags = {"herblore", "hunter", "skilling", "overlay"}
-)
-@Slf4j
-@Getter
-public class HerbiboarPlugin extends Plugin
-{
-	private static final List<WorldPoint> END_LOCATIONS = ImmutableList.of(
-		new WorldPoint(3693, 3798, 0),
-		new WorldPoint(3702, 3808, 0),
-		new WorldPoint(3703, 3826, 0),
-		new WorldPoint(3710, 3881, 0),
-		new WorldPoint(3700, 3877, 0),
-		new WorldPoint(3715, 3840, 0),
-		new WorldPoint(3751, 3849, 0),
-		new WorldPoint(3685, 3869, 0),
-		new WorldPoint(3681, 3863, 0)
-	);
+@PluginDescriptor(name="Herbiboar", description="Highlight starting rocks, trails, and the objects to search at the end of each trail", tags={"herblore", "hunter", "skilling", "overlay"}, forceDisabled=true)
+public class HerbiboarPlugin
+extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(HerbiboarPlugin.class);
+    private static final List<WorldPoint> END_LOCATIONS = ImmutableList.of((Object)new WorldPoint(3693, 3798, 0), (Object)new WorldPoint(3702, 3808, 0), (Object)new WorldPoint(3703, 3826, 0), (Object)new WorldPoint(3710, 3881, 0), (Object)new WorldPoint(3700, 3877, 0), (Object)new WorldPoint(3715, 3840, 0), (Object)new WorldPoint(3751, 3849, 0), (Object)new WorldPoint(3685, 3869, 0), (Object)new WorldPoint(3681, 3863, 0));
+    private static final Set<Integer> START_OBJECT_IDS = ImmutableSet.of((Object)30519, (Object)30520, (Object)30521, (Object)30522, (Object)30523);
+    private static final List<Integer> HERBIBOAR_REGIONS = ImmutableList.of((Object)14652, (Object)14651, (Object)14908, (Object)14907);
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private HerbiboarOverlay overlay;
+    @Inject
+    private HerbiboarMinimapOverlay minimapOverlay;
+    private final Map<WorldPoint, TileObject> starts = new HashMap<WorldPoint, TileObject>();
+    private final Map<WorldPoint, TileObject> trails = new HashMap<WorldPoint, TileObject>();
+    private final Map<WorldPoint, TileObject> trailObjects = new HashMap<WorldPoint, TileObject>();
+    private final Map<WorldPoint, TileObject> tunnels = new HashMap<WorldPoint, TileObject>();
+    private final Set<Integer> shownTrails = new HashSet<Integer>();
+    private final List<HerbiboarSearchSpot> currentPath = Lists.newArrayList();
+    private boolean inHerbiboarArea;
+    private TrailToSpot nextTrail;
+    private HerbiboarSearchSpot.Group currentGroup;
+    private int finishId;
+    private boolean started;
+    private WorldPoint startPoint;
+    private HerbiboarStart startSpot;
+    private boolean ruleApplicable;
 
-	private static final Set<Integer> START_OBJECT_IDS = ImmutableSet.of(
-		ROCK_30519,
-		MUSHROOM_30520,
-		ROCK_30521,
-		ROCK_30522,
-		DRIFTWOOD_30523
-	);
+    @Provides
+    HerbiboarConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(HerbiboarConfig.class);
+    }
 
-	private static final List<Integer> HERBIBOAR_REGIONS = ImmutableList.of(
-		14652,
-		14651,
-		14908,
-		14907
-	);
+    @Override
+    protected void startUp() throws Exception {
+        this.overlayManager.add(this.overlay);
+        this.overlayManager.add(this.minimapOverlay);
+        if (this.client.getGameState() == GameState.LOGGED_IN) {
+            this.clientThread.invokeLater(() -> {
+                this.inHerbiboarArea = this.checkArea();
+                this.updateTrailData();
+            });
+        }
+    }
 
-	@Inject
-	private Client client;
+    @Override
+    protected void shutDown() throws Exception {
+        this.overlayManager.remove(this.overlay);
+        this.overlayManager.remove(this.minimapOverlay);
+        this.resetTrailData();
+        this.clearCache();
+        this.inHerbiboarArea = false;
+    }
 
-	@Inject
-	private ClientThread clientThread;
+    private void updateTrailData() {
+        boolean finished;
+        if (!this.isInHerbiboarArea()) {
+            return;
+        }
+        boolean pathActive = false;
+        boolean wasStarted = this.started;
+        for (HerbiboarSearchSpot spot : HerbiboarSearchSpot.values()) {
+            for (TrailToSpot trail : spot.getTrails()) {
+                int value = this.client.getVarbitValue(trail.getVarbitId());
+                if (value == trail.getValue()) {
+                    this.currentGroup = spot.getGroup();
+                    this.nextTrail = trail;
+                    if (this.currentPath.contains((Object)spot)) continue;
+                    this.currentPath.add(spot);
+                    continue;
+                }
+                if (value <= 0) continue;
+                this.shownTrails.addAll(trail.getFootprintIds());
+                pathActive = true;
+            }
+        }
+        this.finishId = this.client.getVarbitValue(5766);
+        this.started = this.client.getVarbitValue(5767) > 0 || this.currentGroup != null;
+        boolean bl = finished = !pathActive && this.started;
+        if (!wasStarted && this.started) {
+            this.startSpot = HerbiboarStart.from(this.startPoint);
+        }
+        this.ruleApplicable = HerbiboarRule.canApplyRule(this.startSpot, this.currentPath);
+        if (finished) {
+            this.resetTrailData();
+        }
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Subscribe
+    public void onMenuOptionClicked(MenuOptionClicked menuOpt) {
+        if (!this.inHerbiboarArea || this.started || MenuAction.GAME_OBJECT_FIRST_OPTION != menuOpt.getMenuAction()) {
+            return;
+        }
+        switch (Text.removeTags(menuOpt.getMenuTarget())) {
+            case "Rock": 
+            case "Mushroom": 
+            case "Driftwood": {
+                this.startPoint = WorldPoint.fromScene((Client)this.client, (int)menuOpt.getParam0(), (int)menuOpt.getParam1(), (int)this.client.getPlane());
+            }
+        }
+    }
 
-	@Inject
-	private HerbiboarOverlay overlay;
+    private void resetTrailData() {
+        log.debug("Reset trail data");
+        this.shownTrails.clear();
+        this.currentPath.clear();
+        this.nextTrail = null;
+        this.currentGroup = null;
+        this.finishId = 0;
+        this.started = false;
+        this.startPoint = null;
+        this.startSpot = null;
+        this.ruleApplicable = false;
+    }
 
-	@Inject
-	private HerbiboarMinimapOverlay minimapOverlay;
+    private void clearCache() {
+        this.starts.clear();
+        this.trails.clear();
+        this.trailObjects.clear();
+        this.tunnels.clear();
+    }
 
-	/**
-	 * Objects which appear at the beginning of Herbiboar hunting trails
-	 */
-	private final Map<WorldPoint, TileObject> starts = new HashMap<>();
-	/**
-	 * Herbiboar hunting "footstep" trail objects
-	 */
-	private final Map<WorldPoint, TileObject> trails = new HashMap<>();
-	/**
-	 * Objects which trigger next trail (mushrooms, mud, seaweed, etc)
-	 */
-	private final Map<WorldPoint, TileObject> trailObjects = new HashMap<>();
-	/**
-	 * Tunnel where the Herbiboar is hiding at the end of a trail
-	 */
-	private final Map<WorldPoint, TileObject> tunnels = new HashMap<>();
-	/**
-	 * Trail object IDs which should be highlighted
-	 */
-	private final Set<Integer> shownTrails = new HashSet<>();
-	/**
-	 * Sequence of herbiboar spots searched along the current trail
-	 */
-	private final List<HerbiboarSearchSpot> currentPath = Lists.newArrayList();
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        switch (event.getGameState()) {
+            case HOPPING: 
+            case LOGGING_IN: {
+                this.resetTrailData();
+                break;
+            }
+            case LOADING: {
+                this.clearCache();
+                this.inHerbiboarArea = this.checkArea();
+                break;
+            }
+        }
+    }
 
-	private boolean inHerbiboarArea;
-	private TrailToSpot nextTrail;
-	private HerbiboarSearchSpot.Group currentGroup;
-	private int finishId;
+    @Subscribe
+    public void onVarbitChanged(VarbitChanged event) {
+        this.updateTrailData();
+    }
 
-	private boolean started;
-	private WorldPoint startPoint;
-	private HerbiboarStart startSpot;
-	private boolean ruleApplicable;
+    @Subscribe
+    public void onGameObjectSpawned(GameObjectSpawned event) {
+        this.onTileObject(null, (TileObject)event.getGameObject());
+    }
 
-	@Provides
-	HerbiboarConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(HerbiboarConfig.class);
-	}
+    @Subscribe
+    public void onGameObjectDespawned(GameObjectDespawned event) {
+        this.onTileObject((TileObject)event.getGameObject(), null);
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		overlayManager.add(overlay);
-		overlayManager.add(minimapOverlay);
+    @Subscribe
+    public void onGroundObjectSpawned(GroundObjectSpawned event) {
+        this.onTileObject(null, (TileObject)event.getGroundObject());
+    }
 
-		if (client.getGameState() == GameState.LOGGED_IN)
-		{
-			clientThread.invokeLater(() ->
-			{
-				inHerbiboarArea = checkArea();
-				updateTrailData();
-			});
-		}
-	}
+    @Subscribe
+    public void onGroundObjectDespawned(GroundObjectDespawned event) {
+        this.onTileObject((TileObject)event.getGroundObject(), null);
+    }
 
-	@Override
-	protected void shutDown() throws Exception
-	{
-		overlayManager.remove(overlay);
-		overlayManager.remove(minimapOverlay);
-		resetTrailData();
-		clearCache();
-		inHerbiboarArea = false;
-	}
+    private void onTileObject(TileObject oldObject, TileObject newObject) {
+        if (oldObject != null) {
+            WorldPoint oldLocation = oldObject.getWorldLocation();
+            this.starts.remove((Object)oldLocation);
+            this.trails.remove((Object)oldLocation);
+            this.trailObjects.remove((Object)oldLocation);
+            this.tunnels.remove((Object)oldLocation);
+        }
+        if (newObject == null) {
+            return;
+        }
+        if (START_OBJECT_IDS.contains(newObject.getId())) {
+            this.starts.put(newObject.getWorldLocation(), newObject);
+            return;
+        }
+        if (HerbiboarSearchSpot.isTrail(newObject.getId())) {
+            this.trails.put(newObject.getWorldLocation(), newObject);
+            return;
+        }
+        if (HerbiboarSearchSpot.isSearchSpot(newObject.getWorldLocation())) {
+            this.trailObjects.put(newObject.getWorldLocation(), newObject);
+            return;
+        }
+        if (END_LOCATIONS.contains((Object)newObject.getWorldLocation())) {
+            this.tunnels.put(newObject.getWorldLocation(), newObject);
+        }
+    }
 
-	private void updateTrailData()
-	{
-		if (!isInHerbiboarArea())
-		{
-			return;
-		}
+    private boolean checkArea() {
+        int[] mapRegions = this.client.getMapRegions();
+        for (int region : HERBIBOAR_REGIONS) {
+            if (!ArrayUtils.contains((int[])mapRegions, (int)region)) continue;
+            return true;
+        }
+        return false;
+    }
 
-		boolean pathActive = false;
-		boolean wasStarted = started;
+    List<WorldPoint> getEndLocations() {
+        return END_LOCATIONS;
+    }
 
-		// Get trail data
-		for (HerbiboarSearchSpot spot : HerbiboarSearchSpot.values())
-		{
-			for (TrailToSpot trail : spot.getTrails())
-			{
-				int value = client.getVarbitValue(trail.getVarbitId());
+    public Client getClient() {
+        return this.client;
+    }
 
-				if (value == trail.getValue())
-				{
-					// The trail after you have searched the spot
-					currentGroup = spot.getGroup();
-					nextTrail = trail;
+    public ClientThread getClientThread() {
+        return this.clientThread;
+    }
 
-					// You never visit the same spot twice
-					if (!currentPath.contains(spot))
-					{
-						currentPath.add(spot);
-					}
-				}
-				else if (value > 0)
-				{
-					// The current trail
-					shownTrails.addAll(trail.getFootprintIds());
-					pathActive = true;
-				}
-			}
-		}
+    public OverlayManager getOverlayManager() {
+        return this.overlayManager;
+    }
 
-		finishId = client.getVarbitValue(Varbits.HB_FINISH);
+    public HerbiboarOverlay getOverlay() {
+        return this.overlay;
+    }
 
-		// The started varbit doesn't get set until the first spot of the rotation has been searched
-		// so we need to use the current group as an indicator of the rotation being started
-		started = client.getVarbitValue(Varbits.HB_STARTED) > 0 || currentGroup != null;
-		boolean finished = !pathActive && started;
+    public HerbiboarMinimapOverlay getMinimapOverlay() {
+        return this.minimapOverlay;
+    }
 
-		if (!wasStarted && started)
-		{
-			startSpot = HerbiboarStart.from(startPoint);
-		}
+    public Map<WorldPoint, TileObject> getStarts() {
+        return this.starts;
+    }
 
-		ruleApplicable = HerbiboarRule.canApplyRule(startSpot, currentPath);
+    public Map<WorldPoint, TileObject> getTrails() {
+        return this.trails;
+    }
 
-		if (finished)
-		{
-			resetTrailData();
-		}
-	}
+    public Map<WorldPoint, TileObject> getTrailObjects() {
+        return this.trailObjects;
+    }
 
-	@Subscribe
-	public void onMenuOptionClicked(MenuOptionClicked menuOpt)
-	{
-		if (!inHerbiboarArea || started || MenuAction.GAME_OBJECT_FIRST_OPTION != menuOpt.getMenuAction())
-		{
-			return;
-		}
+    public Map<WorldPoint, TileObject> getTunnels() {
+        return this.tunnels;
+    }
 
-		switch (Text.removeTags(menuOpt.getMenuTarget()))
-		{
-			case "Rock":
-			case "Mushroom":
-			case "Driftwood":
-				startPoint = WorldPoint.fromScene(client, menuOpt.getParam0(), menuOpt.getParam1(), client.getPlane());
-		}
-	}
+    public Set<Integer> getShownTrails() {
+        return this.shownTrails;
+    }
 
-	private void resetTrailData()
-	{
-		log.debug("Reset trail data");
-		shownTrails.clear();
-		currentPath.clear();
-		nextTrail = null;
-		currentGroup = null;
-		finishId = 0;
-		started = false;
-		startPoint = null;
-		startSpot = null;
-		ruleApplicable = false;
-	}
+    public List<HerbiboarSearchSpot> getCurrentPath() {
+        return this.currentPath;
+    }
 
-	private void clearCache()
-	{
-		starts.clear();
-		trails.clear();
-		trailObjects.clear();
-		tunnels.clear();
-	}
+    public boolean isInHerbiboarArea() {
+        return this.inHerbiboarArea;
+    }
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		switch (event.getGameState())
-		{
-			case HOPPING:
-			case LOGGING_IN:
-				resetTrailData();
-				break;
-			case LOADING:
-				clearCache();
-				inHerbiboarArea = checkArea();
-				break;
-			default:
-				break;
-		}
-	}
+    public TrailToSpot getNextTrail() {
+        return this.nextTrail;
+    }
 
-	@Subscribe
-	public void onVarbitChanged(VarbitChanged event)
-	{
-		updateTrailData();
-	}
+    public HerbiboarSearchSpot.Group getCurrentGroup() {
+        return this.currentGroup;
+    }
 
-	@Subscribe
-	public void onGameObjectSpawned(GameObjectSpawned event)
-	{
-		onTileObject(null, event.getGameObject());
-	}
+    public int getFinishId() {
+        return this.finishId;
+    }
 
-	@Subscribe
-	public void onGameObjectChanged(GameObjectChanged event)
-	{
-		onTileObject(event.getPrevious(), event.getGameObject());
-	}
+    public boolean isStarted() {
+        return this.started;
+    }
 
-	@Subscribe
-	public void onGameObjectDespawned(GameObjectDespawned event)
-	{
-		onTileObject(event.getGameObject(), null);
-	}
+    public WorldPoint getStartPoint() {
+        return this.startPoint;
+    }
 
-	@Subscribe
-	public void onGroundObjectSpawned(GroundObjectSpawned event)
-	{
-		onTileObject(null, event.getGroundObject());
-	}
+    public HerbiboarStart getStartSpot() {
+        return this.startSpot;
+    }
 
-	@Subscribe
-	public void onGroundObjectChanged(GroundObjectChanged event)
-	{
-		onTileObject(event.getPrevious(), event.getGroundObject());
-	}
-
-	@Subscribe
-	public void onGroundObjectDespawned(GroundObjectDespawned event)
-	{
-		onTileObject(event.getGroundObject(), null);
-	}
-
-	// Store relevant GameObjects (starts, tracks on trails, objects used to trigger next trails, and tunnels)
-	private void onTileObject(TileObject oldObject, TileObject newObject)
-	{
-		if (oldObject != null)
-		{
-			WorldPoint oldLocation = oldObject.getWorldLocation();
-			starts.remove(oldLocation);
-			trails.remove(oldLocation);
-			trailObjects.remove(oldLocation);
-			tunnels.remove(oldLocation);
-		}
-
-		if (newObject == null)
-		{
-			return;
-		}
-
-		// Starts
-		if (START_OBJECT_IDS.contains(newObject.getId()))
-		{
-			starts.put(newObject.getWorldLocation(), newObject);
-			return;
-		}
-
-		// Trails
-		if (HerbiboarSearchSpot.isTrail(newObject.getId()))
-		{
-			trails.put(newObject.getWorldLocation(), newObject);
-			return;
-		}
-
-		// GameObject to trigger next trail (mushrooms, mud, seaweed, etc)
-		if (HerbiboarSearchSpot.isSearchSpot(newObject.getWorldLocation()))
-		{
-			trailObjects.put(newObject.getWorldLocation(), newObject);
-			return;
-		}
-
-		// Herbiboar tunnel
-		if (END_LOCATIONS.contains(newObject.getWorldLocation()))
-		{
-			tunnels.put(newObject.getWorldLocation(), newObject);
-		}
-	}
-
-	private boolean checkArea()
-	{
-		final int[] mapRegions = client.getMapRegions();
-		for (int region : HERBIBOAR_REGIONS)
-		{
-			if (ArrayUtils.contains(mapRegions, region))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	List<WorldPoint> getEndLocations()
-	{
-		return END_LOCATIONS;
-	}
+    public boolean isRuleApplicable() {
+        return this.ruleApplicable;
+    }
 }
+

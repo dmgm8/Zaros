@@ -1,105 +1,106 @@
 /*
- * Copyright (c) 2018, Seth <http://github.com/sethtroll>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.EvictingQueue
+ *  net.runelite.api.Client
+ *  net.runelite.api.Skill
  */
 package net.runelite.client.plugins.agility;
 
 import com.google.common.collect.EvictingQueue;
-import lombok.Getter;
-import lombok.Setter;
-import net.runelite.api.Client;
-import net.runelite.api.Skill;
-import net.runelite.client.plugins.xptracker.XpTrackerService;
 import java.time.Duration;
 import java.time.Instant;
+import net.runelite.api.Client;
+import net.runelite.api.Skill;
+import net.runelite.client.plugins.agility.Courses;
+import net.runelite.client.plugins.xptracker.XpTrackerService;
 
-@Getter
-@Setter
-class AgilitySession
-{
-	private final Courses course;
-	private Instant lastLapCompleted;
-	private int totalLaps;
-	private int lapsTillGoal;
-	private final EvictingQueue<Duration> lastLapTimes = EvictingQueue.create(30);
-	private int lapsPerHour;
+class AgilitySession {
+    private final Courses course;
+    private Instant lastLapCompleted;
+    private int totalLaps;
+    private int lapsTillGoal;
+    private final EvictingQueue<Duration> lastLapTimes = EvictingQueue.create((int)30);
+    private int lapsPerHour;
 
-	AgilitySession(Courses course)
-	{
-		this.course = course;
-	}
+    AgilitySession(Courses course) {
+        this.course = course;
+    }
 
-	void incrementLapCount(Client client, XpTrackerService xpTrackerService)
-	{
-		calculateLapsPerHour();
+    void incrementLapCount(Client client, XpTrackerService xpTrackerService) {
+        this.calculateLapsPerHour();
+        ++this.totalLaps;
+        int currentExp = client.getSkillExperience(Skill.AGILITY);
+        int goalXp = xpTrackerService.getEndGoalXp(Skill.AGILITY);
+        int goalRemainingXp = goalXp - currentExp;
+        double courseTotalExp = this.course.getTotalXp();
+        if (this.course == Courses.PYRAMID) {
+            courseTotalExp += (double)Math.min(300 + 8 * client.getRealSkillLevel(Skill.AGILITY), 1000);
+        }
+        this.lapsTillGoal = goalRemainingXp > 0 ? (int)Math.ceil((double)goalRemainingXp / courseTotalExp) : 0;
+    }
 
-		++totalLaps;
+    void calculateLapsPerHour() {
+        Duration timeSinceLastLap;
+        Instant now = Instant.now();
+        if (this.lastLapCompleted != null && !(timeSinceLastLap = Duration.between(this.lastLapCompleted, now)).isNegative()) {
+            this.lastLapTimes.add((Object)timeSinceLastLap);
+            Duration sum = Duration.ZERO;
+            for (Duration lapTime : this.lastLapTimes) {
+                sum = sum.plus(lapTime);
+            }
+            Duration averageLapTime = sum.dividedBy(this.lastLapTimes.size());
+            this.lapsPerHour = (int)(Duration.ofHours(1L).toMillis() / averageLapTime.toMillis());
+        }
+        this.lastLapCompleted = now;
+    }
 
-		final int currentExp = client.getSkillExperience(Skill.AGILITY);
-		final int goalXp = xpTrackerService.getEndGoalXp(Skill.AGILITY);
-		final int goalRemainingXp = goalXp - currentExp;
-		double courseTotalExp = course.getTotalXp();
-		if (course == Courses.PYRAMID)
-		{
-			// agility pyramid has a bonus exp drop on the last obstacle that scales with player level and caps at 1000
-			// the bonus is not already accounted for in the total exp number in the courses enum
-			courseTotalExp += Math.min(300 + 8 * client.getRealSkillLevel(Skill.AGILITY), 1000);
-		}
+    void resetLapCount() {
+        this.totalLaps = 0;
+        this.lapsTillGoal = 0;
+        this.lastLapTimes.clear();
+        this.lapsPerHour = 0;
+    }
 
-		lapsTillGoal = goalRemainingXp > 0 ? (int) Math.ceil(goalRemainingXp / courseTotalExp) : 0;
-	}
+    public Courses getCourse() {
+        return this.course;
+    }
 
-	void calculateLapsPerHour()
-	{
-		Instant now = Instant.now();
+    public Instant getLastLapCompleted() {
+        return this.lastLapCompleted;
+    }
 
-		if (lastLapCompleted != null)
-		{
-			Duration timeSinceLastLap = Duration.between(lastLapCompleted, now);
+    public int getTotalLaps() {
+        return this.totalLaps;
+    }
 
-			if (!timeSinceLastLap.isNegative())
-			{
-				lastLapTimes.add(timeSinceLastLap);
+    public int getLapsTillGoal() {
+        return this.lapsTillGoal;
+    }
 
-				Duration sum = Duration.ZERO;
-				for (Duration lapTime : lastLapTimes)
-				{
-					sum = sum.plus(lapTime);
-				}
+    public EvictingQueue<Duration> getLastLapTimes() {
+        return this.lastLapTimes;
+    }
 
-				Duration averageLapTime = sum.dividedBy(lastLapTimes.size());
-				lapsPerHour = (int) (Duration.ofHours(1).toMillis() / averageLapTime.toMillis());
-			}
-		}
+    public int getLapsPerHour() {
+        return this.lapsPerHour;
+    }
 
-		lastLapCompleted = now;
-	}
+    public void setLastLapCompleted(Instant lastLapCompleted) {
+        this.lastLapCompleted = lastLapCompleted;
+    }
 
-	void resetLapCount()
-	{
-		totalLaps = 0;
-		lapsTillGoal = 0;
-		lastLapTimes.clear();
-		lapsPerHour = 0;
-	}
+    public void setTotalLaps(int totalLaps) {
+        this.totalLaps = totalLaps;
+    }
+
+    public void setLapsTillGoal(int lapsTillGoal) {
+        this.lapsTillGoal = lapsTillGoal;
+    }
+
+    public void setLapsPerHour(int lapsPerHour) {
+        this.lapsPerHour = lapsPerHour;
+    }
 }
+

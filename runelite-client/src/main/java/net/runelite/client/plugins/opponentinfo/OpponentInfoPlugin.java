@@ -1,37 +1,32 @@
 /*
- * Copyright (c) 2016-2018, Adam <Adam@sigterm.info>
- * Copyright (c) 2018, Jordan Atwood <jordan.atwood423@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.annotations.VisibleForTesting
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Actor
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.MenuEntry
+ *  net.runelite.api.NPC
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.InteractingChanged
+ *  net.runelite.api.events.MenuEntryAdded
+ *  net.runelite.api.events.ScriptPostFired
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.plugins.opponentinfo;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Provides;
+import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
 import javax.inject.Inject;
-import lombok.AccessLevel;
-import lombok.Getter;
 import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -42,133 +37,144 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.InteractingChanged;
 import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.ScriptPostFired;
+import net.runelite.api.widgets.Widget;
+import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.hiscore.HiscoreEndpoint;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.opponentinfo.OpponentInfoConfig;
+import net.runelite.client.plugins.opponentinfo.OpponentInfoOverlay;
+import net.runelite.client.plugins.opponentinfo.PlayerComparisonOverlay;
 import net.runelite.client.ui.overlay.OverlayManager;
 
-@PluginDescriptor(
-	name = "Opponent Information",
-	description = "Show name and hitpoints information about the NPC you are fighting",
-	tags = {"combat", "health", "hitpoints", "npcs", "overlay"}
-)
-public class OpponentInfoPlugin extends Plugin
-{
-	private static final Duration WAIT = Duration.ofSeconds(5);
+@PluginDescriptor(name="Opponent Information", description="Show name and hitpoints information about the NPC you are fighting", tags={"combat", "health", "hitpoints", "npcs", "overlay"})
+public class OpponentInfoPlugin
+extends Plugin {
+    private static final Duration WAIT = Duration.ofSeconds(5L);
+    private static final DecimalFormat PERCENT_FORMAT = new DecimalFormat("0.0");
+    @Inject
+    private Client client;
+    @Inject
+    private OpponentInfoConfig config;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private OpponentInfoOverlay opponentInfoOverlay;
+    @Inject
+    private PlayerComparisonOverlay playerComparisonOverlay;
+    private HiscoreEndpoint hiscoreEndpoint = HiscoreEndpoint.NORMAL;
+    private Actor lastOpponent;
+    @VisibleForTesting
+    private Instant lastTime;
 
-	@Inject
-	private Client client;
+    @Provides
+    OpponentInfoConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(OpponentInfoConfig.class);
+    }
 
-	@Inject
-	private OpponentInfoConfig config;
+    @Override
+    protected void startUp() throws Exception {
+        this.overlayManager.add(this.opponentInfoOverlay);
+        this.overlayManager.add(this.playerComparisonOverlay);
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Override
+    protected void shutDown() throws Exception {
+        this.lastOpponent = null;
+        this.lastTime = null;
+        this.overlayManager.remove(this.opponentInfoOverlay);
+        this.overlayManager.remove(this.playerComparisonOverlay);
+    }
 
-	@Inject
-	private OpponentInfoOverlay opponentInfoOverlay;
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged gameStateChanged) {
+        if (gameStateChanged.getGameState() != GameState.LOGGED_IN) {
+            return;
+        }
+        this.hiscoreEndpoint = HiscoreEndpoint.fromWorldTypes(this.client.getWorldType());
+    }
 
-	@Inject
-	private PlayerComparisonOverlay playerComparisonOverlay;
+    @Subscribe
+    public void onInteractingChanged(InteractingChanged event) {
+        if (event.getSource() != this.client.getLocalPlayer()) {
+            return;
+        }
+        Actor opponent = event.getTarget();
+        if (opponent == null) {
+            this.lastTime = Instant.now();
+            return;
+        }
+        this.lastOpponent = opponent;
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private HiscoreEndpoint hiscoreEndpoint = HiscoreEndpoint.NORMAL;
+    @Subscribe
+    public void onGameTick(GameTick gameTick) {
+        if (this.lastOpponent != null && this.lastTime != null && this.client.getLocalPlayer().getInteracting() == null && Duration.between(this.lastTime, Instant.now()).compareTo(WAIT) > 0) {
+            this.lastOpponent = null;
+        }
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private Actor lastOpponent;
+    @Subscribe
+    public void onMenuEntryAdded(MenuEntryAdded menuEntryAdded) {
+        if (menuEntryAdded.getType() != MenuAction.NPC_SECOND_OPTION.getId() || !menuEntryAdded.getOption().equals("Attack") || !this.config.showOpponentsInMenu()) {
+            return;
+        }
+        NPC npc = menuEntryAdded.getMenuEntry().getNpc();
+        if (npc == null) {
+            return;
+        }
+        if (npc.getInteracting() == this.client.getLocalPlayer() || this.lastOpponent == npc) {
+            MenuEntry[] menuEntries = this.client.getMenuEntries();
+            menuEntries[menuEntries.length - 1].setTarget("*" + menuEntries[menuEntries.length - 1].getTarget());
+        }
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	@VisibleForTesting
-	private Instant lastTime;
+    @Subscribe
+    public void onScriptPostFired(ScriptPostFired event) {
+        if (event.getScriptId() == 2103) {
+            this.updateBossHealthBarText();
+        }
+    }
 
-	@Provides
-	OpponentInfoConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(OpponentInfoConfig.class);
-	}
+    private void updateBossHealthBarText() {
+        Widget widget = this.client.getWidget(WidgetInfo.HEALTH_OVERLAY_BAR_TEXT);
+        if (widget == null) {
+            return;
+        }
+        int currHp = this.client.getVarbitValue(6099);
+        int maxHp = this.client.getVarbitValue(6100);
+        if (maxHp <= 0) {
+            return;
+        }
+        switch (this.config.hitpointsDisplayStyle()) {
+            case PERCENTAGE: {
+                widget.setText(OpponentInfoPlugin.getPercentText(currHp, maxHp));
+                break;
+            }
+            case BOTH: {
+                widget.setText(widget.getText() + " (" + OpponentInfoPlugin.getPercentText(currHp, maxHp) + ")");
+            }
+        }
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		overlayManager.add(opponentInfoOverlay);
-		overlayManager.add(playerComparisonOverlay);
-	}
+    private static String getPercentText(int current, int maximum) {
+        double percent = 100.0 * (double)current / (double)maximum;
+        return PERCENT_FORMAT.format(percent) + "%";
+    }
 
-	@Override
-	protected void shutDown() throws Exception
-	{
-		lastOpponent = null;
-		lastTime = null;
-		overlayManager.remove(opponentInfoOverlay);
-		overlayManager.remove(playerComparisonOverlay);
-	}
+    HiscoreEndpoint getHiscoreEndpoint() {
+        return this.hiscoreEndpoint;
+    }
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		if (gameStateChanged.getGameState() != GameState.LOGGED_IN)
-		{
-			return;
-		}
+    Actor getLastOpponent() {
+        return this.lastOpponent;
+    }
 
-		hiscoreEndpoint = HiscoreEndpoint.fromWorldTypes(client.getWorldType());
-	}
-
-	@Subscribe
-	public void onInteractingChanged(InteractingChanged event)
-	{
-		if (event.getSource() != client.getLocalPlayer())
-		{
-			return;
-		}
-
-		Actor opponent = event.getTarget();
-
-		if (opponent == null)
-		{
-			lastTime = Instant.now();
-			return;
-		}
-
-		lastOpponent = opponent;
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick gameTick)
-	{
-		if (lastOpponent != null
-			&& lastTime != null
-			&& client.getLocalPlayer().getInteracting() == null)
-		{
-			if (Duration.between(lastTime, Instant.now()).compareTo(WAIT) > 0)
-			{
-				lastOpponent = null;
-			}
-		}
-	}
-
-	@Subscribe
-	public void onMenuEntryAdded(MenuEntryAdded menuEntryAdded)
-	{
-		if (menuEntryAdded.getType() != MenuAction.NPC_SECOND_OPTION.getId()
-			|| !menuEntryAdded.getOption().equals("Attack")
-			|| !config.showOpponentsInMenu())
-		{
-			return;
-		}
-
-		NPC npc = menuEntryAdded.getMenuEntry().getNpc();
-		if (npc == null)
-		{
-			return;
-		}
-
-		if (npc.getInteracting() == client.getLocalPlayer() || lastOpponent == npc)
-		{
-			MenuEntry[] menuEntries = client.getMenuEntries();
-			menuEntries[menuEntries.length - 1].setTarget("*" + menuEntries[menuEntries.length - 1].getTarget());
-		}
-	}
+    Instant getLastTime() {
+        return this.lastTime;
+    }
 }
+

@@ -1,26 +1,14 @@
 /*
- * Copyright (c) 2018 AWPH-I
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.Item
+ *  net.runelite.api.ItemComposition
+ *  net.runelite.api.ItemContainer
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.plugins.inventoryviewer;
 
@@ -30,98 +18,72 @@ import java.awt.Point;
 import java.awt.image.BufferedImage;
 import javax.inject.Inject;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.ItemContainer;
-import net.runelite.api.VarClientInt;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.plugins.inventoryviewer.InventoryViewerConfig;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.ComponentOrientation;
 import net.runelite.client.ui.overlay.components.ImageComponent;
 
-class InventoryViewerOverlay extends OverlayPanel
-{
-	private static final int INVENTORY_SIZE = 28;
-	private static final ImageComponent PLACEHOLDER_IMAGE = new ImageComponent(
-		new BufferedImage(Constants.ITEM_SPRITE_WIDTH, Constants.ITEM_SPRITE_HEIGHT, BufferedImage.TYPE_4BYTE_ABGR));
+class InventoryViewerOverlay
+extends OverlayPanel {
+    private static final int INVENTORY_SIZE = 28;
+    private static final ImageComponent PLACEHOLDER_IMAGE = new ImageComponent(new BufferedImage(36, 32, 6));
+    private final Client client;
+    private final ItemManager itemManager;
+    private final InventoryViewerConfig config;
+    private boolean hidden;
 
-	private final Client client;
-	private final ItemManager itemManager;
-	private final InventoryViewerConfig config;
-	private boolean hidden;
+    @Inject
+    private InventoryViewerOverlay(Client client, ItemManager itemManager, InventoryViewerConfig config) {
+        this.setPosition(OverlayPosition.BOTTOM_RIGHT);
+        this.panelComponent.setWrap(true);
+        this.panelComponent.setGap(new Point(6, 4));
+        this.panelComponent.setPreferredSize(new Dimension(168, 0));
+        this.panelComponent.setOrientation(ComponentOrientation.HORIZONTAL);
+        this.itemManager = itemManager;
+        this.client = client;
+        this.config = config;
+        this.hidden = config.hiddenDefault();
+    }
 
-	@Inject
-	private InventoryViewerOverlay(Client client, ItemManager itemManager, InventoryViewerConfig config)
-	{
-		setPosition(OverlayPosition.BOTTOM_RIGHT);
-		panelComponent.setWrap(true);
-		panelComponent.setGap(new Point(6, 4));
-		panelComponent.setPreferredSize(new Dimension(4 * (Constants.ITEM_SPRITE_WIDTH + 6), 0));
-		panelComponent.setOrientation(ComponentOrientation.HORIZONTAL);
-		this.itemManager = itemManager;
-		this.client = client;
-		this.config = config;
-		this.hidden = config.hiddenDefault();
-	}
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        if (this.hidden) {
+            return null;
+        }
+        if ((this.client.getVarcIntValue(171) == 3 || this.client.getWidget(WidgetInfo.BANK_CONTAINER) != null) && this.config.hideIfInventoryActive()) {
+            return null;
+        }
+        ItemContainer itemContainer = this.client.getItemContainer(InventoryID.INVENTORY);
+        if (itemContainer == null) {
+            return null;
+        }
+        Item[] items = itemContainer.getItems();
+        for (int i = 0; i < 28; ++i) {
+            BufferedImage image;
+            Item item;
+            if (i < items.length && (item = items[i]).getQuantity() > 0 && (image = this.getImage(item)) != null) {
+                this.panelComponent.getChildren().add(new ImageComponent(image));
+                continue;
+            }
+            this.panelComponent.getChildren().add(PLACEHOLDER_IMAGE);
+        }
+        return super.render(graphics);
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		if (hidden)
-		{
-			return null;
-		}
+    private BufferedImage getImage(Item item) {
+        ItemComposition itemComposition = this.itemManager.getItemComposition(item.getId());
+        return this.itemManager.getImage(item.getId(), item.getQuantity(), itemComposition.isStackable());
+    }
 
-		if ((client.getVar(VarClientInt.INVENTORY_TAB) == 3 || client.getWidget(WidgetInfo.BANK_CONTAINER) != null)
-				&& config.hideIfInventoryActive())
-		{
-			return null;
-		}
-
-		final ItemContainer itemContainer = client.getItemContainer(InventoryID.INVENTORY);
-
-		if (itemContainer == null)
-		{
-			return null;
-		}
-
-		final Item[] items = itemContainer.getItems();
-
-		for (int i = 0; i < INVENTORY_SIZE; i++)
-		{
-			if (i < items.length)
-			{
-				final Item item = items[i];
-				if (item.getQuantity() > 0)
-				{
-					final BufferedImage image = getImage(item);
-					if (image != null)
-					{
-						panelComponent.getChildren().add(new ImageComponent(image));
-						continue;
-					}
-				}
-			}
-
-			// put a placeholder image so each item is aligned properly and the panel is not resized
-			panelComponent.getChildren().add(PLACEHOLDER_IMAGE);
-		}
-
-		return super.render(graphics);
-	}
-
-	private BufferedImage getImage(Item item)
-	{
-		ItemComposition itemComposition = itemManager.getItemComposition(item.getId());
-		return itemManager.getImage(item.getId(), item.getQuantity(), itemComposition.isStackable());
-	}
-
-	protected void toggle()
-	{
-		hidden = !hidden;
-	}
+    protected void toggle() {
+        this.hidden = !this.hidden;
+    }
 }
+

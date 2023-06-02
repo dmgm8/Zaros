@@ -1,44 +1,80 @@
 /*
- * Copyright (c) 2019, Jordan Atwood <nightfirecat@protonmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
+ *  net.runelite.api.coords.WorldPoint
  */
 package net.runelite.client.plugins.groundmarkers;
 
 import java.awt.Color;
 import javax.annotation.Nullable;
-import lombok.Value;
 import net.runelite.api.coords.WorldPoint;
 
-/**
- * Used to denote marked tiles and their colors.
- * Note: This is not used for serialization of ground markers; see {@link GroundMarkerPoint}
- */
-@Value
-class ColorTileMarker
-{
-	private WorldPoint worldPoint;
-	@Nullable
-	private Color color;
-	@Nullable
-	private String label;
+final class ColorTileMarker {
+    private final WorldPoint worldPoint;
+    @Nullable
+    private final Color color;
+    @Nullable
+    private final String label;
+
+    public ColorTileMarker(WorldPoint worldPoint, @Nullable Color color, @Nullable String label) {
+        this.worldPoint = worldPoint;
+        this.color = color;
+        this.label = label;
+    }
+
+    public WorldPoint getWorldPoint() {
+        return this.worldPoint;
+    }
+
+    @Nullable
+    public Color getColor() {
+        return this.color;
+    }
+
+    @Nullable
+    public String getLabel() {
+        return this.label;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ColorTileMarker)) {
+            return false;
+        }
+        ColorTileMarker other = (ColorTileMarker)o;
+        WorldPoint this$worldPoint = this.getWorldPoint();
+        WorldPoint other$worldPoint = other.getWorldPoint();
+        if (this$worldPoint == null ? other$worldPoint != null : !this$worldPoint.equals((Object)other$worldPoint)) {
+            return false;
+        }
+        Color this$color = this.getColor();
+        Color other$color = other.getColor();
+        if (this$color == null ? other$color != null : !((Object)this$color).equals(other$color)) {
+            return false;
+        }
+        String this$label = this.getLabel();
+        String other$label = other.getLabel();
+        return !(this$label == null ? other$label != null : !this$label.equals(other$label));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        WorldPoint $worldPoint = this.getWorldPoint();
+        result = result * 59 + ($worldPoint == null ? 43 : $worldPoint.hashCode());
+        Color $color = this.getColor();
+        result = result * 59 + ($color == null ? 43 : ((Object)$color).hashCode());
+        String $label = this.getLabel();
+        result = result * 59 + ($label == null ? 43 : $label.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ColorTileMarker(worldPoint=" + (Object)this.getWorldPoint() + ", color=" + this.getColor() + ", label=" + this.getLabel() + ")";
+    }
 }
+

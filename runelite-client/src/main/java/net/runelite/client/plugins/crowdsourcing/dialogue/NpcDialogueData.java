@@ -1,37 +1,62 @@
 /*
- * Copyright (c) 2019, Weird Gloop <admin@weirdgloop.org>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
-
 package net.runelite.client.plugins.crowdsourcing.dialogue;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+public class NpcDialogueData {
+    private final String message;
+    private final String name;
 
-@Data
-@AllArgsConstructor
-public class NpcDialogueData
-{
-	private final String message;
-	private final String name;
+    public String getMessage() {
+        return this.message;
+    }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof NpcDialogueData)) {
+            return false;
+        }
+        NpcDialogueData other = (NpcDialogueData)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        String this$message = this.getMessage();
+        String other$message = other.getMessage();
+        if (this$message == null ? other$message != null : !this$message.equals(other$message)) {
+            return false;
+        }
+        String this$name = this.getName();
+        String other$name = other.getName();
+        return !(this$name == null ? other$name != null : !this$name.equals(other$name));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof NpcDialogueData;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        String $message = this.getMessage();
+        result = result * 59 + ($message == null ? 43 : $message.hashCode());
+        String $name = this.getName();
+        result = result * 59 + ($name == null ? 43 : $name.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "NpcDialogueData(message=" + this.getMessage() + ", name=" + this.getName() + ")";
+    }
+
+    public NpcDialogueData(String message, String name) {
+        this.message = message;
+        this.name = name;
+    }
 }
+

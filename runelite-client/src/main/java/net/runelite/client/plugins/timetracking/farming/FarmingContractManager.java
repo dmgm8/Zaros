@@ -1,27 +1,15 @@
 /*
- * Copyright (c) 2019, Koekkruimels <https://github.com/koekkruimels>
- * Copyright (c) 2020, melky <https://github.com/melkypie>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Singleton
+ *  javax.annotation.Nonnull
+ *  javax.annotation.Nullable
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.plugins.timetracking.farming;
 
@@ -32,10 +20,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
-import lombok.Getter;
-import lombok.Setter;
 import net.runelite.api.Client;
-import net.runelite.api.NullNpcID;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
@@ -45,311 +30,224 @@ import net.runelite.client.plugins.timetracking.SummaryState;
 import net.runelite.client.plugins.timetracking.Tab;
 import net.runelite.client.plugins.timetracking.TimeTrackingConfig;
 import net.runelite.client.plugins.timetracking.TimeTrackingPlugin;
+import net.runelite.client.plugins.timetracking.farming.CropState;
+import net.runelite.client.plugins.timetracking.farming.FarmingContractInfoBox;
+import net.runelite.client.plugins.timetracking.farming.FarmingPatch;
+import net.runelite.client.plugins.timetracking.farming.FarmingTracker;
+import net.runelite.client.plugins.timetracking.farming.FarmingWorld;
+import net.runelite.client.plugins.timetracking.farming.PatchImplementation;
+import net.runelite.client.plugins.timetracking.farming.PatchPrediction;
+import net.runelite.client.plugins.timetracking.farming.Produce;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.util.Text;
 
 @Singleton
-public class FarmingContractManager
-{
-	private static final int GUILDMASTER_JANE_NPC_ID = NullNpcID.NULL_8628;
-	private static final int FARMING_GUILD_REGION_ID = 4922;
-	private static final Pattern CONTRACT_ASSIGN_PATTERN = Pattern.compile("(?:We need you to grow|Please could you grow) (?:some|a|an) ([a-zA-Z ]+)(?: for us\\?|\\.)");
-	private static final String CONTRACT_REWARDED = "You'll be wanting a reward then. Here you go.";
-	private static final String CONFIG_KEY_CONTRACT = "contract";
+public class FarmingContractManager {
+    private static final int GUILDMASTER_JANE_NPC_ID = 8628;
+    private static final int FARMING_GUILD_REGION_ID = 4922;
+    private static final Pattern CONTRACT_ASSIGN_PATTERN = Pattern.compile("(?:We need you to grow|Please could you grow) (?:some|a|an) ([a-zA-Z ]+)(?: for us\\?|\\.)");
+    private static final String CONTRACT_REWARDED = "You'll be wanting a reward then. Here you go.";
+    private static final String CONFIG_KEY_CONTRACT = "contract";
+    private SummaryState summary = SummaryState.UNKNOWN;
+    private CropState contractCropState;
+    @Inject
+    private Client client;
+    @Inject
+    private ItemManager itemManager;
+    @Inject
+    private TimeTrackingConfig config;
+    @Inject
+    private TimeTrackingPlugin plugin;
+    @Inject
+    private FarmingWorld farmingWorld;
+    @Inject
+    private FarmingTracker farmingTracker;
+    @Inject
+    private InfoBoxManager infoBoxManager;
+    @Inject
+    private ConfigManager configManager;
+    private Produce contract = null;
+    private FarmingContractInfoBox infoBox;
+    private long completionTime;
 
-	@Getter
-	private SummaryState summary = SummaryState.UNKNOWN;
+    public void setContract(@Nullable Produce contract) {
+        this.contract = contract;
+        this.setStoredContract(contract);
+        this.handleContractState();
+    }
 
-	@Getter
-	private CropState contractCropState;
+    public boolean hasContract() {
+        return this.contract != null;
+    }
 
-	@Inject
-	private Client client;
+    @Nullable
+    public Tab getContractTab() {
+        return this.hasContract() ? this.contract.getPatchImplementation().getTab() : null;
+    }
 
-	@Inject
-	private ItemManager itemManager;
+    @Nullable
+    public String getContractName() {
+        return this.hasContract() ? this.contract.getContractName() : null;
+    }
 
-	@Inject
-	private TimeTrackingConfig config;
+    public boolean shouldHighlightFarmingTabPanel(@Nonnull FarmingPatch patch) {
+        PatchPrediction patchPrediction = this.farmingTracker.predictPatch(patch);
+        return this.contract != null && patch.getRegion().getRegionID() == 4922 && this.contract.getPatchImplementation() == patch.getImplementation() && patchPrediction != null && (this.summary == SummaryState.EMPTY && (patchPrediction.getProduce() == null || patchPrediction.getProduce() == Produce.WEEDS) || patchPrediction.getProduce().equals((Object)this.contract));
+    }
 
-	@Inject
-	private TimeTrackingPlugin plugin;
+    public void loadContractFromConfig() {
+        this.contract = this.getStoredContract();
+        this.handleContractState();
+    }
 
-	@Inject
-	private FarmingWorld farmingWorld;
+    public boolean updateData(WorldPoint loc) {
+        SummaryState oldSummary = this.summary;
+        this.handleContractState();
+        if (loc.getRegionID() == 4922) {
+            this.handleGuildmasterJaneWidgetDialog();
+            this.handleInfoBox();
+        } else if (this.infoBox != null) {
+            this.infoBoxManager.removeInfoBox(this.infoBox);
+            this.infoBox = null;
+        }
+        return oldSummary != this.summary;
+    }
 
-	@Inject
-	private FarmingTracker farmingTracker;
+    private void handleInfoBox() {
+        if (this.contract != (this.infoBox == null ? null : this.infoBox.getContract())) {
+            if (this.infoBox != null) {
+                this.infoBoxManager.removeInfoBox(this.infoBox);
+                this.infoBox = null;
+            }
+            if (this.contract != null) {
+                this.infoBox = new FarmingContractInfoBox(this.itemManager.getImage(this.contract.getItemID()), this.plugin, this.contract, this.config, this);
+                this.infoBoxManager.addInfoBox(this.infoBox);
+            }
+        }
+    }
 
-	@Inject
-	private InfoBoxManager infoBoxManager;
+    private void handleGuildmasterJaneWidgetDialog() {
+        Matcher matcher;
+        Widget npcDialog = this.client.getWidget(WidgetInfo.DIALOG_NPC_HEAD_MODEL);
+        if (npcDialog == null || npcDialog.getModelId() != 8628) {
+            return;
+        }
+        String dialogText = Text.removeTags(this.client.getWidget(WidgetInfo.DIALOG_NPC_TEXT).getText());
+        if (dialogText.equals(CONTRACT_REWARDED)) {
+            this.setContract(null);
+        }
+        if (!(matcher = CONTRACT_ASSIGN_PATTERN.matcher(dialogText)).find()) {
+            return;
+        }
+        String name = matcher.group(1);
+        Produce farmingContract = Produce.getByContractName(name);
+        if (farmingContract == null) {
+            return;
+        }
+        Produce currentFarmingContract = this.contract;
+        if (farmingContract == currentFarmingContract) {
+            return;
+        }
+        this.setContract(farmingContract);
+    }
 
-	@Inject
-	private ConfigManager configManager;
+    private void handleContractState() {
+        if (this.contract == null) {
+            this.summary = SummaryState.UNKNOWN;
+            return;
+        }
+        PatchImplementation patchImplementation = this.contract.getPatchImplementation();
+        boolean hasEmptyPatch = false;
+        boolean hasDiseasedPatch = false;
+        boolean hasDeadPatch = false;
+        this.completionTime = Long.MAX_VALUE;
+        this.contractCropState = null;
+        for (FarmingPatch patch : this.farmingWorld.getFarmingGuildRegion().getPatches()) {
+            PatchPrediction prediction;
+            if (patch.getImplementation() != patchImplementation || (prediction = this.farmingTracker.predictPatch(patch)) == null) continue;
+            Produce produce = prediction.getProduce();
+            CropState state = prediction.getCropState();
+            if (this.completionTime == Long.MAX_VALUE) {
+                if (produce == null || produce == Produce.WEEDS) {
+                    if (!hasDiseasedPatch && !hasDeadPatch) {
+                        this.summary = SummaryState.EMPTY;
+                    }
+                    hasEmptyPatch = true;
+                    continue;
+                }
+                if (this.contract.getPatchImplementation().isHealthCheckRequired() && state == CropState.HARVESTABLE && !hasEmptyPatch && !hasDiseasedPatch && !hasDeadPatch) {
+                    this.summary = SummaryState.OCCUPIED;
+                    continue;
+                }
+            }
+            if (produce != this.contract && produce != Produce.ANYHERB) {
+                if (hasEmptyPatch || hasDiseasedPatch || hasDeadPatch || this.completionTime != Long.MAX_VALUE) continue;
+                this.summary = SummaryState.OCCUPIED;
+                continue;
+            }
+            if (state == CropState.DEAD && (hasDiseasedPatch || this.completionTime != Long.MAX_VALUE) || state == CropState.DISEASED && this.completionTime != Long.MAX_VALUE) continue;
+            this.contractCropState = state;
+            if (this.contractCropState == CropState.DISEASED) {
+                hasDiseasedPatch = true;
+                this.summary = SummaryState.IN_PROGRESS;
+                continue;
+            }
+            if (this.contractCropState == CropState.DEAD) {
+                hasDeadPatch = true;
+                this.summary = SummaryState.IN_PROGRESS;
+                continue;
+            }
+            long estimatedTime = Math.min(prediction.getDoneEstimate(), this.completionTime);
+            if (estimatedTime <= Instant.now().getEpochSecond()) {
+                this.summary = SummaryState.COMPLETED;
+                this.completionTime = 0L;
+                break;
+            }
+            this.summary = SummaryState.IN_PROGRESS;
+            this.completionTime = estimatedTime;
+        }
+    }
 
-	@Getter
-	private Produce contract = null;
+    @Nullable
+    private Produce getStoredContract() {
+        try {
+            return Produce.getByItemID(Integer.parseInt(this.configManager.getRSProfileConfiguration("timetracking", CONFIG_KEY_CONTRACT)));
+        }
+        catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
 
-	@Getter
-	@Setter
-	private FarmingContractInfoBox infoBox;
+    private void setStoredContract(@Nullable Produce contract) {
+        if (contract != null) {
+            this.configManager.setRSProfileConfiguration("timetracking", CONFIG_KEY_CONTRACT, String.valueOf(contract.getItemID()));
+        } else {
+            this.configManager.unsetRSProfileConfiguration("timetracking", CONFIG_KEY_CONTRACT);
+        }
+    }
 
-	@Getter
-	private long completionTime;
+    public SummaryState getSummary() {
+        return this.summary;
+    }
 
-	public void setContract(@Nullable Produce contract)
-	{
-		this.contract = contract;
-		setStoredContract(contract);
-		handleContractState();
-	}
+    public CropState getContractCropState() {
+        return this.contractCropState;
+    }
 
-	public boolean hasContract()
-	{
-		return contract != null;
-	}
+    public Produce getContract() {
+        return this.contract;
+    }
 
-	@Nullable
-	public Tab getContractTab()
-	{
-		return hasContract() ? contract.getPatchImplementation().getTab() : null;
-	}
+    public FarmingContractInfoBox getInfoBox() {
+        return this.infoBox;
+    }
 
-	@Nullable
-	public String getContractName()
-	{
-		return hasContract() ? contract.getContractName() : null;
-	}
+    public void setInfoBox(FarmingContractInfoBox infoBox) {
+        this.infoBox = infoBox;
+    }
 
-	public boolean shouldHighlightFarmingTabPanel(@Nonnull FarmingPatch patch)
-	{
-		PatchPrediction patchPrediction = farmingTracker.predictPatch(patch);
-		if (contract != null &&
-			patch.getRegion().getRegionID() == FARMING_GUILD_REGION_ID &&
-			contract.getPatchImplementation() == patch.getImplementation() &&
-			patchPrediction != null &&
-			(summary == SummaryState.EMPTY &&
-				(patchPrediction.getProduce() == null || patchPrediction.getProduce() == Produce.WEEDS)
-				|| patchPrediction.getProduce().equals(contract)))
-		{
-			return true;
-		}
-		return false;
-	}
-
-	public void loadContractFromConfig()
-	{
-		contract = getStoredContract();
-		handleContractState();
-	}
-
-	public boolean updateData(WorldPoint loc)
-	{
-		SummaryState oldSummary = summary;
-
-		handleContractState();
-		if (loc.getRegionID() == FARMING_GUILD_REGION_ID)
-		{
-			handleGuildmasterJaneWidgetDialog();
-			handleInfoBox();
-		}
-		else
-		{
-			if (infoBox != null)
-			{
-				infoBoxManager.removeInfoBox(infoBox);
-				infoBox = null;
-			}
-		}
-		return oldSummary != summary;
-	}
-
-	private void handleInfoBox()
-	{
-		if (contract != (infoBox == null ? null : infoBox.getContract()))
-		{
-			if (infoBox != null)
-			{
-				infoBoxManager.removeInfoBox(infoBox);
-				infoBox = null;
-			}
-			if (contract != null)
-			{
-				infoBox = new FarmingContractInfoBox(itemManager.getImage(contract.getItemID()), plugin, contract, config, this);
-				infoBoxManager.addInfoBox(infoBox);
-			}
-		}
-	}
-
-	private void handleGuildmasterJaneWidgetDialog()
-	{
-		Widget npcDialog = client.getWidget(WidgetInfo.DIALOG_NPC_HEAD_MODEL);
-
-		if (npcDialog == null || npcDialog.getModelId() != GUILDMASTER_JANE_NPC_ID)
-		{
-			return;
-		}
-
-		String dialogText = Text.removeTags(client.getWidget(WidgetInfo.DIALOG_NPC_TEXT).getText());
-
-		if (dialogText.equals(CONTRACT_REWARDED))
-		{
-			setContract(null);
-		}
-
-		Matcher matcher = CONTRACT_ASSIGN_PATTERN.matcher(dialogText);
-
-		if (!matcher.find())
-		{
-			return;
-		}
-
-		String name = matcher.group(1);
-
-		Produce farmingContract = Produce.getByContractName(name);
-
-		if (farmingContract == null)
-		{
-			return;
-		}
-
-		Produce currentFarmingContract = contract;
-
-		if (farmingContract == currentFarmingContract)
-		{
-			return;
-		}
-
-		setContract(farmingContract);
-	}
-
-	private void handleContractState()
-	{
-		if (contract == null)
-		{
-			summary = SummaryState.UNKNOWN;
-			return;
-		}
-
-		PatchImplementation patchImplementation = contract.getPatchImplementation();
-
-		boolean hasEmptyPatch = false;
-		boolean hasDiseasedPatch = false;
-		boolean hasDeadPatch = false;
-		completionTime = Long.MAX_VALUE;
-		contractCropState = null;
-		for (FarmingPatch patch : farmingWorld.getFarmingGuildRegion().getPatches())
-		{
-			if (patch.getImplementation() != patchImplementation)
-			{
-				continue;
-			}
-
-			PatchPrediction prediction = farmingTracker.predictPatch(patch);
-			if (prediction == null)
-			{
-				continue;
-			}
-
-			Produce produce = prediction.getProduce();
-			CropState state = prediction.getCropState();
-			if (completionTime == Long.MAX_VALUE)
-			{
-				if (produce == null || produce == Produce.WEEDS)
-				{
-					// Don't report the empty state if there's a dead or diseased one
-					if (!(hasDiseasedPatch || hasDeadPatch))
-					{
-						summary = SummaryState.EMPTY;
-					}
-					hasEmptyPatch = true;
-					continue;
-				}
-
-				if ((contract.getPatchImplementation().isHealthCheckRequired() && state == CropState.HARVESTABLE)
-					&& !(hasEmptyPatch || hasDiseasedPatch || hasDeadPatch))
-				{
-					summary = SummaryState.OCCUPIED;
-					// Don't let this run into the "Completed" section!
-					continue;
-				}
-			}
-
-			// Herbs always turn into ANYHERB when dead, so let them through.
-			if (produce != contract && produce != Produce.ANYHERB)
-			{
-				if (!(hasEmptyPatch || hasDiseasedPatch || hasDeadPatch) && completionTime == Long.MAX_VALUE)
-				{
-					summary = SummaryState.OCCUPIED;
-				}
-			}
-			else
-			{
-				// Ignore if crop is dead but there's another one in progress (either normal or diseased)
-				if (state == CropState.DEAD && (hasDiseasedPatch || completionTime != Long.MAX_VALUE))
-				{
-					continue;
-				}
-
-				// Ignore if crop is diseased but there's another patch in progress
-				if (state == CropState.DISEASED && completionTime != Long.MAX_VALUE)
-				{
-					continue;
-				}
-
-				contractCropState = state;
-				if (contractCropState == CropState.DISEASED)
-				{
-					hasDiseasedPatch = true;
-					summary = SummaryState.IN_PROGRESS;
-				}
-				else if (contractCropState == CropState.DEAD)
-				{
-					hasDeadPatch = true;
-					summary = SummaryState.IN_PROGRESS;
-				}
-				else
-				{
-					long estimatedTime = Math.min(prediction.getDoneEstimate(), completionTime);
-					if (estimatedTime <= Instant.now().getEpochSecond())
-					{
-						summary = SummaryState.COMPLETED;
-						completionTime = 0;
-						break;
-					}
-					else
-					{
-						summary = SummaryState.IN_PROGRESS;
-						completionTime = estimatedTime;
-					}
-				}
-			}
-		}
-	}
-
-
-	@Nullable
-	private Produce getStoredContract()
-	{
-		try
-		{
-			return Produce.getByItemID(Integer.parseInt(configManager.getRSProfileConfiguration(TimeTrackingConfig.CONFIG_GROUP, CONFIG_KEY_CONTRACT)));
-		}
-		catch (NumberFormatException ignored)
-		{
-			return null;
-		}
-	}
-
-	private void setStoredContract(@Nullable Produce contract)
-	{
-		if (contract != null)
-		{
-			configManager.setRSProfileConfiguration(TimeTrackingConfig.CONFIG_GROUP, CONFIG_KEY_CONTRACT, String.valueOf(contract.getItemID()));
-		}
-		else
-		{
-			configManager.unsetRSProfileConfiguration(TimeTrackingConfig.CONFIG_GROUP, CONFIG_KEY_CONTRACT);
-		}
-	}
+    public long getCompletionTime() {
+        return this.completionTime;
+    }
 }
+

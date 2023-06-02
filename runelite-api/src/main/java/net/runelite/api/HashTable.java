@@ -1,25 +1,15 @@
+/*
+ * Decompiled with CFR 0.150.
+ */
 package net.runelite.api;
 
 import java.util.Collection;
+import net.runelite.api.Node;
 
-/**
- * A data structure that uses a hash function to compute an index into an
- * array of buckets from which node objects can be quickly obtained.
- */
-public interface HashTable<T extends Node> extends Iterable<T>
-{
-	/**
-	 * Gets a node by its hash value.
-	 *
-	 * @param value the node value
-	 * @return the associated node
-	 */
-	T get(long value);
+public interface HashTable<T extends Node>
+extends Iterable<T> {
+    public T get(long var1);
 
-	/**
-	 * Gets a collection of all nodes stored in this table.
-	 *
-	 * @return the nodes stored
-	 */
-	Collection<T> getNodes();
+    public Collection<T> getNodes();
 }
+

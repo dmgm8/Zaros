@@ -1,151 +1,44 @@
 /*
- * Copyright (c) 2017, Tyler <https://github.com/tylerthardy>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 
-/**
- * Represents data about the pixels of a sprite image.
- */
-public interface SpritePixels
-{
-	int DEFAULT_SHADOW_COLOR = 3153952;
+public interface SpritePixels {
+    public static final int DEFAULT_SHADOW_COLOR = 0x302020;
 
-	/**
-	 * Draws the pixels at the given coordinates on the canvas.
-	 *
-	 * @param x the x-axis coordinate
-	 * @param y the y-axis coordinate
-	 */
-	void drawAt(int x, int y);
+    public void drawAt(int var1, int var2);
 
-	/**
-	 * Gets the width of the sprite image in pixels.
-	 *
-	 * @return the width
-	 */
-	int getWidth();
+    public int getWidth();
 
-	/**
-	 * Gets the height of the sprite image in pixels.
-	 *
-	 * @return the height
-	 */
-	int getHeight();
+    public int getHeight();
 
-	/**
-	 * Gets the max width of the sprite image in pixels.
-	 *
-	 * @return the width
-	 */
-	int getMaxWidth();
+    public int getMaxWidth();
 
-	/**
-	 * Gets the max height of the sprite image in pixels.
-	 *
-	 * @return the height
-	 */
-	int getMaxHeight();
+    public int getMaxHeight();
 
-	/**
-	 * Gets the x offset of the sprite image in pixels.
-	 *
-	 * @return the offset
-	 */
-	int getOffsetX();
+    public int getOffsetX();
 
-	/**
-	 * Gets the y offset of the sprite image in pixels.
-	 *
-	 * @return the offset
-	 */
-	int getOffsetY();
+    public int getOffsetY();
 
-	/**
-	 * Sets the max width of the sprite image in pixels.
-	 *
-	 * @param maxWidth the width
-	 */
-	void setMaxWidth(int maxWidth);
+    public void setMaxWidth(int var1);
 
-	/**
-	 * Sets the max height of the sprite image in pixels.
-	 *
-	 * @param maxHeight the height
-	 */
-	void setMaxHeight(int maxHeight);
+    public void setMaxHeight(int var1);
 
-	/**
-	 * Sets the x offset of the sprite image in pixels.
-	 *
-	 * @param offsetX the offset
-	 */
-	void setOffsetX(int offsetX);
+    public void setOffsetX(int var1);
 
-	/**
-	 * Sets the y offset of the sprite image in pixels.
-	 *
-	 * @param offsetY the offset
-	 */
-	void setOffsetY(int offsetY);
+    public void setOffsetY(int var1);
 
-	/**
-	 * Gets an array of all pixels data in the sprite.
-	 *
-	 * @return the pixel data
-	 */
-	int[] getPixels();
+    public int[] getPixels();
 
-	/**
-	 * Converts the sprite into a BufferedImage.
-	 *
-	 * @return the resulting BufferedImage
-	 */
-	BufferedImage toBufferedImage();
+    public BufferedImage toBufferedImage();
 
-	/**
-	 * Writes the contents of the sprite to the given BufferedImage.
-	 *
-	 * @param img the passsed buffered image
-	 * @throws IllegalArgumentException if the width or height do not match
- 	 */
-	void toBufferedImage(BufferedImage img) throws IllegalArgumentException;
+    public void toBufferedImage(BufferedImage var1) throws IllegalArgumentException;
 
-	/**
-	 * Writes the contents of the Sprite with chosen outline to the BufferedImage
-	 *
-	 * @param color target color
-	 */
-	BufferedImage toBufferedOutline(Color color);
+    public BufferedImage toBufferedOutline(Color var1);
 
-	/**
-	 * Writes the contents of the Sprite with chosen outline to the BufferedImage
-	 *
-	 * @param img target image
-	 * @param color target color
-	 */
-	void toBufferedOutline(BufferedImage img, int color);
+    public void toBufferedOutline(BufferedImage var1, int var2);
 }
+

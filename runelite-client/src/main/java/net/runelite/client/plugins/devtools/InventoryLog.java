@@ -1,40 +1,82 @@
 /*
- * Copyright (c) 2020, TheStonedTurtle <https://github.com/TheStonedTurtle>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
+ *  net.runelite.api.Item
  */
 package net.runelite.client.plugins.devtools;
 
+import java.util.Arrays;
 import javax.annotation.Nullable;
-import lombok.Value;
 import net.runelite.api.Item;
 
-@Value
-class InventoryLog
-{
-	int containerId;
-	@Nullable
-	String containerName;
-	Item[] items;
-	int tick;
+final class InventoryLog {
+    private final int containerId;
+    @Nullable
+    private final String containerName;
+    private final Item[] items;
+    private final int tick;
+
+    public InventoryLog(int containerId, @Nullable String containerName, Item[] items, int tick) {
+        this.containerId = containerId;
+        this.containerName = containerName;
+        this.items = items;
+        this.tick = tick;
+    }
+
+    public int getContainerId() {
+        return this.containerId;
+    }
+
+    @Nullable
+    public String getContainerName() {
+        return this.containerName;
+    }
+
+    public Item[] getItems() {
+        return this.items;
+    }
+
+    public int getTick() {
+        return this.tick;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof InventoryLog)) {
+            return false;
+        }
+        InventoryLog other = (InventoryLog)o;
+        if (this.getContainerId() != other.getContainerId()) {
+            return false;
+        }
+        if (this.getTick() != other.getTick()) {
+            return false;
+        }
+        String this$containerName = this.getContainerName();
+        String other$containerName = other.getContainerName();
+        if (this$containerName == null ? other$containerName != null : !this$containerName.equals(other$containerName)) {
+            return false;
+        }
+        return Arrays.deepEquals((Object[])this.getItems(), (Object[])other.getItems());
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getContainerId();
+        result = result * 59 + this.getTick();
+        String $containerName = this.getContainerName();
+        result = result * 59 + ($containerName == null ? 43 : $containerName.hashCode());
+        result = result * 59 + Arrays.deepHashCode((Object[])this.getItems());
+        return result;
+    }
+
+    public String toString() {
+        return "InventoryLog(containerId=" + this.getContainerId() + ", containerName=" + this.getContainerName() + ", items=" + Arrays.deepToString((Object[])this.getItems()) + ", tick=" + this.getTick() + ")";
+    }
 }
 

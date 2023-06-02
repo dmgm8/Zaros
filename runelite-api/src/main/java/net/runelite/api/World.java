@@ -1,108 +1,38 @@
-package net.runelite.api;
-import java.util.EnumSet;
-
-/**
- * Holds data of a RuneScape world.
+/*
+ * Decompiled with CFR 0.150.
  */
-public interface World
-{
-	/**
-	 * Gets all applicable world types for this world.
-	 *
-	 * @return the world types
-	 */
-	EnumSet<WorldType> getTypes();
+package net.runelite.api;
 
-	/**
-	 * Sets world types.
-	 *
-	 * @param types the types
-	 */
-	void setTypes(EnumSet<WorldType> types);
+import java.util.EnumSet;
+import net.runelite.api.WorldType;
 
-	/**
-	 * Gets the current number of players logged in the world.
-	 *
-	 * @return the player count
-	 */
-	int getPlayerCount();
+public interface World {
+    public EnumSet<WorldType> getTypes();
 
-	/**
-	 * Sets the player count of the world.
-	 *
-	 * @param playerCount the new player count
-	 */
-	void setPlayerCount(int playerCount);
+    public void setTypes(EnumSet<WorldType> var1);
 
-	/**
-	 * Gets the world location value.
-	 *
-	 * @return the world location
-	 */
-	int getLocation();
+    public int getPlayerCount();
 
-	/**
-	 * Sets the world location value.
-	 *
-	 * @param location the location
-	 */
-	void setLocation(int location);
+    public void setPlayerCount(int var1);
 
-	/**
-	 * Gets the worlds index.
-	 *
-	 * @return the index
-	 */
-	int getIndex();
+    public int getLocation();
 
-	/**
-	 *  Sets the worlds index.
-	 *
-	 * @param index the index
-	 */
-	void setIndex(int index);
+    public void setLocation(int var1);
 
-	/**
-	 * Gets the world number.
-	 *
-	 * @return the world number
-	 */
-	int getId();
+    public int getIndex();
 
-	/**
-	 * Sets the world number.
-	 *
-	 * @param id the world number
-	 */
-	void setId(int id);
+    public void setIndex(int var1);
 
-	/**
-	 * Gets the world activity description.
-	 * <p>
-	 * For example, world 2 would return "Trade - Members".
-	 *
-	 * @return the world activity
-	 */
-	String getActivity();
+    public int getId();
 
-	/**
-	 * Sets the world activity description.
-	 *
-	 * @param activity the activity
-	 */
-	void setActivity(String activity);
+    public void setId(int var1);
 
-	/**
-	 * Gets the address of the world.
-	 *
-	 * @return the world address
-	 */
-	String getAddress();
+    public String getActivity();
 
-	/**
-	 * Sets the address of the world.
-	 *
-	 * @param address the address
-	 */
-	void setAddress(String address);
+    public void setActivity(String var1);
+
+    public String getAddress();
+
+    public void setAddress(String var1);
 }
+

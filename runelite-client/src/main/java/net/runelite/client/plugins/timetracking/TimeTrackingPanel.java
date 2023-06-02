@@ -1,47 +1,35 @@
 /*
- * Copyright (c) 2018 Abex
- * Copyright (c) 2018, Psikoi <https://github.com/psikoi>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *     list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- *  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Inject
+ *  com.google.inject.name.Named
+ *  javax.annotation.Nullable
  */
 package net.runelite.client.plugins.timetracking;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
-import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import javax.swing.ImageIcon;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.plugins.timetracking.OverviewTabPanel;
+import net.runelite.client.plugins.timetracking.Tab;
+import net.runelite.client.plugins.timetracking.TabContentPanel;
+import net.runelite.client.plugins.timetracking.TimeTrackingConfig;
 import net.runelite.client.plugins.timetracking.clocks.ClockManager;
 import net.runelite.client.plugins.timetracking.farming.FarmingContractManager;
 import net.runelite.client.plugins.timetracking.farming.FarmingNextTickPanel;
@@ -53,140 +41,96 @@ import net.runelite.client.ui.components.materialtabs.MaterialTab;
 import net.runelite.client.ui.components.materialtabs.MaterialTabGroup;
 import net.runelite.client.util.AsyncBufferedImage;
 
-class TimeTrackingPanel extends PluginPanel
-{
-	private final ItemManager itemManager;
-	private final TimeTrackingConfig config;
+class TimeTrackingPanel
+extends PluginPanel {
+    private final ItemManager itemManager;
+    private final TimeTrackingConfig config;
+    private final JPanel display = new JPanel();
+    private final Map<Tab, MaterialTab> uiTabs = new HashMap<Tab, MaterialTab>();
+    private final MaterialTabGroup tabGroup = new MaterialTabGroup(this.display);
+    private boolean active;
+    @Nullable
+    private TabContentPanel activeTabPanel = null;
 
-	/* This is the panel the tabs' respective panels will be displayed on. */
-	private final JPanel display = new JPanel();
-	private final Map<Tab, MaterialTab> uiTabs = new HashMap<>();
-	private final MaterialTabGroup tabGroup = new MaterialTabGroup(display);
+    @Inject
+    TimeTrackingPanel(ItemManager itemManager, TimeTrackingConfig config, FarmingTracker farmingTracker, BirdHouseTracker birdHouseTracker, ClockManager clockManager, FarmingContractManager farmingContractManager, ConfigManager configManager, @Named(value="developerMode") boolean developerMode) {
+        super(false);
+        this.itemManager = itemManager;
+        this.config = config;
+        this.setLayout(new BorderLayout());
+        this.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        this.display.setBorder(new EmptyBorder(10, 10, 8, 10));
+        this.tabGroup.setLayout(new GridLayout(0, 6, 7, 7));
+        this.tabGroup.setBorder(new EmptyBorder(10, 10, 0, 10));
+        this.add((Component)this.tabGroup, "North");
+        this.add((Component)this.display, "Center");
+        this.addTab(Tab.OVERVIEW, new OverviewTabPanel(itemManager, config, this, farmingTracker, birdHouseTracker, clockManager, farmingContractManager));
+        this.addTab(Tab.CLOCK, clockManager.getClockTabPanel());
+        for (Tab tab : Tab.FARMING_TABS) {
+            this.addTab(tab, farmingTracker.createTabPanel(tab, farmingContractManager));
+        }
+        if (developerMode) {
+            this.addTab(Tab.TIME_OFFSET, new FarmingNextTickPanel(farmingTracker, config, configManager));
+        }
+    }
 
-	private boolean active;
+    private void addTab(Tab tab, TabContentPanel tabContentPanel) {
+        JPanel wrapped = new JPanel(new BorderLayout());
+        wrapped.add((Component)tabContentPanel, "North");
+        wrapped.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        JScrollPane scroller = new JScrollPane(wrapped);
+        scroller.setHorizontalScrollBarPolicy(31);
+        scroller.getVerticalScrollBar().setPreferredSize(new Dimension(16, 0));
+        scroller.getVerticalScrollBar().setBorder(new EmptyBorder(0, 9, 0, 0));
+        scroller.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        MaterialTab materialTab = new MaterialTab(new ImageIcon(), this.tabGroup, (JComponent)scroller);
+        materialTab.setPreferredSize(new Dimension(30, 27));
+        materialTab.setName(tab.getName());
+        materialTab.setToolTipText(tab.getName());
+        AsyncBufferedImage icon = this.itemManager.getImage(tab.getItemID());
+        Runnable resize = () -> {
+            BufferedImage subIcon = icon.getSubimage(0, 0, 32, 32);
+            materialTab.setIcon(new ImageIcon(subIcon.getScaledInstance(24, 24, 4)));
+        };
+        icon.onLoaded(resize);
+        resize.run();
+        materialTab.setOnSelectEvent(() -> {
+            this.config.setActiveTab(tab);
+            this.activeTabPanel = tabContentPanel;
+            tabContentPanel.update();
+            return true;
+        });
+        this.uiTabs.put(tab, materialTab);
+        this.tabGroup.addTab(materialTab);
+        if (this.config.activeTab() == tab) {
+            this.tabGroup.select(materialTab);
+        }
+    }
 
-	@Nullable
-	private TabContentPanel activeTabPanel = null;
+    void switchTab(Tab tab) {
+        this.tabGroup.select(this.uiTabs.get((Object)tab));
+    }
 
-	@Inject
-	TimeTrackingPanel(ItemManager itemManager, TimeTrackingConfig config, FarmingTracker farmingTracker,
-		BirdHouseTracker birdHouseTracker, ClockManager clockManager,
-		FarmingContractManager farmingContractManager, ConfigManager configManager,
-		@Named("developerMode") boolean developerMode)
-	{
-		super(false);
+    int getUpdateInterval() {
+        return this.activeTabPanel == null ? Integer.MAX_VALUE : this.activeTabPanel.getUpdateInterval();
+    }
 
-		this.itemManager = itemManager;
-		this.config = config;
+    void update() {
+        if (!this.active || this.activeTabPanel == null) {
+            return;
+        }
+        SwingUtilities.invokeLater(this.activeTabPanel::update);
+    }
 
-		setLayout(new BorderLayout());
-		setBackground(ColorScheme.DARK_GRAY_COLOR);
+    @Override
+    public void onActivate() {
+        this.active = true;
+        this.update();
+    }
 
-		display.setBorder(new EmptyBorder(10, 10, 8, 10));
-
-		tabGroup.setLayout(new GridLayout(0, 6, 7, 7));
-		tabGroup.setBorder(new EmptyBorder(10, 10, 0, 10));
-
-		add(tabGroup, BorderLayout.NORTH);
-		add(display, BorderLayout.CENTER);
-
-		addTab(Tab.OVERVIEW, new OverviewTabPanel(itemManager, config, this, farmingTracker, birdHouseTracker, clockManager,
-			farmingContractManager));
-		addTab(Tab.CLOCK, clockManager.getClockTabPanel());
-		addTab(Tab.BIRD_HOUSE, birdHouseTracker.createBirdHouseTabPanel());
-
-		for (Tab tab : Tab.FARMING_TABS)
-		{
-			addTab(tab, farmingTracker.createTabPanel(tab, farmingContractManager));
-		}
-
-		if (developerMode)
-		{
-			addTab(Tab.TIME_OFFSET, new FarmingNextTickPanel(farmingTracker, config, configManager));
-		}
-	}
-
-	private void addTab(Tab tab, TabContentPanel tabContentPanel)
-	{
-		JPanel wrapped = new JPanel(new BorderLayout());
-		wrapped.add(tabContentPanel, BorderLayout.NORTH);
-		wrapped.setBackground(ColorScheme.DARK_GRAY_COLOR);
-
-		JScrollPane scroller = new JScrollPane(wrapped);
-		scroller.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		scroller.getVerticalScrollBar().setPreferredSize(new Dimension(16, 0));
-		scroller.getVerticalScrollBar().setBorder(new EmptyBorder(0, 9, 0, 0));
-		scroller.setBackground(ColorScheme.DARK_GRAY_COLOR);
-
-		// Use a placeholder icon until the async image gets loaded
-		MaterialTab materialTab = new MaterialTab(new ImageIcon(), tabGroup, scroller);
-		materialTab.setPreferredSize(new Dimension(30, 27));
-		materialTab.setName(tab.getName());
-		materialTab.setToolTipText(tab.getName());
-
-		AsyncBufferedImage icon = itemManager.getImage(tab.getItemID());
-		Runnable resize = () ->
-		{
-			BufferedImage subIcon = icon.getSubimage(0, 0, 32, 32);
-			materialTab.setIcon(new ImageIcon(subIcon.getScaledInstance(24, 24, Image.SCALE_SMOOTH)));
-		};
-		icon.onLoaded(resize);
-		resize.run();
-
-		materialTab.setOnSelectEvent(() ->
-		{
-			config.setActiveTab(tab);
-			activeTabPanel = tabContentPanel;
-
-			tabContentPanel.update();
-			return true;
-		});
-
-		uiTabs.put(tab, materialTab);
-		tabGroup.addTab(materialTab);
-
-		if (config.activeTab() == tab)
-		{
-			tabGroup.select(materialTab);
-		}
-	}
-
-	void switchTab(Tab tab)
-	{
-		tabGroup.select(uiTabs.get(tab));
-	}
-
-	/**
-	 * Gets the update interval of the active tab panel, in units of 200 milliseconds.
-	 */
-	int getUpdateInterval()
-	{
-		return activeTabPanel == null ? Integer.MAX_VALUE : activeTabPanel.getUpdateInterval();
-	}
-
-	/**
-	 * Updates the active tab panel, if this plugin panel is displayed.
-	 */
-	void update()
-	{
-		if (!active || activeTabPanel == null)
-		{
-			return;
-		}
-
-		SwingUtilities.invokeLater(activeTabPanel::update);
-	}
-
-	@Override
-	public void onActivate()
-	{
-		active = true;
-		update();
-	}
-
-	@Override
-	public void onDeactivate()
-	{
-		active = false;
-	}
+    @Override
+    public void onDeactivate() {
+        this.active = false;
+    }
 }
+

@@ -1,40 +1,58 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.Value;
 import net.runelite.api.Tile;
 import net.runelite.api.TileItem;
 
-/**
- * Called when an item pile despawns from the ground. When the client loads a new scene,
- * all item piles are implicitly despawned, and despawn events will not be sent.
- */
-@Value
-public class ItemDespawned
-{
-	private final Tile tile;
-	private final TileItem item;
+public final class ItemDespawned {
+    private final Tile tile;
+    private final TileItem item;
+
+    public ItemDespawned(Tile tile, TileItem item) {
+        this.tile = tile;
+        this.item = item;
+    }
+
+    public Tile getTile() {
+        return this.tile;
+    }
+
+    public TileItem getItem() {
+        return this.item;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ItemDespawned)) {
+            return false;
+        }
+        ItemDespawned other = (ItemDespawned)o;
+        Tile this$tile = this.getTile();
+        Tile other$tile = other.getTile();
+        if (this$tile == null ? other$tile != null : !this$tile.equals(other$tile)) {
+            return false;
+        }
+        TileItem this$item = this.getItem();
+        TileItem other$item = other.getItem();
+        return !(this$item == null ? other$item != null : !this$item.equals(other$item));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Tile $tile = this.getTile();
+        result = result * 59 + ($tile == null ? 43 : $tile.hashCode());
+        TileItem $item = this.getItem();
+        result = result * 59 + ($item == null ? 43 : $item.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ItemDespawned(tile=" + this.getTile() + ", item=" + this.getItem() + ")";
+    }
 }
+

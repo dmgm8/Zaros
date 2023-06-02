@@ -1,63 +1,62 @@
 /*
- * Copyright (c) 2018, Daniel Teo <https://github.com/takuyakanbr>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.timetracking.clocks;
 
 import java.time.Instant;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-abstract class Clock
-{
-	protected String name;
+abstract class Clock {
+    protected String name;
+    protected long lastUpdate;
+    protected boolean active;
 
-	// last updated time (recorded as seconds since epoch)
-	protected long lastUpdate;
+    Clock(String name) {
+        this.name = name;
+        this.lastUpdate = Instant.now().getEpochSecond();
+        this.active = false;
+    }
 
-	// whether the clock is currently running
-	protected boolean active;
+    abstract long getDisplayTime();
 
-	Clock(String name)
-	{
-		this.name = name;
-		this.lastUpdate = Instant.now().getEpochSecond();
-		this.active = false;
-	}
+    abstract void setDuration(long var1);
 
-	abstract long getDisplayTime();
+    abstract boolean start();
 
-	abstract void setDuration(long duration);
+    abstract boolean pause();
 
-	abstract boolean start();
+    abstract void reset();
 
-	abstract boolean pause();
+    public String getName() {
+        return this.name;
+    }
 
-	abstract void reset();
+    public long getLastUpdate() {
+        return this.lastUpdate;
+    }
+
+    public boolean isActive() {
+        return this.active;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setLastUpdate(long lastUpdate) {
+        this.lastUpdate = lastUpdate;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public Clock() {
+    }
+
+    public Clock(String name, long lastUpdate, boolean active) {
+        this.name = name;
+        this.lastUpdate = lastUpdate;
+        this.active = active;
+    }
 }
+

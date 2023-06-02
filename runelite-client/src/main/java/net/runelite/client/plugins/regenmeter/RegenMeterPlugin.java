@@ -1,180 +1,149 @@
 /*
- * Copyright (c) 2019, Sean Dewar <https://github.com/seandewar>
- * Copyright (c) 2018, Abex
- * Copyright (c) 2018, Zimaya <https://github.com/Zimaya>
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.ItemContainer
+ *  net.runelite.api.Prayer
+ *  net.runelite.api.Skill
+ *  net.runelite.api.VarPlayer
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.ItemContainerChanged
+ *  net.runelite.api.events.VarbitChanged
  */
 package net.runelite.client.plugins.regenmeter;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
-import lombok.Getter;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
 import net.runelite.api.GameState;
+import net.runelite.api.InventoryID;
+import net.runelite.api.ItemContainer;
 import net.runelite.api.Prayer;
 import net.runelite.api.Skill;
 import net.runelite.api.VarPlayer;
-import net.runelite.api.Varbits;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.client.Notifier;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.regenmeter.RegenMeterConfig;
+import net.runelite.client.plugins.regenmeter.RegenMeterOverlay;
 import net.runelite.client.ui.overlay.OverlayManager;
 
-@PluginDescriptor(
-	name = "Regeneration Meter",
-	description = "Track and show the hitpoints and special attack regeneration timers",
-	tags = {"combat", "health", "hitpoints", "special", "attack", "overlay", "notifications"}
-)
-public class RegenMeterPlugin extends Plugin
-{
-	private static final int SPEC_REGEN_TICKS = 50;
-	private static final int NORMAL_HP_REGEN_TICKS = 100;
+@PluginDescriptor(name="Regeneration Meter", description="Track and show the hitpoints and special attack regeneration timers", tags={"combat", "health", "hitpoints", "special", "attack", "overlay", "notifications"})
+public class RegenMeterPlugin
+extends Plugin {
+    private static final int SPEC_REGEN_TICKS = 50;
+    private static final int NORMAL_HP_REGEN_TICKS = 100;
+    private static final int TRAILBLAZER_LEAGUE_FLUID_STRIKES_RELIC = 2;
+    @Inject
+    private Client client;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private Notifier notifier;
+    @Inject
+    private RegenMeterOverlay overlay;
+    @Inject
+    private RegenMeterConfig config;
+    private double hitpointsPercentage;
+    private double specialPercentage;
+    private int ticksSinceSpecRegen;
+    private int ticksSinceHPRegen;
+    private boolean wearingLightbearer;
 
-	private static final int TRAILBLAZER_LEAGUE_FLUID_STRIKES_RELIC = 2;
+    @Provides
+    RegenMeterConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(RegenMeterConfig.class);
+    }
 
-	@Inject
-	private Client client;
+    @Override
+    protected void startUp() throws Exception {
+        this.overlayManager.add(this.overlay);
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Override
+    protected void shutDown() throws Exception {
+        this.overlayManager.remove(this.overlay);
+    }
 
-	@Inject
-	private Notifier notifier;
+    @Subscribe
+    private void onGameStateChanged(GameStateChanged ev) {
+        if (ev.getGameState() == GameState.HOPPING || ev.getGameState() == GameState.LOGIN_SCREEN) {
+            this.ticksSinceHPRegen = -2;
+            this.ticksSinceSpecRegen = 0;
+        }
+    }
 
-	@Inject
-	private RegenMeterOverlay overlay;
+    @Subscribe
+    public void onItemContainerChanged(ItemContainerChanged event) {
+        if (event.getContainerId() != InventoryID.EQUIPMENT.getId()) {
+            return;
+        }
+        ItemContainer equipment = event.getItemContainer();
+        boolean hasLightbearer = equipment.contains(25975);
+        if (hasLightbearer == this.wearingLightbearer) {
+            return;
+        }
+        this.ticksSinceSpecRegen = 0;
+        this.wearingLightbearer = hasLightbearer;
+    }
 
-	@Inject
-	private RegenMeterConfig config;
+    @Subscribe
+    private void onVarbitChanged(VarbitChanged ev) {
+        if (ev.getVarbitId() == 4111) {
+            this.ticksSinceHPRegen = 0;
+        }
+    }
 
-	@Getter
-	private double hitpointsPercentage;
+    @Subscribe
+    public void onGameTick(GameTick event) {
+        int maxHP;
+        int ticksPerSpecRegen = this.wearingLightbearer ? 25 : 50;
+        this.ticksSinceSpecRegen = this.client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT) == 1000 ? 0 : (this.ticksSinceSpecRegen + 1) % ticksPerSpecRegen;
+        this.specialPercentage = (double)this.ticksSinceSpecRegen / (double)ticksPerSpecRegen;
+        int ticksPerHPRegen = 100;
+        if (this.client.isPrayerActive(Prayer.RAPID_HEAL)) {
+            ticksPerHPRegen /= 2;
+        }
+        if (this.client.getVarbitValue(10051) == 2) {
+            ticksPerHPRegen /= 4;
+        }
+        this.ticksSinceHPRegen = (this.ticksSinceHPRegen + 1) % ticksPerHPRegen;
+        this.hitpointsPercentage = (double)this.ticksSinceHPRegen / (double)ticksPerHPRegen;
+        int currentHP = this.client.getBoostedSkillLevel(Skill.HITPOINTS);
+        if (currentHP == (maxHP = this.client.getRealSkillLevel(Skill.HITPOINTS)) && !this.config.showWhenNoChange()) {
+            this.hitpointsPercentage = 0.0;
+        } else if (currentHP > maxHP) {
+            this.hitpointsPercentage = 1.0 - this.hitpointsPercentage;
+        }
+        if (this.config.getNotifyBeforeHpRegenSeconds() > 0 && currentHP < maxHP && this.shouldNotifyHpRegenThisTick(ticksPerHPRegen)) {
+            this.notifier.notify("Your next hitpoint will regenerate soon!");
+        }
+    }
 
-	@Getter
-	private double specialPercentage;
+    private boolean shouldNotifyHpRegenThisTick(int ticksPerHPRegen) {
+        int ticksBeforeHPRegen = ticksPerHPRegen - this.ticksSinceHPRegen;
+        int notifyTick = (int)Math.ceil((double)this.config.getNotifyBeforeHpRegenSeconds() * 1000.0 / 600.0);
+        return ticksBeforeHPRegen == notifyTick;
+    }
 
-	private int ticksSinceSpecRegen;
-	private int ticksSinceHPRegen;
-	private boolean wasRapidHeal;
+    public double getHitpointsPercentage() {
+        return this.hitpointsPercentage;
+    }
 
-	@Provides
-	RegenMeterConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(RegenMeterConfig.class);
-	}
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		overlayManager.add(overlay);
-	}
-
-	@Override
-	protected void shutDown() throws Exception
-	{
-		overlayManager.remove(overlay);
-	}
-
-	@Subscribe
-	private void onGameStateChanged(GameStateChanged ev)
-	{
-		if (ev.getGameState() == GameState.HOPPING || ev.getGameState() == GameState.LOGIN_SCREEN)
-		{
-			ticksSinceHPRegen = -2; // For some reason this makes this accurate
-			ticksSinceSpecRegen = 0;
-		}
-	}
-
-	@Subscribe
-	private void onVarbitChanged(VarbitChanged ev)
-	{
-		boolean isRapidHeal = client.isPrayerActive(Prayer.RAPID_HEAL);
-		if (wasRapidHeal != isRapidHeal)
-		{
-			ticksSinceHPRegen = 0;
-		}
-		wasRapidHeal = isRapidHeal;
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick event)
-	{
-		if (client.getVar(VarPlayer.SPECIAL_ATTACK_PERCENT) == 1000)
-		{
-			// The recharge doesn't tick when at 100%
-			ticksSinceSpecRegen = 0;
-		}
-		else
-		{
-			ticksSinceSpecRegen = (ticksSinceSpecRegen + 1) % SPEC_REGEN_TICKS;
-		}
-		specialPercentage = ticksSinceSpecRegen / (double) SPEC_REGEN_TICKS;
-
-
-		int ticksPerHPRegen = NORMAL_HP_REGEN_TICKS;
-		if (client.isPrayerActive(Prayer.RAPID_HEAL))
-		{
-			ticksPerHPRegen /= 2;
-		}
-
-		if (client.getVarbitValue(Varbits.LEAGUE_RELIC_3) == TRAILBLAZER_LEAGUE_FLUID_STRIKES_RELIC)
-		{
-			ticksPerHPRegen /= 4;
-		}
-
-		ticksSinceHPRegen = (ticksSinceHPRegen + 1) % ticksPerHPRegen;
-		hitpointsPercentage = ticksSinceHPRegen / (double) ticksPerHPRegen;
-
-		int currentHP = client.getBoostedSkillLevel(Skill.HITPOINTS);
-		int maxHP = client.getRealSkillLevel(Skill.HITPOINTS);
-		if (currentHP == maxHP && !config.showWhenNoChange())
-		{
-			hitpointsPercentage = 0;
-		}
-		else if (currentHP > maxHP)
-		{
-			// Show it going down
-			hitpointsPercentage = 1 - hitpointsPercentage;
-		}
-
-		if (config.getNotifyBeforeHpRegenSeconds() > 0 && currentHP < maxHP && shouldNotifyHpRegenThisTick(ticksPerHPRegen))
-		{
-			notifier.notify("Your next hitpoint will regenerate soon!");
-		}
-	}
-
-	private boolean shouldNotifyHpRegenThisTick(int ticksPerHPRegen)
-	{
-		// if the configured duration lies between two ticks, choose the earlier tick
-		final int ticksBeforeHPRegen = ticksPerHPRegen - ticksSinceHPRegen;
-		final int notifyTick = (int) Math.ceil(config.getNotifyBeforeHpRegenSeconds() * 1000d / Constants.GAME_TICK_LENGTH);
-		return ticksBeforeHPRegen == notifyTick;
-	}
+    public double getSpecialPercentage() {
+        return this.specialPercentage;
+    }
 }
+

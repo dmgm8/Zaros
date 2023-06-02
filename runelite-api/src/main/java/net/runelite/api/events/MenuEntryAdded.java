@@ -1,158 +1,98 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 
-/**
- * An event when a new entry is added to a right-click menu.
- */
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@ToString(onlyExplicitlyIncluded = true)
-public class MenuEntryAdded
-{
-	// Here for RuneLite compatibility (different parameter order)
-	public MenuEntryAdded(MenuEntry menuEntry)
-	{
-		this.menuEntry = menuEntry;
+public class MenuEntryAdded {
+    private final MenuEntry menuEntry;
 
-		this.option = menuEntry.getOption();
-		this.target = menuEntry.getTarget();
-		this.identifier = menuEntry.getIdentifier();
-		this.type = menuEntry.getType().getId();
-		this.actionParam0 = menuEntry.getParam0();
-		this.actionParam1 = menuEntry.getParam1();
-		this.forceLeftClick = false;
-	}
+    public String getOption() {
+        return this.menuEntry.getOption();
+    }
 
-	@Getter
-	private final MenuEntry menuEntry;
+    public String getTarget() {
+        return this.menuEntry.getTarget();
+    }
 
-	@Getter
-	@Setter
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	private String option;
+    public int getType() {
+        return this.menuEntry.getType().getId();
+    }
 
-	@Getter
-	@Setter
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	private String target;
+    public int getIdentifier() {
+        return this.menuEntry.getIdentifier();
+    }
 
-	@Getter
-	@Setter
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	private int type;
+    public int getActionParam0() {
+        return this.menuEntry.getParam0();
+    }
 
-	@Getter
-	@Setter
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	private int identifier;
+    public int getActionParam1() {
+        return this.menuEntry.getParam1();
+    }
 
-	@Getter
-	@Setter
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	private int actionParam0;
+    public MenuEntryAdded(MenuEntry menuEntry) {
+        this.menuEntry = menuEntry;
+    }
 
-	@Getter
-	@Setter
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	private int actionParam1;
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof MenuEntryAdded)) {
+            return false;
+        }
+        MenuEntryAdded other = (MenuEntryAdded)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getType() != other.getType()) {
+            return false;
+        }
+        if (this.getIdentifier() != other.getIdentifier()) {
+            return false;
+        }
+        if (this.getActionParam0() != other.getActionParam0()) {
+            return false;
+        }
+        if (this.getActionParam1() != other.getActionParam1()) {
+            return false;
+        }
+        String this$$getOption = this.getOption();
+        String other$$getOption = other.getOption();
+        if (this$$getOption == null ? other$$getOption != null : !this$$getOption.equals(other$$getOption)) {
+            return false;
+        }
+        String this$$getTarget = this.getTarget();
+        String other$$getTarget = other.getTarget();
+        return !(this$$getTarget == null ? other$$getTarget != null : !this$$getTarget.equals(other$$getTarget));
+    }
 
-	@Getter
-	@Setter
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	private boolean forceLeftClick;
+    protected boolean canEqual(Object other) {
+        return other instanceof MenuEntryAdded;
+    }
 
-	/**
-	 * If this is set to true client mixin will update
-	 * the menu entry with the modified values.
-	 *
-	 * Checks if count is the same, but doesn't check if there's
-	 * been multiple changes
-	 */
-	@Getter
-	@Setter
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	private boolean modified;
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getType();
+        result = result * 59 + this.getIdentifier();
+        result = result * 59 + this.getActionParam0();
+        result = result * 59 + this.getActionParam1();
+        String $$getOption = this.getOption();
+        result = result * 59 + ($$getOption == null ? 43 : $$getOption.hashCode());
+        String $$getTarget = this.getTarget();
+        result = result * 59 + ($$getTarget == null ? 43 : $$getTarget.hashCode());
+        return result;
+    }
 
-	public void setModified()
-	{
-		this.modified = true;
-	}
+    public String toString() {
+        return "MenuEntryAdded(getOption=" + this.getOption() + ", getTarget=" + this.getTarget() + ", getType=" + this.getType() + ", getIdentifier=" + this.getIdentifier() + ", getActionParam0=" + this.getActionParam0() + ", getActionParam1=" + this.getActionParam1() + ")";
+    }
 
-	@Deprecated
-	public int getParam0()
-	{
-		return actionParam0;
-	}
-
-	@Deprecated
-	public void setParam0(int param)
-	{
-		actionParam0 = param;
-	}
-
-	@Deprecated
-	public int getParam1()
-	{
-		return actionParam1;
-	}
-
-	@Deprecated
-	public void setParam1(int param)
-	{
-		actionParam1 = param;
-	}
-	@Deprecated
-	public int getOpcode()
-	{
-		return type;
-	}
-
-	@Deprecated
-	public void setOpcode(int opcode)
-	{
-		type = opcode;
-	}
-
-	@Deprecated
-	public MenuAction getMenuAction()
-	{
-		return MenuAction.of(type);
-	}
+    public MenuEntry getMenuEntry() {
+        return this.menuEntry;
+    }
 }
+

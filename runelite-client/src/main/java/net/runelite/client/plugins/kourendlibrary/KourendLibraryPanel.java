@@ -1,34 +1,18 @@
 /*
- * Copyright (c) 2018 Abex
- * Copyright (c) 2018 Psikoi
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Inject
+ *  javax.inject.Singleton
  */
 package net.runelite.client.plugins.kourendlibrary;
 
 import com.google.inject.Inject;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -42,127 +26,98 @@ import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import net.runelite.client.plugins.kourendlibrary.Book;
+import net.runelite.client.plugins.kourendlibrary.BookPanel;
+import net.runelite.client.plugins.kourendlibrary.Bookcase;
+import net.runelite.client.plugins.kourendlibrary.KourendLibraryPlugin;
+import net.runelite.client.plugins.kourendlibrary.Library;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
 @Singleton
-class KourendLibraryPanel extends PluginPanel
-{
-	private static final ImageIcon RESET_ICON;
-	private static final ImageIcon RESET_HOVER_ICON;
+class KourendLibraryPanel
+extends PluginPanel {
+    private static final ImageIcon RESET_ICON;
+    private static final ImageIcon RESET_HOVER_ICON;
+    private final KourendLibraryPlugin plugin;
+    private final Library library;
+    private final HashMap<Book, BookPanel> bookPanels = new HashMap();
 
-	private final KourendLibraryPlugin plugin;
-	private final Library library;
+    @Inject
+    KourendLibraryPanel(KourendLibraryPlugin plugin, Library library) {
+        this.plugin = plugin;
+        this.library = library;
+    }
 
-	private final HashMap<Book, BookPanel> bookPanels = new HashMap<>();
+    void init() {
+        this.setLayout(new BorderLayout(0, 5));
+        this.setBorder(new EmptyBorder(10, 10, 10, 10));
+        this.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        JPanel books = new JPanel(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = 2;
+        c.weightx = 1.0;
+        c.gridx = 0;
+        c.gridy = 0;
+        Stream.of(Book.values()).filter(b -> !b.isDarkManuscript()).filter(b -> b != Book.VARLAMORE_ENVOY || this.plugin.showVarlamoreEnvoy()).sorted(Comparator.comparing(Book::getShortName)).forEach(b -> {
+            BookPanel p = new BookPanel((Book)((Object)b));
+            this.bookPanels.put((Book)((Object)b), p);
+            books.add((Component)p, c);
+            ++c.gridy;
+        });
+        JButton reset = new JButton("Reset", RESET_ICON);
+        reset.setRolloverIcon(RESET_HOVER_ICON);
+        reset.addActionListener(ev -> {
+            this.library.reset();
+            this.update();
+        });
+        this.add((Component)reset, "North");
+        this.add((Component)books, "Center");
+        this.update();
+    }
 
-	static
-	{
-		final BufferedImage resetIcon = ImageUtil.loadImageResource(KourendLibraryPanel.class, "/util/reset.png");
-		RESET_ICON = new ImageIcon(resetIcon);
-		RESET_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(resetIcon, -100));
-	}
+    void update() {
+        SwingUtilities.invokeLater(() -> {
+            Book customerBook = this.library.getCustomerBook();
+            for (Map.Entry<Book, BookPanel> b : this.bookPanels.entrySet()) {
+                Book book = b.getKey();
+                BookPanel panel = b.getValue();
+                panel.setIsTarget(customerBook == book);
+                panel.setIsHeld(this.plugin.doesPlayerContainBook(book));
+            }
+            HashMap<Book, HashSet> bookLocations = new HashMap<Book, HashSet>();
+            for (Bookcase bookcase : this.library.getBookcases()) {
+                if (bookcase.getBook() != null) {
+                    bookLocations.computeIfAbsent(bookcase.getBook(), a -> new HashSet()).add(bookcase.getLocationString());
+                    continue;
+                }
+                for (Book book : bookcase.getPossibleBooks()) {
+                    if (book == null) continue;
+                    bookLocations.computeIfAbsent(book, a -> new HashSet()).add(bookcase.getLocationString());
+                }
+            }
+            for (Map.Entry entry : this.bookPanels.entrySet()) {
+                HashSet locs = (HashSet)bookLocations.get(entry.getKey());
+                if (locs == null || locs.size() > 3) {
+                    ((BookPanel)entry.getValue()).setLocation("Unknown");
+                    continue;
+                }
+                ((BookPanel)entry.getValue()).setLocation("<html>" + locs.stream().collect(Collectors.joining("<br>")) + "</html>");
+            }
+        });
+    }
 
-	@Inject
-	KourendLibraryPanel(KourendLibraryPlugin plugin, Library library)
-	{
-		super();
+    void reload() {
+        this.bookPanels.clear();
+        this.removeAll();
+        this.init();
+    }
 
-		this.plugin = plugin;
-		this.library = library;
-	}
-
-	void init()
-	{
-		setLayout(new BorderLayout(0, 5));
-		setBorder(new EmptyBorder(10, 10, 10, 10));
-		setBackground(ColorScheme.DARK_GRAY_COLOR);
-
-		JPanel books = new JPanel(new GridBagLayout());
-		GridBagConstraints c = new GridBagConstraints();
-		c.fill = GridBagConstraints.HORIZONTAL;
-		c.weightx = 1;
-		c.gridx = 0;
-		c.gridy = 0;
-		Stream.of(Book.values())
-			.filter(b -> !b.isDarkManuscript())
-			.filter(b -> b != Book.VARLAMORE_ENVOY || plugin.showVarlamoreEnvoy())
-			.sorted(Comparator.comparing(Book::getShortName))
-			.forEach(b ->
-			{
-				BookPanel p = new BookPanel(b);
-				bookPanels.put(b, p);
-				books.add(p, c);
-				c.gridy++;
-			});
-
-		JButton reset = new JButton("Reset", RESET_ICON);
-		reset.setRolloverIcon(RESET_HOVER_ICON);
-		reset.addActionListener(ev ->
-		{
-			library.reset();
-			update();
-		});
-
-		add(reset, BorderLayout.NORTH);
-		add(books, BorderLayout.CENTER);
-		update();
-	}
-
-	void update()
-	{
-		SwingUtilities.invokeLater(() ->
-		{
-			Book customerBook = library.getCustomerBook();
-			for (Map.Entry<Book, BookPanel> b : bookPanels.entrySet())
-			{
-				final Book book = b.getKey();
-				final BookPanel panel = b.getValue();
-
-				panel.setIsTarget(customerBook == book);
-				panel.setIsHeld(plugin.doesPlayerContainBook(book));
-			}
-
-			HashMap<Book, HashSet<String>> bookLocations = new HashMap<>();
-
-			for (Bookcase bookcase : library.getBookcases())
-			{
-				if (bookcase.getBook() != null)
-				{
-					bookLocations.computeIfAbsent(bookcase.getBook(), a -> new HashSet<>()).add(bookcase.getLocationString());
-				}
-				else
-				{
-					for (Book book : bookcase.getPossibleBooks())
-					{
-						if (book != null)
-						{
-							bookLocations.computeIfAbsent(book, a -> new HashSet<>()).add(bookcase.getLocationString());
-						}
-					}
-				}
-			}
-
-			for (Map.Entry<Book, BookPanel> e : bookPanels.entrySet())
-			{
-				HashSet<String> locs = bookLocations.get(e.getKey());
-				if (locs == null || locs.size() > 3)
-				{
-					e.getValue().setLocation("Unknown");
-				}
-				else
-				{
-					e.getValue().setLocation("<html>" + locs.stream().collect(Collectors.joining("<br>")) + "</html>");
-				}
-			}
-		});
-	}
-
-	void reload()
-	{
-		bookPanels.clear();
-		removeAll();
-		init();
-	}
+    static {
+        BufferedImage resetIcon = ImageUtil.loadImageResource(KourendLibraryPanel.class, "/util/reset.png");
+        RESET_ICON = new ImageIcon(resetIcon);
+        RESET_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset((Image)resetIcon, -100));
+    }
 }
+

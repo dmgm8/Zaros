@@ -1,27 +1,14 @@
 /*
- * Copyright (c) 2018, Kamiel
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.events.CommandExecuted
+ *  net.runelite.api.events.ScriptCallbackEvent
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.chat;
 
@@ -30,190 +17,152 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.ScriptID;
-import net.runelite.api.VarClientStr;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatboxInputListener;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ChatboxInput;
 import net.runelite.client.events.PrivateMessageInput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 @Singleton
-public class CommandManager
-{
-	private static final String RUNELITE_COMMAND = "runeliteCommand";
-	private static final String CHATBOX_INPUT = "chatboxInput";
-	private static final String PRIVATE_MESSAGE = "privateMessage";
+public class CommandManager {
+    private static final Logger log = LoggerFactory.getLogger(CommandManager.class);
+    private static final String RUNELITE_COMMAND = "runeliteCommand";
+    private static final String CHATBOX_INPUT = "chatboxInput";
+    private static final String PRIVATE_MESSAGE = "privateMessage";
+    private final Client client;
+    private final EventBus eventBus;
+    private final ClientThread clientThread;
+    private boolean sending;
+    private final List<ChatboxInputListener> chatboxInputListenerList = new CopyOnWriteArrayList<ChatboxInputListener>();
 
-	private final Client client;
-	private final EventBus eventBus;
-	private final ClientThread clientThread;
-	private boolean sending;
+    @Inject
+    private CommandManager(Client client, EventBus eventBus, ClientThread clientThread) {
+        this.client = client;
+        this.eventBus = eventBus;
+        this.clientThread = clientThread;
+        eventBus.register(this);
+    }
 
-	private final List<ChatboxInputListener> chatboxInputListenerList = new CopyOnWriteArrayList<>();
+    public void register(ChatboxInputListener chatboxInputListener) {
+        this.chatboxInputListenerList.add(chatboxInputListener);
+    }
 
-	@Inject
-	private CommandManager(Client client, EventBus eventBus, ClientThread clientThread)
-	{
-		this.client = client;
-		this.eventBus = eventBus;
-		this.clientThread = clientThread;
-		eventBus.register(this);
-	}
+    public void unregister(ChatboxInputListener chatboxInputListener) {
+        this.chatboxInputListenerList.remove(chatboxInputListener);
+    }
 
-	public void register(ChatboxInputListener chatboxInputListener)
-	{
-		chatboxInputListenerList.add(chatboxInputListener);
-	}
+    @Subscribe
+    private void onScriptCallbackEvent(ScriptCallbackEvent event) {
+        if (this.sending) {
+            return;
+        }
+        switch (event.getEventName()) {
+            case "runeliteCommand": {
+                this.runCommand();
+                break;
+            }
+            case "chatboxInput": {
+                this.handleInput(event);
+                break;
+            }
+            case "privateMessage": {
+                this.handlePrivateMessage(event);
+            }
+        }
+    }
 
-	public void unregister(ChatboxInputListener chatboxInputListener)
-	{
-		chatboxInputListenerList.remove(chatboxInputListener);
-	}
+    private void runCommand() {
+        String typedText = this.client.getVarcStrValue(335).substring(2);
+        log.debug("Command: {}", (Object)typedText);
+        String[] split = typedText.split(" ");
+        if (split.length == 0) {
+            return;
+        }
+        String command = split[0];
+        String[] args = Arrays.copyOfRange(split, 1, split.length);
+        CommandExecuted commandExecuted = new CommandExecuted(command, args);
+        this.eventBus.post((Object)commandExecuted);
+    }
 
-	@Subscribe
-	private void onScriptCallbackEvent(ScriptCallbackEvent event)
-	{
-		if (sending)
-		{
-			return;
-		}
+    private void handleInput(ScriptCallbackEvent event) {
+        String[] stringStack = this.client.getStringStack();
+        int[] intStack = this.client.getIntStack();
+        int stringStackCount = this.client.getStringStackSize();
+        int intStackCount = this.client.getIntStackSize();
+        final String typedText = stringStack[stringStackCount - 1];
+        final int chatType = intStack[intStackCount - 2];
+        final int clanTarget = intStack[intStackCount - 1];
+        ChatboxInput chatboxInput = new ChatboxInput(typedText, chatType){
+            private boolean resumed;
 
-		switch (event.getEventName())
-		{
-			case RUNELITE_COMMAND:
-				runCommand();
-				break;
-			case CHATBOX_INPUT:
-				handleInput(event);
-				break;
-			case PRIVATE_MESSAGE:
-				handlePrivateMessage(event);
-				break;
-		}
-	}
+            @Override
+            public void resume() {
+                if (this.resumed) {
+                    return;
+                }
+                this.resumed = true;
+                CommandManager.this.clientThread.invoke(() -> CommandManager.this.sendChatboxInput(typedText, chatType, clanTarget));
+            }
+        };
+        boolean stop = false;
+        for (ChatboxInputListener chatboxInputListener : this.chatboxInputListenerList) {
+            stop |= chatboxInputListener.onChatboxInput(chatboxInput);
+        }
+        if (stop) {
+            stringStack[stringStackCount - 1] = "";
+        }
+    }
 
-	private void runCommand()
-	{
-		String typedText = client.getVar(VarClientStr.CHATBOX_TYPED_TEXT).substring(2); // strip ::
+    private void handlePrivateMessage(ScriptCallbackEvent event) {
+        String[] stringStack = this.client.getStringStack();
+        int[] intStack = this.client.getIntStack();
+        int stringStackCount = this.client.getStringStackSize();
+        int intStackCount = this.client.getIntStackSize();
+        final String target = stringStack[stringStackCount - 2];
+        final String message = stringStack[stringStackCount - 1];
+        PrivateMessageInput privateMessageInput = new PrivateMessageInput(target, message){
+            private boolean resumed;
 
-		log.debug("Command: {}", typedText);
+            @Override
+            public void resume() {
+                if (this.resumed) {
+                    return;
+                }
+                this.resumed = true;
+                CommandManager.this.clientThread.invoke(() -> CommandManager.this.sendPrivmsg(target, message));
+            }
+        };
+        boolean stop = false;
+        for (ChatboxInputListener chatboxInputListener : this.chatboxInputListenerList) {
+            stop |= chatboxInputListener.onPrivateMessageInput(privateMessageInput);
+        }
+        if (stop) {
+            intStack[intStackCount - 1] = 1;
+            this.client.setStringStackSize(stringStackCount - 2);
+        }
+    }
 
-		String[] split = typedText.split(" ");
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    private void sendChatboxInput(String input, int chatType, int clanTarget) {
+        this.sending = true;
+        try {
+            this.client.runScript(new Object[]{5517, input, chatType, clanTarget, 0, -1});
+        }
+        finally {
+            this.sending = false;
+        }
+    }
 
-		// Fixes ArrayIndexOutOfBounds when typing ":: "
-		if (split.length == 0)
-		{
-			return;
-		}
-
-		String command = split[0];
-		String[] args = Arrays.copyOfRange(split, 1, split.length);
-
-		CommandExecuted commandExecuted = new CommandExecuted(command, args);
-		eventBus.post(commandExecuted);
-	}
-
-	private void handleInput(ScriptCallbackEvent event)
-	{
-		final String[] stringStack = client.getStringStack();
-		final int[] intStack = client.getIntStack();
-		int stringStackCount = client.getStringStackSize();
-		int intStackCount = client.getIntStackSize();
-
-		final String typedText = stringStack[stringStackCount - 1];
-		final int chatType = intStack[intStackCount - 2];
-		final int clanTarget = intStack[intStackCount - 1];
-
-		ChatboxInput chatboxInput = new ChatboxInput(typedText, chatType)
-		{
-			private boolean resumed;
-
-			@Override
-			public void resume()
-			{
-				if (resumed)
-				{
-					return;
-				}
-				resumed = true;
-
-				clientThread.invoke(() -> sendChatboxInput(typedText, chatType, clanTarget));
-			}
-		};
-		boolean stop = false;
-		for (ChatboxInputListener chatboxInputListener : chatboxInputListenerList)
-		{
-			stop |= chatboxInputListener.onChatboxInput(chatboxInput);
-		}
-
-		if (stop)
-		{
-			// input was blocked.
-			stringStack[stringStackCount - 1] = ""; // prevent script from sending
-		}
-	}
-
-	private void handlePrivateMessage(ScriptCallbackEvent event)
-	{
-		final String[] stringStack = client.getStringStack();
-		final int[] intStack = client.getIntStack();
-		int stringStackCount = client.getStringStackSize();
-		int intStackCount = client.getIntStackSize();
-
-		final String target = stringStack[stringStackCount - 2];
-		final String message = stringStack[stringStackCount - 1];
-
-		PrivateMessageInput privateMessageInput = new PrivateMessageInput(target, message)
-		{
-			private boolean resumed;
-
-			@Override
-			public void resume()
-			{
-				if (resumed)
-				{
-					return;
-				}
-				resumed = true;
-
-				clientThread.invoke(() -> sendPrivmsg(target, message));
-			}
-		};
-
-		boolean stop = false;
-		for (ChatboxInputListener chatboxInputListener : chatboxInputListenerList)
-		{
-			stop |= chatboxInputListener.onPrivateMessageInput(privateMessageInput);
-		}
-
-		if (stop)
-		{
-			intStack[intStackCount - 1] = 1;
-			client.setStringStackSize(stringStackCount - 2); // remove both target and message
-		}
-	}
-
-	private void sendChatboxInput(String input, int chatType, int clanTarget)
-	{
-		sending = true;
-		try
-		{
-			client.runScript(ScriptID.CHAT_SEND, input, chatType, clanTarget, 0, -1);
-		}
-		finally
-		{
-			sending = false;
-		}
-	}
-
-	private void sendPrivmsg(String target, String message)
-	{
-		client.runScript(ScriptID.PRIVMSG, target, message);
-	}
+    private void sendPrivmsg(String target, String message) {
+        this.client.runScript(new Object[]{11004, target, message});
+    }
 }
+

@@ -1,129 +1,110 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.gson.Gson
+ *  com.google.gson.JsonParseException
+ *  javax.inject.Inject
+ *  javax.inject.Named
+ *  net.runelite.http.api.account.OAuthResponse
+ *  okhttp3.HttpUrl
+ *  okhttp3.OkHttpClient
+ *  okhttp3.Request
+ *  okhttp3.Request$Builder
+ *  okhttp3.Response
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.account;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import javax.inject.Inject;
 import javax.inject.Named;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import net.runelite.http.api.RuneLiteAPI;
 import net.runelite.http.api.account.OAuthResponse;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
-public class AccountClient
-{
-	private final OkHttpClient client;
-	private final HttpUrl apiBase;
+public class AccountClient {
+    private static final Logger log = LoggerFactory.getLogger(AccountClient.class);
+    private final OkHttpClient client;
+    private final HttpUrl apiBase;
+    private final Gson gson;
+    private UUID uuid;
 
-	@Setter
-	private UUID uuid;
+    @Inject
+    private AccountClient(OkHttpClient client, @Named(value="runelite.api.base") HttpUrl apiBase, Gson gson) {
+        this.client = client;
+        this.apiBase = apiBase;
+        this.gson = gson;
+    }
 
-	@Inject
-	private AccountClient(OkHttpClient client, @Named("runelite.api.base") HttpUrl apiBase)
-	{
-		this.client = client;
-		this.apiBase = apiBase;
-	}
+    public OAuthResponse login(int port) throws IOException {
+        OAuthResponse oAuthResponse;
+        block8: {
+            HttpUrl url = this.apiBase.newBuilder().addPathSegment("account").addPathSegment("login").addQueryParameter("port", Integer.toString(port)).build();
+            log.debug("Built URI: {}", url);
+            Request request = new Request.Builder().url(url).build();
+            Response response = this.client.newCall(request).execute();
+            try {
+                InputStream in = response.body().byteStream();
+                oAuthResponse = this.gson.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), OAuthResponse.class);
+                if (response == null) break block8;
+            }
+            catch (Throwable throwable) {
+                try {
+                    if (response != null) {
+                        try {
+                            response.close();
+                        }
+                        catch (Throwable throwable2) {
+                            throwable.addSuppressed(throwable2);
+                        }
+                    }
+                    throw throwable;
+                }
+                catch (JsonParseException ex) {
+                    throw new IOException(ex);
+                }
+            }
+            response.close();
+        }
+        return oAuthResponse;
+    }
 
-	public OAuthResponse login(int port) throws IOException
-	{
-		HttpUrl url = apiBase.newBuilder()
-			.addPathSegment("account")
-			.addPathSegment("login")
-			.addQueryParameter("port", Integer.toString(port))
-			.build();
+    public void logout() throws IOException {
+        HttpUrl url = this.apiBase.newBuilder().addPathSegment("account").addPathSegment("logout").build();
+        log.debug("Built URI: {}", url);
+        Request request = new Request.Builder().header("RUNELITE-AUTH", this.uuid.toString()).url(url).build();
+        try (Response response = this.client.newCall(request).execute()){
+            log.debug("Sent logout request");
+        }
+    }
 
-		log.debug("Built URI: {}", url);
+    public boolean sessionCheck() throws IOException {
+        HttpUrl url = this.apiBase.newBuilder().addPathSegment("account").addPathSegment("session-check").build();
+        log.debug("Built URI: {}", url);
+        Request request = new Request.Builder().header("RUNELITE-AUTH", this.uuid.toString()).url(url).build();
+        try (Response response = this.client.newCall(request).execute()){
+            return response.isSuccessful();
+        } catch (IOException ex) {
+            log.debug("Unable to verify session", ex);
+            return true;
+        }
+    }
 
-		Request request = new Request.Builder()
-			.url(url)
-			.build();
-
-		try (Response response = client.newCall(request).execute())
-		{
-			InputStream in = response.body().byteStream();
-			return RuneLiteAPI.GSON.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), OAuthResponse.class);
-		}
-		catch (JsonParseException ex)
-		{
-			throw new IOException(ex);
-		}
-	}
-
-	public void logout() throws IOException
-	{
-		HttpUrl url = apiBase.newBuilder()
-			.addPathSegment("account")
-			.addPathSegment("logout")
-			.build();
-
-		log.debug("Built URI: {}", url);
-
-		Request request = new Request.Builder()
-			.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString())
-			.url(url)
-			.build();
-
-		try (Response response = client.newCall(request).execute())
-		{
-			log.debug("Sent logout request");
-		}
-	}
-
-	public boolean sessionCheck()
-	{
-		HttpUrl url = apiBase.newBuilder()
-			.addPathSegment("account")
-			.addPathSegment("session-check")
-			.build();
-
-		log.debug("Built URI: {}", url);
-
-		Request request = new Request.Builder()
-			.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString())
-			.url(url)
-			.build();
-
-		try (Response response = client.newCall(request).execute())
-		{
-			return response.isSuccessful();
-		}
-		catch (IOException ex)
-		{
-			log.debug("Unable to verify session", ex);
-			return true; // assume it is still valid if the server is unreachable
-		}
-	}
+    public void setUuid(UUID uuid) {
+        this.uuid = uuid;
+    }
 }
+

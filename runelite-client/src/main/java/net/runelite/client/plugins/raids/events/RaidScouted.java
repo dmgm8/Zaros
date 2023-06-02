@@ -1,42 +1,54 @@
 /*
- * Copyright (c) 2020, Trevor <https://github.com/Trevor159>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.raids.events;
 
-import lombok.Value;
 import net.runelite.client.plugins.raids.Raid;
 
-/**
- * An event that fires when the player scouts a raid
- *
- * This will fire every time the raid plugin successfully scouts a raid but mostly fires at LOGGED_IN gamestate changes
- * This event only fires in scoutable raids (not challenge mode)
- * The raid object is not guaranteed to change in between events
- */
-@Value
-public class RaidScouted
-{
-	private Raid raid;
-	private boolean firstScout;
+public final class RaidScouted {
+    private final Raid raid;
+    private final boolean firstScout;
+
+    public RaidScouted(Raid raid, boolean firstScout) {
+        this.raid = raid;
+        this.firstScout = firstScout;
+    }
+
+    public Raid getRaid() {
+        return this.raid;
+    }
+
+    public boolean isFirstScout() {
+        return this.firstScout;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof RaidScouted)) {
+            return false;
+        }
+        RaidScouted other = (RaidScouted)o;
+        if (this.isFirstScout() != other.isFirstScout()) {
+            return false;
+        }
+        Raid this$raid = this.getRaid();
+        Raid other$raid = other.getRaid();
+        return !(this$raid == null ? other$raid != null : !this$raid.equals(other$raid));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + (this.isFirstScout() ? 79 : 97);
+        Raid $raid = this.getRaid();
+        result = result * 59 + ($raid == null ? 43 : $raid.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "RaidScouted(raid=" + this.getRaid() + ", firstScout=" + this.isFirstScout() + ")";
+    }
 }
+

@@ -1,76 +1,67 @@
 /*
- * Copyright (c) 2021, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ImmutableMap$Builder
+ *  javax.annotation.Nullable
  */
 package net.runelite.client.plugins.itemcharges;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import javax.annotation.Nullable;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import net.runelite.api.ItemID;
+import net.runelite.client.plugins.itemcharges.ItemChargeType;
 
-@AllArgsConstructor
-@Getter
-enum ItemWithConfig
-{
-	DODGY_NECKLACE(ItemID.DODGY_NECKLACE, ItemChargeConfig.KEY_DODGY_NECKLACE, ItemChargeType.DODGY_NECKLACE),
-	BINDING_NECKLACE(ItemID.BINDING_NECKLACE, ItemChargeConfig.KEY_BINDING_NECKLACE, ItemChargeType.BINDING_NECKLACE),
-	EXPLORERS_RING_1(ItemID.EXPLORERS_RING_1, ItemChargeConfig.KEY_EXPLORERS_RING, ItemChargeType.EXPLORER_RING),
-	EXPLORERS_RING_2(ItemID.EXPLORERS_RING_2, ItemChargeConfig.KEY_EXPLORERS_RING, ItemChargeType.EXPLORER_RING),
-	EXPLORERS_RING_3(ItemID.EXPLORERS_RING_3, ItemChargeConfig.KEY_EXPLORERS_RING, ItemChargeType.EXPLORER_RING),
-	EXPLORERS_RING_4(ItemID.EXPLORERS_RING_4, ItemChargeConfig.KEY_EXPLORERS_RING, ItemChargeType.EXPLORER_RING),
-	RING_OF_FORGING(ItemID.RING_OF_FORGING, ItemChargeConfig.KEY_RING_OF_FORGING, ItemChargeType.RING_OF_FORGING),
-	AMULET_OF_CHEMISTRY(ItemID.AMULET_OF_CHEMISTRY, ItemChargeConfig.KEY_AMULET_OF_CHEMISTRY, ItemChargeType.AMULET_OF_CHEMISTRY),
-	AMULET_OF_BOUNTY(ItemID.AMULET_OF_BOUNTY, ItemChargeConfig.KEY_AMULET_OF_BOUNTY, ItemChargeType.AMULET_OF_BOUNTY),
-	BRACELET_OF_SLAUGHTER(ItemID.BRACELET_OF_SLAUGHTER, ItemChargeConfig.KEY_BRACELET_OF_SLAUGHTER, ItemChargeType.BRACELET_OF_SLAUGHTER),
-	EXPEDITIOUS_BRACELET(ItemID.EXPEDITIOUS_BRACELET, ItemChargeConfig.KEY_EXPEDITIOUS_BRACELET, ItemChargeType.EXPEDITIOUS_BRACELET),
-	CHRONICLE(ItemID.CHRONICLE, ItemChargeConfig.KEY_CHRONICLE, ItemChargeType.TELEPORT),
-	BLOOD_ESSENCE(ItemID.BLOOD_ESSENCE_ACTIVE, ItemChargeConfig.KEY_BLOOD_ESSENCE, ItemChargeType.BLOOD_ESSENCE),
-	BRACELET_OF_CLAY(ItemID.BRACELET_OF_CLAY, ItemChargeConfig.KEY_BRACELET_OF_CLAY, ItemChargeType.BRACELET_OF_CLAY);
+enum ItemWithConfig {
+    DODGY_NECKLACE(21143, "dodgyNecklace", ItemChargeType.DODGY_NECKLACE),
+    BINDING_NECKLACE(5521, "bindingNecklace", ItemChargeType.BINDING_NECKLACE),
+    EXPLORERS_RING_1(13125, "explorerRing", ItemChargeType.EXPLORER_RING),
+    EXPLORERS_RING_2(13126, "explorerRing", ItemChargeType.EXPLORER_RING),
+    EXPLORERS_RING_3(13127, "explorerRing", ItemChargeType.EXPLORER_RING),
+    EXPLORERS_RING_4(13128, "explorerRing", ItemChargeType.EXPLORER_RING),
+    RING_OF_FORGING(2568, "ringOfForging", ItemChargeType.RING_OF_FORGING),
+    AMULET_OF_CHEMISTRY(21163, "amuletOfChemistry", ItemChargeType.AMULET_OF_CHEMISTRY),
+    AMULET_OF_BOUNTY(21160, "amuletOfBounty", ItemChargeType.AMULET_OF_BOUNTY),
+    BRACELET_OF_SLAUGHTER(21183, "braceletOfSlaughter", ItemChargeType.BRACELET_OF_SLAUGHTER),
+    EXPEDITIOUS_BRACELET(21177, "expeditiousBracelet", ItemChargeType.EXPEDITIOUS_BRACELET),
+    CHRONICLE(13660, "chronicle", ItemChargeType.TELEPORT),
+    BLOOD_ESSENCE(26392, "bloodEssence", ItemChargeType.BLOOD_ESSENCE),
+    BRACELET_OF_CLAY(11074, "braceletOfClay", ItemChargeType.BRACELET_OF_CLAY);
 
-	private final int itemId;
-	private final String configKey;
-	private final ItemChargeType type;
+    private final int itemId;
+    private final String configKey;
+    private final ItemChargeType type;
+    private static final Map<Integer, ItemWithConfig> ID_MAP;
 
-	private static final Map<Integer, ItemWithConfig> ID_MAP;
+    @Nullable
+    static ItemWithConfig findItem(int itemId) {
+        return ID_MAP.get(itemId);
+    }
 
-	static
-	{
-		ImmutableMap.Builder<Integer, ItemWithConfig> builder = new ImmutableMap.Builder<>();
+    private ItemWithConfig(int itemId, String configKey, ItemChargeType type) {
+        this.itemId = itemId;
+        this.configKey = configKey;
+        this.type = type;
+    }
 
-		for (ItemWithConfig item : values())
-		{
-			builder.put(item.getItemId(), item);
-		}
+    public int getItemId() {
+        return this.itemId;
+    }
 
-		ID_MAP = builder.build();
-	}
+    public String getConfigKey() {
+        return this.configKey;
+    }
 
-	@Nullable
-	static ItemWithConfig findItem(int itemId)
-	{
-		return ID_MAP.get(itemId);
-	}
+    public ItemChargeType getType() {
+        return this.type;
+    }
+
+    static {
+        ImmutableMap.Builder builder = new ImmutableMap.Builder();
+        for (ItemWithConfig item : ItemWithConfig.values()) {
+            builder.put((Object)item.getItemId(), (Object)item);
+        }
+        ID_MAP = builder.build();
+    }
 }
+

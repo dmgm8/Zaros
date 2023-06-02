@@ -1,37 +1,62 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.Player
  */
 package net.runelite.client.events;
 
 import java.util.Collection;
-import lombok.Value;
 import net.runelite.api.Player;
 import net.runelite.client.game.ItemStack;
 
-@Value
-public class PlayerLootReceived
-{
-	private final Player player;
-	private final Collection<ItemStack> items;
+public final class PlayerLootReceived {
+    private final Player player;
+    private final Collection<ItemStack> items;
+
+    public PlayerLootReceived(Player player, Collection<ItemStack> items) {
+        this.player = player;
+        this.items = items;
+    }
+
+    public Player getPlayer() {
+        return this.player;
+    }
+
+    public Collection<ItemStack> getItems() {
+        return this.items;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof PlayerLootReceived)) {
+            return false;
+        }
+        PlayerLootReceived other = (PlayerLootReceived)o;
+        Player this$player = this.getPlayer();
+        Player other$player = other.getPlayer();
+        if (this$player == null ? other$player != null : !this$player.equals((Object)other$player)) {
+            return false;
+        }
+        Collection<ItemStack> this$items = this.getItems();
+        Collection<ItemStack> other$items = other.getItems();
+        return !(this$items == null ? other$items != null : !((Object)this$items).equals(other$items));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Player $player = this.getPlayer();
+        result = result * 59 + ($player == null ? 43 : $player.hashCode());
+        Collection<ItemStack> $items = this.getItems();
+        result = result * 59 + ($items == null ? 43 : ((Object)$items).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "PlayerLootReceived(player=" + (Object)this.getPlayer() + ", items=" + this.getItems() + ")";
+    }
 }
+

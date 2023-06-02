@@ -1,11 +1,20 @@
+/*
+ * Decompiled with CFR 0.150.
+ */
 package net.runelite.client.party.messages;
 
-import lombok.Getter;
-import lombok.Setter;
+import net.runelite.client.party.messages.PartyMessage;
 
-@Getter
-@Setter
-public abstract class PartyMemberMessage extends PartyMessage
-{
-	private transient long memberId;
+public abstract class PartyMemberMessage
+extends PartyMessage {
+    private transient long memberId;
+
+    public long getMemberId() {
+        return this.memberId;
+    }
+
+    public void setMemberId(long memberId) {
+        this.memberId = memberId;
+    }
 }
+

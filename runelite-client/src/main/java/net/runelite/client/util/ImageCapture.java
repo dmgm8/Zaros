@@ -1,27 +1,29 @@
 /*
- * Copyright (c) 2018, Lotto <https://github.com/devLotto>
- * Copyright (c) 2019, Alexsuperfly <https://github.com/Alexsuperfly>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Strings
+ *  com.google.gson.Gson
+ *  javax.annotation.Nullable
+ *  javax.inject.Inject
+ *  javax.inject.Named
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.http.api.RuneLiteAPI
+ *  okhttp3.Call
+ *  okhttp3.Callback
+ *  okhttp3.HttpUrl
+ *  okhttp3.MediaType
+ *  okhttp3.MultipartBody
+ *  okhttp3.MultipartBody$Builder
+ *  okhttp3.OkHttpClient
+ *  okhttp3.Request
+ *  okhttp3.Request$Builder
+ *  okhttp3.RequestBody
+ *  okhttp3.Response
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.util;
 
@@ -32,10 +34,13 @@ import java.awt.TrayIcon;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.awt.image.BufferedImage;
+import java.awt.image.RenderedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.DateFormat;
@@ -47,233 +52,320 @@ import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.client.Notifier;
-import static net.runelite.client.RuneLite.SCREENSHOT_DIR;
+import net.runelite.client.RuneLite;
+import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.RuneScapeProfileType;
+import net.runelite.client.util.ImageUploadStyle;
+import net.runelite.client.util.Text;
+import net.runelite.client.util.TransferableBufferedImage;
+import net.runelite.client.util.WebhookBody;
+import net.runelite.http.api.RuneLiteAPI;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 @Singleton
-public class ImageCapture
-{
-	private static final DateFormat TIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-	private static final HttpUrl IMGUR_IMAGE_UPLOAD_URL = HttpUrl.get("https://api.imgur.com/3/image");
-	private static final MediaType JSON = MediaType.get("application/json");
+public class ImageCapture {
+    private static final Logger log = LoggerFactory.getLogger(ImageCapture.class);
+    private static final DateFormat TIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+    private static final HttpUrl IMGUR_IMAGE_UPLOAD_URL = HttpUrl.get((String)"https://api.imgur.com/3/image");
+    private static final MediaType JSON = MediaType.get((String)"application/json");
+    private final Client client;
+    private final Notifier notifier;
+    private final OkHttpClient okHttpClient;
+    private final Gson gson;
+    private final String imgurClientId;
+    @Inject
+    private ConfigManager configManager;
 
-	private final Client client;
-	private final Notifier notifier;
-	private final OkHttpClient okHttpClient;
-	private final Gson gson;
-	private final String imgurClientId;
+    @Inject
+    private ImageCapture(Client client, Notifier notifier, OkHttpClient okHttpClient, Gson gson, @Named(value="runelite.imgur.client.id") String imgurClientId) {
+        this.client = client;
+        this.notifier = notifier;
+        this.okHttpClient = okHttpClient;
+        this.gson = gson;
+        this.imgurClientId = imgurClientId;
+    }
 
-	@Inject
-	private ImageCapture(
-		final Client client,
-		final Notifier notifier,
-		final OkHttpClient okHttpClient,
-		final Gson gson,
-		@Named("runelite.imgur.client.id") final String imgurClientId
-	)
-	{
-		this.client = client;
-		this.notifier = notifier;
-		this.okHttpClient = okHttpClient;
-		this.gson = gson;
-		this.imgurClientId = imgurClientId;
-	}
+    public void takeScreenshot(BufferedImage screenshot, String fileName, @Nullable String subDir, boolean notify, ImageUploadStyle imageUploadStyle) {
+        File playerFolder;
+        if (this.client.getGameState() == GameState.LOGIN_SCREEN) {
+            log.info("Login screenshot prevented");
+            return;
+        }
+        if (this.client.getLocalPlayer() != null && this.client.getLocalPlayer().getName() != null) {
+            String playerDir = this.client.getLocalPlayer().getName();
+            RuneScapeProfileType profileType = RuneScapeProfileType.getCurrent(this.client);
+            if (profileType != RuneScapeProfileType.STANDARD) {
+                playerDir = playerDir + "-" + Text.titleCase(profileType);
+            }
+            if (!Strings.isNullOrEmpty((String)subDir)) {
+                playerDir = playerDir + File.separator + subDir;
+            }
+            playerFolder = new File(RuneLite.SCREENSHOT_DIR, playerDir);
+        } else {
+            playerFolder = RuneLite.SCREENSHOT_DIR;
+        }
+        playerFolder.mkdirs();
+        fileName = fileName + (fileName.isEmpty() ? "" : " ") + ImageCapture.format(new Date());
+        try {
+            File screenshotFile = new File(playerFolder, fileName + ".png");
+            int i = 1;
+            while (screenshotFile.exists()) {
+                screenshotFile = new File(playerFolder, fileName + String.format("(%d)", i++) + ".png");
+            }
+            ImageIO.write((RenderedImage)screenshot, "PNG", screenshotFile);
+            String webhook = this.configManager.getConfiguration("screenshot", "webhook");
+            if (webhook != null && !webhook.isEmpty()) {
+                this.uploadScreenshot(screenshotFile, screenshot, notify, true);
+            }
+            if (imageUploadStyle == ImageUploadStyle.IMGUR) {
+                this.uploadScreenshot(screenshotFile, screenshot, notify, false);
+            } else if (imageUploadStyle == ImageUploadStyle.CLIPBOARD) {
+                Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                TransferableBufferedImage transferableBufferedImage = new TransferableBufferedImage(screenshot);
+                clipboard.setContents(transferableBufferedImage, null);
+                if (notify) {
+                    this.notifier.notify("A screenshot was saved and inserted into your clipboard!", TrayIcon.MessageType.INFO);
+                }
+            } else if (notify) {
+                this.notifier.notify("A screenshot was saved to " + screenshotFile, TrayIcon.MessageType.INFO);
+            }
+        }
+        catch (IOException ex) {
+            log.warn("error writing screenshot", (Throwable)ex);
+        }
+    }
 
-	/**
-	 * Saves a screenshot of the client window to the screenshot folder as a PNG,
-	 * and optionally uploads it to an image-hosting service.
-	 *
-	 * @param screenshot BufferedImage to capture.
-	 * @param fileName Filename to use, without file extension.
-	 * @param subDir Directory within the player screenshots dir to store the captured screenshot to.
-	 * @param notify Send a notification to the system tray when the image is captured.
-	 * @param imageUploadStyle which method to use to upload the screenshot (Imgur or directly to clipboard).
-	 */
-	public void takeScreenshot(BufferedImage screenshot, String fileName, @Nullable String subDir, boolean notify, ImageUploadStyle imageUploadStyle)
-	{
-		if (client.getGameState() == GameState.LOGIN_SCREEN)
-		{
-			// Prevent the screenshot from being captured
-			log.info("Login screenshot prevented");
-			return;
-		}
+    public void takeScreenshot(BufferedImage screenshot, String fileName, boolean notify, ImageUploadStyle imageUploadStyle) {
+        this.takeScreenshot(screenshot, fileName, null, notify, imageUploadStyle);
+    }
 
-		File playerFolder;
-		if (client.getLocalPlayer() != null && client.getLocalPlayer().getName() != null)
-		{
-			String playerDir = client.getLocalPlayer().getName();
-			RuneScapeProfileType profileType = RuneScapeProfileType.getCurrent(client);
-			if (profileType != RuneScapeProfileType.STANDARD)
-			{
-				playerDir += "-" + Text.titleCase(profileType);
-			}
+    private void uploadScreenshot(File screenshotFile, BufferedImage screenshot, final boolean notify, boolean discord) throws IOException {
+        Request request;
+        if (discord) {
+            byte[] imageBytes;
+            try {
+                imageBytes = ImageCapture.convertImageToByteArray(screenshot);
+            }
+            catch (IOException e) {
+                log.warn("Error converting image to byte array", (Throwable)e);
+                return;
+            }
+            WebhookBody webhookBody = new WebhookBody();
+            webhookBody.setContent(screenshotFile.getName());
+            String json = RuneLiteAPI.GSON.toJson((Object)webhookBody);
+            request = new Request.Builder().url(this.configManager.getConfiguration("screenshot", "webhook")).addHeader("Authorization", "Client-ID " + this.imgurClientId).post((RequestBody)new MultipartBody.Builder().setType(MultipartBody.FORM).addFormDataPart("payload_json", json).addFormDataPart("file", screenshotFile.getName(), RequestBody.create((MediaType)MediaType.parse((String)"image/png"), (byte[])imageBytes)).build()).build();
+        } else {
+            String json = this.gson.toJson((Object)new ImageUploadRequest(screenshotFile));
+            request = new Request.Builder().url(IMGUR_IMAGE_UPLOAD_URL).addHeader("Authorization", "Client-ID " + this.imgurClientId).post(RequestBody.create((MediaType)JSON, (String)json)).build();
+        }
+        this.okHttpClient.newCall(request).enqueue(new Callback(){
 
-			if (!Strings.isNullOrEmpty(subDir))
-			{
-				playerDir += File.separator + subDir;
-			}
+            public void onFailure(Call call, IOException ex) {
+                log.warn("error uploading screenshot", (Throwable)ex);
+            }
 
-			playerFolder = new File(SCREENSHOT_DIR, playerDir);
-		}
-		else
-		{
-			playerFolder = SCREENSHOT_DIR;
-		}
+            public void onResponse(Call call, Response response) throws IOException {
+                try (InputStream in = response.body().byteStream();){
+                    ImageUploadResponse imageUploadResponse = (ImageUploadResponse)ImageCapture.this.gson.fromJson((Reader)new InputStreamReader(in, StandardCharsets.UTF_8), ImageUploadResponse.class);
+                    if (imageUploadResponse.isSuccess()) {
+                        String link = imageUploadResponse.getData().getLink();
+                        StringSelection selection = new StringSelection(link);
+                        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                        clipboard.setContents(selection, selection);
+                        if (notify) {
+                            ImageCapture.this.notifier.notify("A screenshot was uploaded and inserted into your clipboard!", TrayIcon.MessageType.INFO);
+                        }
+                    }
+                }
+            }
+        });
+    }
 
-		playerFolder.mkdirs();
+    private static byte[] convertImageToByteArray(BufferedImage bufferedImage) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ImageIO.write((RenderedImage)bufferedImage, "png", byteArrayOutputStream);
+        return byteArrayOutputStream.toByteArray();
+    }
 
-		fileName += (fileName.isEmpty() ? "" : " ") + format(new Date());
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    private static String format(Date date) {
+        DateFormat dateFormat = TIME_FORMAT;
+        synchronized (dateFormat) {
+            return TIME_FORMAT.format(date);
+        }
+    }
 
-		try
-		{
-			File screenshotFile = new File(playerFolder, fileName + ".png");
+    private static class ImageUploadRequest {
+        private final String image;
+        private final String type;
 
-			// To make sure that screenshots don't get overwritten, check if file exists,
-			// and if it does create file with same name and suffix.
-			int i = 1;
-			while (screenshotFile.exists())
-			{
-				screenshotFile = new File(playerFolder, fileName + String.format("(%d)", i++) + ".png");
-			}
+        ImageUploadRequest(File imageFile) throws IOException {
+            this.image = Base64.getEncoder().encodeToString(Files.readAllBytes(imageFile.toPath()));
+            this.type = "base64";
+        }
 
-			ImageIO.write(screenshot, "PNG", screenshotFile);
+        public String getImage() {
+            return this.image;
+        }
 
-			if (imageUploadStyle == ImageUploadStyle.IMGUR)
-			{
-				uploadScreenshot(screenshotFile, notify);
-			}
-			else if (imageUploadStyle == ImageUploadStyle.CLIPBOARD)
-			{
-				Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-				TransferableBufferedImage transferableBufferedImage = new TransferableBufferedImage(screenshot);
-				clipboard.setContents(transferableBufferedImage, null);
+        public String getType() {
+            return this.type;
+        }
 
-				if (notify)
-				{
-					notifier.notify("A screenshot was saved and inserted into your clipboard!", TrayIcon.MessageType.INFO);
-				}
-			}
-			else if (notify)
-			{
-				notifier.notify("A screenshot was saved to " + screenshotFile, TrayIcon.MessageType.INFO);
-			}
-		}
-		catch (IOException ex)
-		{
-			log.warn("error writing screenshot", ex);
-		}
-	}
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof ImageUploadRequest)) {
+                return false;
+            }
+            ImageUploadRequest other = (ImageUploadRequest)o;
+            if (!other.canEqual(this)) {
+                return false;
+            }
+            String this$image = this.getImage();
+            String other$image = other.getImage();
+            if (this$image == null ? other$image != null : !this$image.equals(other$image)) {
+                return false;
+            }
+            String this$type = this.getType();
+            String other$type = other.getType();
+            return !(this$type == null ? other$type != null : !this$type.equals(other$type));
+        }
 
-	/**
-	 * Saves a screenshot of the client window to the screenshot folder as a PNG,
-	 * and optionally uploads it to an image-hosting service.
-	 *
-	 * @param screenshot BufferedImage to capture.
-	 * @param fileName Filename to use, without file extension.
-	 * @param notify Send a notification to the system tray when the image is captured.
-	 * @param imageUploadStyle which method to use to upload the screenshot (Imgur or directly to clipboard).
-	 */
-	public void takeScreenshot(BufferedImage screenshot, String fileName, boolean notify, ImageUploadStyle imageUploadStyle)
-	{
-		takeScreenshot(screenshot, fileName, null, notify, imageUploadStyle);
-	}
+        protected boolean canEqual(Object other) {
+            return other instanceof ImageUploadRequest;
+        }
 
-	/**
-	 * Uploads a screenshot to the Imgur image-hosting service,
-	 * and copies the image link to the clipboard.
-	 *
-	 * @param screenshotFile Image file to upload.
-	 * @throws IOException Thrown if the file cannot be read.
-	 */
-	private void uploadScreenshot(File screenshotFile, boolean notify) throws IOException
-	{
-		String json = gson.toJson(new ImageUploadRequest(screenshotFile));
+        public int hashCode() {
+            int PRIME = 59;
+            int result = 1;
+            String $image = this.getImage();
+            result = result * 59 + ($image == null ? 43 : $image.hashCode());
+            String $type = this.getType();
+            result = result * 59 + ($type == null ? 43 : $type.hashCode());
+            return result;
+        }
 
-		Request request = new Request.Builder()
-			.url(IMGUR_IMAGE_UPLOAD_URL)
-			.addHeader("Authorization", "Client-ID " + imgurClientId)
-			.post(RequestBody.create(JSON, json))
-			.build();
+        public String toString() {
+            return "ImageCapture.ImageUploadRequest(image=" + this.getImage() + ", type=" + this.getType() + ")";
+        }
+    }
 
-		okHttpClient.newCall(request).enqueue(new Callback()
-		{
-			@Override
-			public void onFailure(Call call, IOException ex)
-			{
-				log.warn("error uploading screenshot", ex);
-			}
+    private static class ImageUploadResponse {
+        private Data data;
+        private boolean success;
 
-			@Override
-			public void onResponse(Call call, Response response) throws IOException
-			{
-				try (InputStream in = response.body().byteStream())
-				{
-					ImageUploadResponse imageUploadResponse =
-						gson.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), ImageUploadResponse.class);
+        public Data getData() {
+            return this.data;
+        }
 
-					if (imageUploadResponse.isSuccess())
-					{
-						String link = imageUploadResponse.getData().getLink();
+        public boolean isSuccess() {
+            return this.success;
+        }
 
-						StringSelection selection = new StringSelection(link);
-						Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-						clipboard.setContents(selection, selection);
+        public void setData(Data data) {
+            this.data = data;
+        }
 
-						if (notify)
-						{
-							notifier.notify("A screenshot was uploaded and inserted into your clipboard!", TrayIcon.MessageType.INFO);
-						}
-					}
-				}
-			}
-		});
-	}
+        public void setSuccess(boolean success) {
+            this.success = success;
+        }
 
-	private static String format(Date date)
-	{
-		synchronized (TIME_FORMAT)
-		{
-			return TIME_FORMAT.format(date);
-		}
-	}
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof ImageUploadResponse)) {
+                return false;
+            }
+            ImageUploadResponse other = (ImageUploadResponse)o;
+            if (!other.canEqual(this)) {
+                return false;
+            }
+            if (this.isSuccess() != other.isSuccess()) {
+                return false;
+            }
+            Data this$data = this.getData();
+            Data other$data = other.getData();
+            return !(this$data == null ? other$data != null : !((Object)this$data).equals(other$data));
+        }
 
-	@Data
-	private static class ImageUploadResponse
-	{
-		private Data data;
-		private boolean success;
+        protected boolean canEqual(Object other) {
+            return other instanceof ImageUploadResponse;
+        }
 
-		@lombok.Data
-		private static class Data
-		{
-			private String link;
-		}
-	}
+        public int hashCode() {
+            int PRIME = 59;
+            int result = 1;
+            result = result * 59 + (this.isSuccess() ? 79 : 97);
+            Data $data = this.getData();
+            result = result * 59 + ($data == null ? 43 : ((Object)$data).hashCode());
+            return result;
+        }
 
-	@Data
-	private static class ImageUploadRequest
-	{
-		private final String image;
-		private final String type;
+        public String toString() {
+            return "ImageCapture.ImageUploadResponse(data=" + this.getData() + ", success=" + this.isSuccess() + ")";
+        }
 
-		ImageUploadRequest(File imageFile) throws IOException
-		{
-			this.image = Base64.getEncoder().encodeToString(Files.readAllBytes(imageFile.toPath()));
-			this.type = "base64";
-		}
-	}
+        private static class Data {
+            private String link;
+
+            public String getLink() {
+                return this.link;
+            }
+
+            public void setLink(String link) {
+                this.link = link;
+            }
+
+            public boolean equals(Object o) {
+                if (o == this) {
+                    return true;
+                }
+                if (!(o instanceof Data)) {
+                    return false;
+                }
+                Data other = (Data)o;
+                if (!other.canEqual(this)) {
+                    return false;
+                }
+                String this$link = this.getLink();
+                String other$link = other.getLink();
+                return !(this$link == null ? other$link != null : !this$link.equals(other$link));
+            }
+
+            protected boolean canEqual(Object other) {
+                return other instanceof Data;
+            }
+
+            public int hashCode() {
+                int PRIME = 59;
+                int result = 1;
+                String $link = this.getLink();
+                result = result * 59 + ($link == null ? 43 : $link.hashCode());
+                return result;
+            }
+
+            public String toString() {
+                return "ImageCapture.ImageUploadResponse.Data(link=" + this.getLink() + ")";
+            }
+        }
+    }
 }
+

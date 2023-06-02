@@ -1,26 +1,28 @@
 /*
- * Copyright (c) 2018, Seth <Sethtroll3@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.Sets
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Actor
+ *  net.runelite.api.Client
+ *  net.runelite.api.DecorativeObject
+ *  net.runelite.api.GameObject
+ *  net.runelite.api.GameState
+ *  net.runelite.api.Player
+ *  net.runelite.api.Skill
+ *  net.runelite.api.Tile
+ *  net.runelite.api.TileObject
+ *  net.runelite.api.coords.LocalPoint
+ *  net.runelite.api.events.AnimationChanged
+ *  net.runelite.api.events.DecorativeObjectDespawned
+ *  net.runelite.api.events.DecorativeObjectSpawned
+ *  net.runelite.api.events.GameObjectDespawned
+ *  net.runelite.api.events.GameObjectSpawned
+ *  net.runelite.api.events.GameStateChanged
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.poh;
 
@@ -34,18 +36,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
-import net.runelite.api.AnimationID;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
 import net.runelite.api.DecorativeObject;
 import net.runelite.api.GameObject;
 import net.runelite.api.GameState;
-import net.runelite.api.ObjectID;
 import net.runelite.api.Player;
+import net.runelite.api.Skill;
 import net.runelite.api.Tile;
 import net.runelite.api.TileObject;
 import net.runelite.api.coords.LocalPoint;
@@ -58,198 +55,160 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.hiscore.HiscoreEndpoint;
 import net.runelite.client.hiscore.HiscoreManager;
+import net.runelite.client.hiscore.HiscoreResult;
+import net.runelite.client.hiscore.HiscoreSkill;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.poh.BurnerOverlay;
+import net.runelite.client.plugins.poh.IncenseBurner;
+import net.runelite.client.plugins.poh.PohConfig;
+import net.runelite.client.plugins.poh.PohIcons;
+import net.runelite.client.plugins.poh.PohOverlay;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.hiscore.HiscoreEndpoint;
-import net.runelite.client.hiscore.HiscoreResult;
-import net.runelite.client.hiscore.Skill;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@PluginDescriptor(
-	name = "Player-owned House",
-	description = "Show minimap icons and mark unlit/lit burners",
-	tags = {"construction", "poh", "minimap", "overlay"}
-)
-@Slf4j
-public class PohPlugin extends Plugin
-{
-	static final Set<Integer> BURNER_UNLIT = Sets.newHashSet(ObjectID.INCENSE_BURNER, ObjectID.INCENSE_BURNER_13210, ObjectID.INCENSE_BURNER_13212);
-	static final Set<Integer> BURNER_LIT = Sets.newHashSet(ObjectID.INCENSE_BURNER_13209, ObjectID.INCENSE_BURNER_13211, ObjectID.INCENSE_BURNER_13213);
+@PluginDescriptor(name="Player-owned House", description="Show minimap icons and mark unlit/lit burners", tags={"construction", "poh", "minimap", "overlay"})
+public class PohPlugin
+extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(PohPlugin.class);
+    static final Set<Integer> BURNER_UNLIT = Sets.newHashSet((Object[])new Integer[]{13208, 13210, 13212});
+    static final Set<Integer> BURNER_LIT = Sets.newHashSet((Object[])new Integer[]{13209, 13211, 13213});
+    private final Map<TileObject, Tile> pohObjects = new HashMap<TileObject, Tile>();
+    private final Map<Tile, IncenseBurner> incenseBurners = new HashMap<Tile, IncenseBurner>();
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private PohOverlay overlay;
+    @Inject
+    private Client client;
+    @Inject
+    private ScheduledExecutorService executor;
+    @Inject
+    private HiscoreManager hiscoreManager;
+    @Inject
+    private BurnerOverlay burnerOverlay;
 
-	@Getter(AccessLevel.PACKAGE)
-	private final Map<TileObject, Tile> pohObjects = new HashMap<>();
+    @Provides
+    PohConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(PohConfig.class);
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private final Map<Tile, IncenseBurner> incenseBurners = new HashMap<>();
+    @Override
+    protected void startUp() throws Exception {
+        this.overlayManager.add(this.overlay);
+        this.overlayManager.add(this.burnerOverlay);
+        this.overlay.updateConfig();
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Override
+    protected void shutDown() throws Exception {
+        this.overlayManager.remove(this.overlay);
+        this.overlayManager.remove(this.burnerOverlay);
+        this.pohObjects.clear();
+        this.incenseBurners.clear();
+    }
 
-	@Inject
-	private PohOverlay overlay;
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        this.overlay.updateConfig();
+    }
 
-	@Inject
-	private Client client;
+    @Subscribe
+    public void onGameObjectSpawned(GameObjectSpawned event) {
+        GameObject gameObject = event.getGameObject();
+        if (!BURNER_LIT.contains(gameObject.getId()) && !BURNER_UNLIT.contains(gameObject.getId())) {
+            if (PohIcons.getIcon(gameObject.getId()) != null) {
+                this.pohObjects.put((TileObject)gameObject, event.getTile());
+            }
+            return;
+        }
+        IncenseBurner incenseBurner = this.incenseBurners.computeIfAbsent(event.getTile(), k -> new IncenseBurner());
+        incenseBurner.setStart(Instant.now());
+        incenseBurner.setLit(BURNER_LIT.contains(gameObject.getId()));
+        incenseBurner.setEnd(null);
+    }
 
-	@Inject
-	private ScheduledExecutorService executor;
+    @Subscribe
+    public void onGameObjectDespawned(GameObjectDespawned event) {
+        GameObject gameObject = event.getGameObject();
+        this.pohObjects.remove((Object)gameObject);
+    }
 
-	@Inject
-	private HiscoreManager hiscoreManager;
+    @Subscribe
+    public void onDecorativeObjectSpawned(DecorativeObjectSpawned event) {
+        DecorativeObject decorativeObject = event.getDecorativeObject();
+        if (PohIcons.getIcon(decorativeObject.getId()) != null) {
+            this.pohObjects.put((TileObject)decorativeObject, event.getTile());
+        }
+    }
 
-	@Inject
-	private BurnerOverlay burnerOverlay;
+    @Subscribe
+    public void onDecorativeObjectDespawned(DecorativeObjectDespawned event) {
+        DecorativeObject decorativeObject = event.getDecorativeObject();
+        this.pohObjects.remove((Object)decorativeObject);
+    }
 
-	@Provides
-	PohConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(PohConfig.class);
-	}
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        if (event.getGameState() == GameState.LOADING) {
+            this.pohObjects.clear();
+            this.incenseBurners.clear();
+        }
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		overlayManager.add(overlay);
-		overlayManager.add(burnerOverlay);
-		overlay.updateConfig();
-	}
+    @Subscribe
+    public void onAnimationChanged(AnimationChanged event) {
+        Actor actor = event.getActor();
+        String actorName = actor.getName();
+        if (!(actor instanceof Player) || actor.getAnimation() != 3687) {
+            return;
+        }
+        LocalPoint loc = actor.getLocalLocation();
+        this.incenseBurners.keySet().stream().min(Comparator.comparingInt(a -> loc.distanceTo(a.getLocalLocation()))).ifPresent(tile -> {
+            IncenseBurner incenseBurner = this.incenseBurners.get(tile);
+            incenseBurner.reset();
+            if (actor == this.client.getLocalPlayer()) {
+                int level = this.client.getRealSkillLevel(Skill.FIREMAKING);
+                PohPlugin.updateBurner(incenseBurner, level);
+            } else if (actorName != null) {
+                this.lookupPlayer(actorName, incenseBurner);
+            }
+        });
+    }
 
-	@Override
-	protected void shutDown() throws Exception
-	{
-		overlayManager.remove(overlay);
-		overlayManager.remove(burnerOverlay);
-		pohObjects.clear();
-		incenseBurners.clear();
-	}
+    private void lookupPlayer(String playerName, IncenseBurner incenseBurner) {
+        this.executor.execute(() -> {
+            try {
+                HiscoreResult playerStats = this.hiscoreManager.lookup(playerName, HiscoreEndpoint.NORMAL);
+                if (playerStats == null) {
+                    return;
+                }
+                net.runelite.client.hiscore.Skill fm = playerStats.getSkill(HiscoreSkill.FIREMAKING);
+                int level = fm.getLevel();
+                PohPlugin.updateBurner(incenseBurner, Math.max(level, 1));
+            }
+            catch (IOException e) {
+                log.warn("Error fetching Hiscore data " + e.getMessage());
+            }
+        });
+    }
 
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		overlay.updateConfig();
-	}
+    private static void updateBurner(IncenseBurner incenseBurner, int fmLevel) {
+        double tickLengthSeconds = 0.6;
+        incenseBurner.setCountdownTimer((double)(200 + fmLevel) * 0.6);
+        incenseBurner.setRandomTimer((double)(fmLevel - 1) * 0.6);
+        log.debug("Set burner timer for firemaking level {}", (Object)fmLevel);
+    }
 
-	@Subscribe
-	public void onGameObjectSpawned(GameObjectSpawned event)
-	{
-		final GameObject gameObject = event.getGameObject();
+    Map<TileObject, Tile> getPohObjects() {
+        return this.pohObjects;
+    }
 
-		if (!BURNER_LIT.contains(gameObject.getId()) && !BURNER_UNLIT.contains(gameObject.getId()))
-		{
-			if (PohIcons.getIcon(gameObject.getId()) != null)
-			{
-				pohObjects.put(gameObject, event.getTile());
-			}
-
-			return;
-		}
-
-		IncenseBurner incenseBurner = incenseBurners.computeIfAbsent(event.getTile(), k -> new IncenseBurner());
-		incenseBurner.setStart(Instant.now());
-		incenseBurner.setLit(BURNER_LIT.contains(gameObject.getId()));
-		incenseBurner.setEnd(null);
-		// The burner timers are set when observing a player light the burner
-	}
-
-	@Subscribe
-	public void onGameObjectDespawned(GameObjectDespawned event)
-	{
-		GameObject gameObject = event.getGameObject();
-		pohObjects.remove(gameObject);
-	}
-
-	@Subscribe
-	public void onDecorativeObjectSpawned(DecorativeObjectSpawned event)
-	{
-		DecorativeObject decorativeObject = event.getDecorativeObject();
-		if (PohIcons.getIcon(decorativeObject.getId()) != null)
-		{
-			pohObjects.put(decorativeObject, event.getTile());
-		}
-	}
-
-	@Subscribe
-	public void onDecorativeObjectDespawned(DecorativeObjectDespawned event)
-	{
-		DecorativeObject decorativeObject = event.getDecorativeObject();
-		pohObjects.remove(decorativeObject);
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		if (event.getGameState() == GameState.LOADING)
-		{
-			pohObjects.clear();
-			incenseBurners.clear();
-		}
-	}
-
-	@Subscribe
-	public void onAnimationChanged(AnimationChanged event)
-	{
-		final Actor actor = event.getActor();
-		final String actorName = actor.getName();
-
-		if (!(actor instanceof Player) || actor.getAnimation() != AnimationID.INCENSE_BURNER)
-		{
-			return;
-		}
-
-		final LocalPoint loc = actor.getLocalLocation();
-
-		// Find burner closest to player
-		incenseBurners.keySet()
-			.stream()
-			.min(Comparator.comparingInt(a -> loc.distanceTo(a.getLocalLocation())))
-			.ifPresent(tile ->
-			{
-				final IncenseBurner incenseBurner = incenseBurners.get(tile);
-				incenseBurner.reset();
-
-				if (actor == client.getLocalPlayer())
-				{
-					int level = client.getRealSkillLevel(net.runelite.api.Skill.FIREMAKING);
-					updateBurner(incenseBurner, level);
-				}
-				else if (actorName != null)
-				{
-					lookupPlayer(actorName, incenseBurner);
-				}
-			});
-
-	}
-
-	private void lookupPlayer(String playerName, IncenseBurner incenseBurner)
-	{
-		executor.execute(() ->
-		{
-			try
-			{
-				final HiscoreResult playerStats = hiscoreManager.lookup(playerName, HiscoreEndpoint.NORMAL);
-
-				if (playerStats == null)
-				{
-					return;
-				}
-
-				final Skill fm = playerStats.getFiremaking();
-				final int level = fm.getLevel();
-				updateBurner(incenseBurner, Math.max(level, 1));
-			}
-			catch (IOException e)
-			{
-				log.warn("Error fetching Hiscore data " + e.getMessage());
-			}
-		});
-	}
-
-	private static void updateBurner(IncenseBurner incenseBurner, int fmLevel)
-	{
-		final double tickLengthSeconds = Constants.GAME_TICK_LENGTH / 1000.0;
-		incenseBurner.setCountdownTimer((200 + fmLevel) * tickLengthSeconds);
-		incenseBurner.setRandomTimer((fmLevel - 1) * tickLengthSeconds);
-		log.debug("Set burner timer for firemaking level {}", fmLevel);
-	}
+    Map<Tile, IncenseBurner> getIncenseBurners() {
+        return this.incenseBurners;
+    }
 }
+

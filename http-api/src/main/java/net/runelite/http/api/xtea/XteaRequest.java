@@ -1,41 +1,70 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.http.api.xtea;
 
 import java.util.ArrayList;
 import java.util.List;
-import lombok.Data;
+import net.runelite.http.api.xtea.XteaKey;
 
-@Data
-public class XteaRequest
-{
-	private int revision;
-	private List<XteaKey> keys = new ArrayList<>();
+public class XteaRequest {
+    private int revision;
+    private List<XteaKey> keys = new ArrayList<XteaKey>();
 
-	public void addKey(XteaKey key)
-	{
-		keys.add(key);
-	}
+    public void addKey(XteaKey key) {
+        this.keys.add(key);
+    }
+
+    public int getRevision() {
+        return this.revision;
+    }
+
+    public List<XteaKey> getKeys() {
+        return this.keys;
+    }
+
+    public void setRevision(int revision) {
+        this.revision = revision;
+    }
+
+    public void setKeys(List<XteaKey> keys) {
+        this.keys = keys;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof XteaRequest)) {
+            return false;
+        }
+        XteaRequest other = (XteaRequest)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getRevision() != other.getRevision()) {
+            return false;
+        }
+        List<XteaKey> this$keys = this.getKeys();
+        List<XteaKey> other$keys = other.getKeys();
+        return !(this$keys == null ? other$keys != null : !((Object)this$keys).equals(other$keys));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof XteaRequest;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getRevision();
+        List<XteaKey> $keys = this.getKeys();
+        result = result * 59 + ($keys == null ? 43 : ((Object)$keys).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "XteaRequest(revision=" + this.getRevision() + ", keys=" + this.getKeys() + ")";
+    }
 }
+

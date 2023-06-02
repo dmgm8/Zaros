@@ -1,73 +1,57 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.primitives.Ints
+ *  com.google.inject.Provides
+ *  javax.annotation.Nonnull
+ *  javax.inject.Inject
+ *  net.runelite.api.BufferProvider
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.Model
+ *  net.runelite.api.Perspective
+ *  net.runelite.api.Renderable
+ *  net.runelite.api.Scene
+ *  net.runelite.api.SceneTileModel
+ *  net.runelite.api.SceneTilePaint
+ *  net.runelite.api.Texture
+ *  net.runelite.api.TextureProvider
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.hooks.DrawCallbacks
+ *  net.runelite.rlawt.AWTContext
+ *  org.apache.commons.lang3.SystemUtils
+ *  org.jocl.CL
+ *  org.jocl.cl_context
+ *  org.jocl.cl_mem
+ *  org.lwjgl.opengl.GL
+ *  org.lwjgl.opengl.GL43C
+ *  org.lwjgl.opengl.GLCapabilities
+ *  org.lwjgl.opengl.GLUtil
+ *  org.lwjgl.system.Callback
+ *  org.lwjgl.system.Configuration
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.gpu;
 
 import com.google.common.primitives.Ints;
 import com.google.inject.Provides;
-import com.jogamp.nativewindow.AbstractGraphicsConfiguration;
-import com.jogamp.nativewindow.NativeWindowFactory;
-import com.jogamp.nativewindow.awt.AWTGraphicsConfiguration;
-import com.jogamp.nativewindow.awt.JAWTWindow;
-import com.jogamp.opengl.DebugGL4;
-import com.jogamp.opengl.GL;
-import static com.jogamp.opengl.GL.GL_ARRAY_BUFFER;
-import static com.jogamp.opengl.GL.GL_DYNAMIC_DRAW;
-import static com.jogamp.opengl.GL2ES2.GL_STREAM_DRAW;
-import static com.jogamp.opengl.GL2ES3.GL_STATIC_COPY;
-import static com.jogamp.opengl.GL2ES3.GL_UNIFORM_BUFFER;
-import com.jogamp.opengl.GL4;
-import com.jogamp.opengl.GLCapabilities;
-import com.jogamp.opengl.GLContext;
-import com.jogamp.opengl.GLDrawable;
-import com.jogamp.opengl.GLDrawableFactory;
-import com.jogamp.opengl.GLException;
-import com.jogamp.opengl.GLFBODrawable;
-import com.jogamp.opengl.GLProfile;
-import com.jogamp.opengl.math.Matrix4;
 import java.awt.Canvas;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
-import jogamp.nativewindow.SurfaceScaleUtils;
-import jogamp.nativewindow.jawt.x11.X11JAWTWindow;
-import jogamp.nativewindow.macosx.OSXUtil;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.BufferProvider;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -80,7 +64,6 @@ import net.runelite.api.SceneTilePaint;
 import net.runelite.api.Texture;
 import net.runelite.api.TextureProvider;
 import net.runelite.api.events.GameStateChanged;
-import net.runelite.api.events.ResizeableChanged;
 import net.runelite.api.hooks.DrawCallbacks;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -90,1788 +73,1113 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginInstantiationException;
 import net.runelite.client.plugins.PluginManager;
-import static net.runelite.client.plugins.gpu.GLUtil.glDeleteBuffer;
-import static net.runelite.client.plugins.gpu.GLUtil.glDeleteFrameBuffer;
-import static net.runelite.client.plugins.gpu.GLUtil.glDeleteRenderbuffers;
-import static net.runelite.client.plugins.gpu.GLUtil.glDeleteTexture;
-import static net.runelite.client.plugins.gpu.GLUtil.glDeleteVertexArrays;
-import static net.runelite.client.plugins.gpu.GLUtil.glGenBuffers;
-import static net.runelite.client.plugins.gpu.GLUtil.glGenFrameBuffer;
-import static net.runelite.client.plugins.gpu.GLUtil.glGenRenderbuffer;
-import static net.runelite.client.plugins.gpu.GLUtil.glGenTexture;
-import static net.runelite.client.plugins.gpu.GLUtil.glGenVertexArrays;
-import static net.runelite.client.plugins.gpu.GLUtil.glGetInteger;
+import net.runelite.client.plugins.gpu.GLBuffer;
+import net.runelite.client.plugins.gpu.GpuFloatBuffer;
+import net.runelite.client.plugins.gpu.GpuIntBuffer;
+import net.runelite.client.plugins.gpu.GpuPluginConfig;
+import net.runelite.client.plugins.gpu.Mat4;
+import net.runelite.client.plugins.gpu.OpenCLManager;
+import net.runelite.client.plugins.gpu.SceneUploader;
+import net.runelite.client.plugins.gpu.Shader;
+import net.runelite.client.plugins.gpu.ShaderException;
+import net.runelite.client.plugins.gpu.TextureManager;
 import net.runelite.client.plugins.gpu.config.AntiAliasingMode;
 import net.runelite.client.plugins.gpu.config.UIScalingMode;
 import net.runelite.client.plugins.gpu.template.Template;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.util.OSType;
+import net.runelite.rlawt.AWTContext;
+import org.apache.commons.lang3.SystemUtils;
 import org.jocl.CL;
-import static org.jocl.CL.CL_MEM_READ_ONLY;
-import static org.jocl.CL.CL_MEM_WRITE_ONLY;
-import static org.jocl.CL.clCreateFromGLBuffer;
-
-@PluginDescriptor(
-	name = "GPU",
-	description = "Utilizes the GPU",
-	enabledByDefault = false,
-	tags = {"fog", "draw distance"},
-	loadInSafeMode = false
-)
-@Slf4j
-public class GpuPlugin extends Plugin implements DrawCallbacks
-{
-	// This is the maximum number of triangles the compute shaders support
-	static final int MAX_TRIANGLE = 4096;
-	static final int SMALL_TRIANGLE_COUNT = 512;
-	private static final int FLAG_SCENE_BUFFER = Integer.MIN_VALUE;
-	private static final int DEFAULT_DISTANCE = 25;
-	static final int MAX_DISTANCE = 90;
-	static final int MAX_FOG_DEPTH = 100;
-
-	@Inject
-	private Client client;
-
-	@Inject
-	private OpenCLManager openCLManager;
-
-	@Inject
-	private ClientThread clientThread;
-
-	@Inject
-	private GpuPluginConfig config;
-
-	@Inject
-	private TextureManager textureManager;
-
-	@Inject
-	private SceneUploader sceneUploader;
-
-	@Inject
-	private DrawManager drawManager;
-
-	@Inject
-	private PluginManager pluginManager;
-
-	enum ComputeMode
-	{
-		NONE,
-		OPENGL,
-		OPENCL
-	}
-
-	private ComputeMode computeMode = ComputeMode.NONE;
-
-	private Canvas canvas;
-	private JAWTWindow jawtWindow;
-	private GL4 gl;
-	private GLContext glContext;
-	private GLDrawable glDrawable;
-
-	static final String LINUX_VERSION_HEADER =
-		"#version 420\n" +
-			"#extension GL_ARB_compute_shader : require\n" +
-			"#extension GL_ARB_shader_storage_buffer_object : require\n" +
-			"#extension GL_ARB_explicit_attrib_location : require\n";
-	static final String WINDOWS_VERSION_HEADER = "#version 430\n";
-
-	static final Shader PROGRAM = new Shader()
-		.add(GL4.GL_VERTEX_SHADER, "vert.glsl")
-		.add(GL4.GL_FRAGMENT_SHADER, "frag.glsl");
-
-	static final Shader COMPUTE_PROGRAM = new Shader()
-		.add(GL4.GL_COMPUTE_SHADER, "comp.glsl");
-
-	static final Shader SMALL_COMPUTE_PROGRAM = new Shader()
-		.add(GL4.GL_COMPUTE_SHADER, "comp_small.glsl");
-
-	static final Shader UNORDERED_COMPUTE_PROGRAM = new Shader()
-		.add(GL4.GL_COMPUTE_SHADER, "comp_unordered.glsl");
-
-	static final Shader UI_PROGRAM = new Shader()
-		.add(GL4.GL_VERTEX_SHADER, "vertui.glsl")
-		.add(GL4.GL_FRAGMENT_SHADER, "fragui.glsl");
-
-	private int glProgram;
-	private int glComputeProgram;
-	private int glSmallComputeProgram;
-	private int glUnorderedComputeProgram;
-	private int glUiProgram;
-
-	private int vaoHandle;
-
-	private int interfaceTexture;
-	private int interfacePbo;
-
-	private int vaoUiHandle;
-	private int vboUiHandle;
-
-	private int fboSceneHandle;
-	private int rboSceneHandle;
-
-	// scene vertex buffer
-	private final GLBuffer sceneVertexBuffer = new GLBuffer();
-	// scene uv buffer
-	private final GLBuffer sceneUvBuffer = new GLBuffer();
-
-	private final GLBuffer tmpVertexBuffer = new GLBuffer(); // temporary scene vertex buffer
-	private final GLBuffer tmpUvBuffer = new GLBuffer(); // temporary scene uv buffer
-	private final GLBuffer tmpModelBufferLarge = new GLBuffer(); // scene model buffer, large
-	private final GLBuffer tmpModelBufferSmall = new GLBuffer(); // scene model buffer, small
-	private final GLBuffer tmpModelBufferUnordered = new GLBuffer(); // scene model buffer, unordered
-	private final GLBuffer tmpOutBuffer = new GLBuffer(); // target vertex buffer for compute shaders
-	private final GLBuffer tmpOutUvBuffer = new GLBuffer(); // target uv buffer for compute shaders
-
-	private int textureArrayId;
-
-	private final GLBuffer uniformBuffer = new GLBuffer();
-
-	private GpuIntBuffer vertexBuffer;
-	private GpuFloatBuffer uvBuffer;
-
-	private GpuIntBuffer modelBufferUnordered;
-	private GpuIntBuffer modelBufferSmall;
-	private GpuIntBuffer modelBuffer;
-
-	private int unorderedModels;
-
-	/**
-	 * number of models in small buffer
-	 */
-	private int smallModels;
-
-	/**
-	 * number of models in large buffer
-	 */
-	private int largeModels;
-
-	/**
-	 * offset in the target buffer for model
-	 */
-	private int targetBufferOffset;
-
-	/**
-	 * offset into the temporary scene vertex buffer
-	 */
-	private int tempOffset;
-
-	/**
-	 * offset into the temporary scene uv buffer
-	 */
-	private int tempUvOffset;
-
-	private int lastCanvasWidth;
-	private int lastCanvasHeight;
-	private int lastStretchedCanvasWidth;
-	private int lastStretchedCanvasHeight;
-	private AntiAliasingMode lastAntiAliasingMode;
-	private int lastAnisotropicFilteringLevel = -1;
-
-	private int yaw;
-	private int pitch;
-	private int viewportOffsetX;
-	private int viewportOffsetY;
-
-	// fields for non-compute draw
-	private boolean drawingModel;
-	private int modelX, modelY, modelZ;
-	private int modelOrientation;
-
-	// Uniforms
-	private int uniColorBlindMode;
-	private int uniUiColorBlindMode;
-	private int uniUseFog;
-	private int uniFogColor;
-	private int uniFogDepth;
-	private int uniDrawDistance;
-	private int uniProjectionMatrix;
-	private int uniBrightness;
-	private int uniTex;
-	private int uniTexSamplingMode;
-	private int uniTexSourceDimensions;
-	private int uniTexTargetDimensions;
-	private int uniUiAlphaOverlay;
-	private int uniTextures;
-	private int uniTextureAnimations;
-	private int uniBlockSmall;
-	private int uniBlockLarge;
-	private int uniBlockMain;
-	private int uniSmoothBanding;
-	private int uniTextureLightMode;
-	private int uniTick;
-
-	private int needsReset;
-
-	private final ComponentListener resizeListener = new ComponentAdapter()
-	{
-		@Override
-		public void componentResized(ComponentEvent e)
-		{
-			// forward to the JAWTWindow component listener on the canvas. The JAWTWindow component
-			// listener listens for resizes or movement of the component in order to resize and move
-			// the associated offscreen layer (calayer on macos only)
-			canvas.dispatchEvent(e);
-			// resetSize needs to be run awhile after the resize is completed.
-			// I've tried waiting until all EDT events are completed and even that is too soon.
-			// Not sure why, so we just wait a few frames.
-			needsReset = 5;
-		}
-	};
-
-	@Override
-	protected void startUp()
-	{
-		clientThread.invoke(() ->
-		{
-			try
-			{
-				fboSceneHandle = rboSceneHandle = -1; // AA FBO
-				targetBufferOffset = 0;
-				unorderedModels = smallModels = largeModels = 0;
-				drawingModel = false;
-
-				canvas = client.getCanvas();
-
-				if (!canvas.isDisplayable())
-				{
-					return false;
-				}
-
-				computeMode = config.useComputeShaders()
-					? (OSType.getOSType() == OSType.MacOS ? ComputeMode.OPENCL : ComputeMode.OPENGL)
-					: ComputeMode.NONE;
-
-				canvas.setIgnoreRepaint(true);
-
-				vertexBuffer = new GpuIntBuffer();
-				uvBuffer = new GpuFloatBuffer();
-
-				modelBufferUnordered = new GpuIntBuffer();
-				modelBufferSmall = new GpuIntBuffer();
-				modelBuffer = new GpuIntBuffer();
-
-				if (log.isDebugEnabled())
-				{
-					System.setProperty("jogl.debug", "true");
-				}
-
-				System.setProperty("jogamp.gluegen.TestTempDirExec", "false");
-
-				GLProfile.initSingleton();
-
-				invokeOnMainThread(() ->
-				{
-					try
-					{
-						// Get and display the device and driver used by the GPU plugin
-						GLDrawable dummyDrawable = GLDrawableFactory.getFactory(GLProfile.getDefault())
-							.createDummyDrawable(GLProfile.getDefaultDevice(), true, new GLCapabilities(GLProfile.getDefault()), null);
-						dummyDrawable.setRealized(true);
-						GLContext versionContext = dummyDrawable.createContext(null);
-						versionContext.makeCurrent();
-						GL versionGL = versionContext.getGL();
-						log.info("Using device: {}", versionGL.glGetString(GL.GL_RENDERER));
-						log.info("Using driver: {}", versionGL.glGetString(GL.GL_VERSION));
-						versionContext.destroy();
-					}
-					catch (Exception ex)
-					{
-						log.warn("error checking device and driver version", ex);
-					}
-
-					GLProfile glProfile = GLProfile.get(GLProfile.GL4);
-
-					GLCapabilities glCaps = new GLCapabilities(glProfile);
-					AWTGraphicsConfiguration config = AWTGraphicsConfiguration.create(canvas.getGraphicsConfiguration(), glCaps, glCaps);
-
-					jawtWindow = (JAWTWindow) NativeWindowFactory.getNativeWindow(canvas, config);
-					canvas.setFocusable(true);
-
-					GLDrawableFactory glDrawableFactory = GLDrawableFactory.getFactory(glProfile);
-
-					jawtWindow.lockSurface();
-					try
-					{
-						glDrawable = glDrawableFactory.createGLDrawable(jawtWindow);
-						glDrawable.setRealized(true);
-
-						glContext = glDrawable.createContext(null);
-						if (log.isDebugEnabled())
-						{
-							// Debug config on context needs to be set before .makeCurrent call
-							glContext.enableGLDebugMessage(true);
-						}
-					}
-					finally
-					{
-						jawtWindow.unlockSurface();
-					}
-
-					int res = glContext.makeCurrent();
-					if (res == GLContext.CONTEXT_NOT_CURRENT)
-					{
-						throw new GLException("Unable to make context current");
-					}
-
-					// Surface needs to be unlocked on X11 window otherwise input is blocked
-					if (jawtWindow instanceof X11JAWTWindow && jawtWindow.getLock().isLocked())
-					{
-						jawtWindow.unlockSurface();
-					}
-
-					this.gl = glContext.getGL().getGL4();
-
-					if (log.isDebugEnabled())
-					{
-						try
-						{
-							gl = new DebugGL4(gl);
-						}
-						catch (NoClassDefFoundError ex)
-						{
-							log.debug("Disabling DebugGL due to jogl-gldesktop-dbg not being present on the classpath");
-						}
-
-						try
-						{
-							gl.glEnable(gl.GL_DEBUG_OUTPUT);
-						}
-						catch (GLException ex)
-						{
-							// macos doesn't support GL_DEBUG_OUTPUT
-						}
-
-						//	GLDebugEvent[ id 0x20071
-						//		type Warning: generic
-						//		severity Unknown (0x826b)
-						//		source GL API
-						//		msg Buffer detailed info: Buffer object 11 (bound to GL_ARRAY_BUFFER_ARB, and GL_SHADER_STORAGE_BUFFER (4), usage hint is GL_STREAM_DRAW) will use VIDEO memory as the source for buffer object operations.
-						glContext.glDebugMessageControl(gl.GL_DEBUG_SOURCE_API, gl.GL_DEBUG_TYPE_OTHER,
-							gl.GL_DONT_CARE, 1, new int[]{0x20071}, 0, false);
-
-						//	GLDebugMessageHandler: GLDebugEvent[ id 0x20052
-						//		type Warning: implementation dependent performance
-						//		severity Medium: Severe performance/deprecation/other warnings
-						//		source GL API
-						//		msg Pixel-path performance warning: Pixel transfer is synchronized with 3D rendering.
-						glContext.glDebugMessageControl(gl.GL_DEBUG_SOURCE_API, gl.GL_DEBUG_TYPE_PERFORMANCE,
-							gl.GL_DONT_CARE, 1, new int[]{0x20052}, 0, false);
-					}
-
-					setupSyncMode();
-
-					initVao();
-					try
-					{
-						initProgram();
-					}
-					catch (ShaderException ex)
-					{
-						throw new RuntimeException(ex);
-					}
-					initInterfaceTexture();
-					initUniformBuffer();
-					initBuffers();
-				});
-
-				client.setDrawCallbacks(this);
-				client.setGpu(true);
-
-				// force rebuild of main buffer provider to enable alpha channel
-				client.resizeCanvas();
-
-				lastCanvasWidth = lastCanvasHeight = -1;
-				lastStretchedCanvasWidth = lastStretchedCanvasHeight = -1;
-				lastAntiAliasingMode = null;
-
-				textureArrayId = -1;
-
-				if (client.getGameState() == GameState.LOGGED_IN)
-				{
-					invokeOnMainThread(this::uploadScene);
-				}
-
-				if (OSType.getOSType() == OSType.MacOS)
-				{
-					SwingUtilities.invokeAndWait(() -> ((Component) client).addComponentListener(resizeListener));
-					needsReset = 5; // plugin startup races with ClientUI positioning, so do a reset in a little bit
-				}
-			}
-			catch (Throwable e)
-			{
-				log.error("Error starting GPU plugin", e);
-
-				SwingUtilities.invokeLater(() ->
-				{
-					try
-					{
-						pluginManager.setPluginEnabled(this, false);
-						pluginManager.stopPlugin(this);
-					}
-					catch (PluginInstantiationException ex)
-					{
-						log.error("error stopping plugin", ex);
-					}
-				});
-
-				shutDown();
-			}
-			return true;
-		});
-	}
-
-	@Override
-	protected void shutDown()
-	{
-		((Component) client).removeComponentListener(resizeListener);
-		clientThread.invoke(() ->
-		{
-			client.setGpu(false);
-			client.setDrawCallbacks(null);
-			client.setUnlockedFps(false);
-
-			invokeOnMainThread(() ->
-			{
-				openCLManager.cleanup();
-
-				if (gl != null)
-				{
-					if (textureArrayId != -1)
-					{
-						textureManager.freeTextureArray(gl, textureArrayId);
-						textureArrayId = -1;
-					}
-
-					destroyGlBuffer(uniformBuffer);
-
-					shutdownBuffers();
-					shutdownInterfaceTexture();
-					shutdownProgram();
-					shutdownVao();
-					shutdownAAFbo();
-				}
-
-				if (jawtWindow != null)
-				{
-					if (!jawtWindow.getLock().isLocked())
-					{
-						jawtWindow.lockSurface();
-					}
-
-					if (glContext != null)
-					{
-						glContext.destroy();
-					}
-
-					// this crashes on osx when the plugin is turned back on, don't know why
-					// we'll just leak the window...
-					if (OSType.getOSType() != OSType.MacOS)
-					{
-						final AbstractGraphicsConfiguration config = jawtWindow.getGraphicsConfiguration();
-						jawtWindow.destroy();
-						config.getScreen().getDevice().close();
-					}
-				}
-			});
-
-			GLProfile.shutdown();
-
-			jawtWindow = null;
-			gl = null;
-			glDrawable = null;
-			glContext = null;
-
-			vertexBuffer = null;
-			uvBuffer = null;
-
-			modelBufferSmall = null;
-			modelBuffer = null;
-			modelBufferUnordered = null;
-
-			lastAnisotropicFilteringLevel = -1;
-
-			// force main buffer provider rebuild to turn off alpha channel
-			client.resizeCanvas();
-		});
-	}
-
-	@Provides
-	GpuPluginConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(GpuPluginConfig.class);
-	}
-
-	@Subscribe
-	public void onConfigChanged(ConfigChanged configChanged)
-	{
-		if (configChanged.getGroup().equals(GpuPluginConfig.GROUP))
-		{
-			if (configChanged.getKey().equals("unlockFps")
-				|| configChanged.getKey().equals("vsyncMode")
-				|| configChanged.getKey().equals("fpsTarget"))
-			{
-				log.debug("Rebuilding sync mode");
-				clientThread.invokeLater(() -> invokeOnMainThread(this::setupSyncMode));
-			}
-		}
-	}
-
-	private void setupSyncMode()
-	{
-		final boolean unlockFps = config.unlockFps();
-		client.setUnlockedFps(unlockFps);
-
-		// Without unlocked fps, the client manages sync on its 20ms timer
-		GpuPluginConfig.SyncMode syncMode = unlockFps
-			? this.config.syncMode()
-			: GpuPluginConfig.SyncMode.OFF;
-
-		switch (syncMode)
-		{
-			case ON:
-				gl.setSwapInterval(1);
-				client.setUnlockedFpsTarget(0);
-				break;
-			case OFF:
-				gl.setSwapInterval(0);
-				client.setUnlockedFpsTarget(config.fpsTarget()); // has no effect with unlockFps=false
-				break;
-			case ADAPTIVE:
-				gl.setSwapInterval(-1);
-				client.setUnlockedFpsTarget(0);
-				break;
-		}
-	}
-
-	private void initProgram() throws ShaderException
-	{
-		String versionHeader = OSType.getOSType() == OSType.Linux ? LINUX_VERSION_HEADER : WINDOWS_VERSION_HEADER;
-		Template template = new Template();
-		template.add(key ->
-		{
-			if ("version_header".equals(key))
-			{
-				return versionHeader;
-			}
-			return null;
-		});
-		template.addInclude(GpuPlugin.class);
-
-		glProgram = PROGRAM.compile(gl, template);
-		glUiProgram = UI_PROGRAM.compile(gl, template);
-
-		if (computeMode == ComputeMode.OPENGL)
-		{
-			glComputeProgram = COMPUTE_PROGRAM.compile(gl, template);
-			glSmallComputeProgram = SMALL_COMPUTE_PROGRAM.compile(gl, template);
-			glUnorderedComputeProgram = UNORDERED_COMPUTE_PROGRAM.compile(gl, template);
-		}
-		else if (computeMode == ComputeMode.OPENCL)
-		{
-			openCLManager.init(gl);
-		}
-
-		initUniforms();
-	}
-
-	private void initUniforms()
-	{
-		uniProjectionMatrix = gl.glGetUniformLocation(glProgram, "projectionMatrix");
-		uniBrightness = gl.glGetUniformLocation(glProgram, "brightness");
-		uniSmoothBanding = gl.glGetUniformLocation(glProgram, "smoothBanding");
-		uniUseFog = gl.glGetUniformLocation(glProgram, "useFog");
-		uniFogColor = gl.glGetUniformLocation(glProgram, "fogColor");
-		uniFogDepth = gl.glGetUniformLocation(glProgram, "fogDepth");
-		uniDrawDistance = gl.glGetUniformLocation(glProgram, "drawDistance");
-		uniColorBlindMode = gl.glGetUniformLocation(glProgram, "colorBlindMode");
-		uniTextureLightMode = gl.glGetUniformLocation(glProgram, "textureLightMode");
-		uniTick = gl.glGetUniformLocation(glProgram, "tick");
-
-		uniTex = gl.glGetUniformLocation(glUiProgram, "tex");
-		uniTexSamplingMode = gl.glGetUniformLocation(glUiProgram, "samplingMode");
-		uniTexTargetDimensions = gl.glGetUniformLocation(glUiProgram, "targetDimensions");
-		uniTexSourceDimensions = gl.glGetUniformLocation(glUiProgram, "sourceDimensions");
-		uniUiColorBlindMode = gl.glGetUniformLocation(glUiProgram, "colorBlindMode");
-		uniUiAlphaOverlay = gl.glGetUniformLocation(glUiProgram, "alphaOverlay");
-		uniTextures = gl.glGetUniformLocation(glProgram, "textures");
-		uniTextureAnimations = gl.glGetUniformLocation(glProgram, "textureAnimations");
-
-		if (computeMode == ComputeMode.OPENGL)
-		{
-			uniBlockSmall = gl.glGetUniformBlockIndex(glSmallComputeProgram, "uniforms");
-			uniBlockLarge = gl.glGetUniformBlockIndex(glComputeProgram, "uniforms");
-			uniBlockMain = gl.glGetUniformBlockIndex(glProgram, "uniforms");
-		}
-	}
-
-	private void shutdownProgram()
-	{
-		gl.glDeleteProgram(glProgram);
-		glProgram = -1;
-
-		gl.glDeleteProgram(glComputeProgram);
-		glComputeProgram = -1;
-
-		gl.glDeleteProgram(glSmallComputeProgram);
-		glSmallComputeProgram = -1;
-
-		gl.glDeleteProgram(glUnorderedComputeProgram);
-		glUnorderedComputeProgram = -1;
-
-		gl.glDeleteProgram(glUiProgram);
-		glUiProgram = -1;
-	}
-
-	private void initVao()
-	{
-		// Create VAO
-		vaoHandle = glGenVertexArrays(gl);
-
-		// Create UI VAO
-		vaoUiHandle = glGenVertexArrays(gl);
-		// Create UI buffer
-		vboUiHandle = glGenBuffers(gl);
-		gl.glBindVertexArray(vaoUiHandle);
-
-		FloatBuffer vboUiBuf = GpuFloatBuffer.allocateDirect(5 * 4);
-		vboUiBuf.put(new float[]{
-			// positions     // texture coords
-			1f, 1f, 0.0f, 1.0f, 0f, // top right
-			1f, -1f, 0.0f, 1.0f, 1f, // bottom right
-			-1f, -1f, 0.0f, 0.0f, 1f, // bottom left
-			-1f, 1f, 0.0f, 0.0f, 0f  // top left
-		});
-		vboUiBuf.rewind();
-		gl.glBindBuffer(GL_ARRAY_BUFFER, vboUiHandle);
-		gl.glBufferData(GL_ARRAY_BUFFER, vboUiBuf.capacity() * Float.BYTES, vboUiBuf, gl.GL_STATIC_DRAW);
-
-		// position attribute
-		gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, false, 5 * Float.BYTES, 0);
-		gl.glEnableVertexAttribArray(0);
-
-		// texture coord attribute
-		gl.glVertexAttribPointer(1, 2, gl.GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES);
-		gl.glEnableVertexAttribArray(1);
-
-		// unbind VBO
-		gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-	}
-
-	private void shutdownVao()
-	{
-		glDeleteVertexArrays(gl, vaoHandle);
-		vaoHandle = -1;
-
-		glDeleteBuffer(gl, vboUiHandle);
-		vboUiHandle = -1;
-
-		glDeleteVertexArrays(gl, vaoUiHandle);
-		vaoUiHandle = -1;
-	}
-
-	private void initBuffers()
-	{
-		initGlBuffer(sceneVertexBuffer);
-		initGlBuffer(sceneUvBuffer);
-		initGlBuffer(tmpVertexBuffer);
-		initGlBuffer(tmpUvBuffer);
-		initGlBuffer(tmpModelBufferLarge);
-		initGlBuffer(tmpModelBufferSmall);
-		initGlBuffer(tmpModelBufferUnordered);
-		initGlBuffer(tmpOutBuffer);
-		initGlBuffer(tmpOutUvBuffer);
-	}
-
-	private void initGlBuffer(GLBuffer glBuffer)
-	{
-		glBuffer.glBufferId = glGenBuffers(gl);
-	}
-
-	private void shutdownBuffers()
-	{
-		destroyGlBuffer(sceneVertexBuffer);
-		destroyGlBuffer(sceneUvBuffer);
-
-		destroyGlBuffer(tmpVertexBuffer);
-		destroyGlBuffer(tmpUvBuffer);
-		destroyGlBuffer(tmpModelBufferLarge);
-		destroyGlBuffer(tmpModelBufferSmall);
-		destroyGlBuffer(tmpModelBufferUnordered);
-		destroyGlBuffer(tmpOutBuffer);
-		destroyGlBuffer(tmpOutUvBuffer);
-	}
-
-	private void destroyGlBuffer(GLBuffer glBuffer)
-	{
-		if (glBuffer.glBufferId != -1)
-		{
-			glDeleteBuffer(gl, glBuffer.glBufferId);
-			glBuffer.glBufferId = -1;
-		}
-		glBuffer.size = -1;
-
-		if (glBuffer.cl_mem != null)
-		{
-			CL.clReleaseMemObject(glBuffer.cl_mem);
-			glBuffer.cl_mem = null;
-		}
-	}
-
-	private void initInterfaceTexture()
-	{
-		interfacePbo = glGenBuffers(gl);
-
-		interfaceTexture = glGenTexture(gl);
-		gl.glBindTexture(gl.GL_TEXTURE_2D, interfaceTexture);
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE);
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE);
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR);
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR);
-		gl.glBindTexture(gl.GL_TEXTURE_2D, 0);
-	}
-
-	private void shutdownInterfaceTexture()
-	{
-		glDeleteBuffer(gl, interfacePbo);
-		glDeleteTexture(gl, interfaceTexture);
-		interfaceTexture = -1;
-	}
-
-	private void initUniformBuffer()
-	{
-		initGlBuffer(uniformBuffer);
-
-		IntBuffer uniformBuf = GpuIntBuffer.allocateDirect(8 + 2048 * 4);
-		uniformBuf.put(new int[8]); // uniform block
-		final int[] pad = new int[2];
-		for (int i = 0; i < 2048; i++)
-		{
-			uniformBuf.put(Perspective.SINE[i]);
-			uniformBuf.put(Perspective.COSINE[i]);
-			uniformBuf.put(pad); // ivec2 alignment in std140 is 16 bytes
-		}
-		uniformBuf.flip();
-
-		updateBuffer(uniformBuffer, GL_UNIFORM_BUFFER, uniformBuf.limit() * Integer.BYTES, uniformBuf, GL_DYNAMIC_DRAW, CL_MEM_READ_ONLY);
-		gl.glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	}
-
-	private void initAAFbo(int width, int height, int aaSamples)
-	{
-		// Create and bind the FBO
-		fboSceneHandle = glGenFrameBuffer(gl);
-		gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, fboSceneHandle);
-
-		// Create color render buffer
-		rboSceneHandle = glGenRenderbuffer(gl);
-		gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, rboSceneHandle);
-		gl.glRenderbufferStorageMultisample(gl.GL_RENDERBUFFER, aaSamples,
-			// on macos glBlitFramebuffer errors with GL_INVALID_OPERATION if the alpha channel
-			// is enabled on the rbo
-			OSType.getOSType() == OSType.MacOS ? gl.GL_RGB : gl.GL_RGBA,
-			width, height);
-		gl.glFramebufferRenderbuffer(gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0, gl.GL_RENDERBUFFER, rboSceneHandle);
-
-		// Reset
-		gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0);
-		gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, 0);
-	}
-
-	private void shutdownAAFbo()
-	{
-		if (fboSceneHandle != -1)
-		{
-			glDeleteFrameBuffer(gl, fboSceneHandle);
-			fboSceneHandle = -1;
-		}
-
-		if (rboSceneHandle != -1)
-		{
-			glDeleteRenderbuffers(gl, rboSceneHandle);
-			rboSceneHandle = -1;
-		}
-	}
-
-	@Override
-	public void drawScene(int cameraX, int cameraY, int cameraZ, int cameraPitch, int cameraYaw, int plane)
-	{
-		yaw = client.getCameraYaw();
-		pitch = client.getCameraPitch();
-		viewportOffsetX = client.getViewportXOffset();
-		viewportOffsetY = client.getViewportYOffset();
-
-		final Scene scene = client.getScene();
-		scene.setDrawDistance(getDrawDistance());
-
-		// Only reset the target buffer offset right before drawing the scene. That way if there are frames
-		// after this that don't involve a scene draw, like during LOADING/HOPPING/CONNECTION_LOST, we can
-		// still redraw the previous frame's scene to emulate the client behavior of not painting over the
-		// viewport buffer.
-		targetBufferOffset = 0;
-
-		invokeOnMainThread(() ->
-		{
-			// UBO. Only the first 32 bytes get modified here, the rest is the constant sin/cos table.
-			// We can reuse the vertex buffer since it isn't used yet.
-			vertexBuffer.clear();
-			vertexBuffer.ensureCapacity(32);
-			IntBuffer uniformBuf = vertexBuffer.getBuffer();
-			uniformBuf
-				.put(yaw)
-				.put(pitch)
-				.put(client.getCenterX())
-				.put(client.getCenterY())
-				.put(client.getScale())
-				.put(cameraX)
-				.put(cameraY)
-				.put(cameraZ);
-			uniformBuf.flip();
-
-			gl.glBindBuffer(GL_UNIFORM_BUFFER, uniformBuffer.glBufferId);
-			gl.glBufferSubData(GL_UNIFORM_BUFFER, 0, uniformBuf.limit() * Integer.BYTES, uniformBuf);
-			gl.glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-			gl.glBindBufferBase(GL_UNIFORM_BUFFER, 0, uniformBuffer.glBufferId);
-			uniformBuf.clear();
-		});
-	}
-
-	@Override
-	public void postDrawScene()
-	{
-		invokeOnMainThread(this::postDraw);
-	}
-
-	private void postDraw()
-	{
-		if (computeMode == ComputeMode.NONE)
-		{
-			// Upload buffers
-			vertexBuffer.flip();
-			uvBuffer.flip();
-
-			IntBuffer vertexBuffer = this.vertexBuffer.getBuffer();
-			FloatBuffer uvBuffer = this.uvBuffer.getBuffer();
-
-			updateBuffer(tmpVertexBuffer, GL_ARRAY_BUFFER, vertexBuffer.limit() * Integer.BYTES, vertexBuffer, GL_DYNAMIC_DRAW, 0L);
-			updateBuffer(tmpUvBuffer, GL_ARRAY_BUFFER, uvBuffer.limit() * Float.BYTES, uvBuffer, GL_DYNAMIC_DRAW, 0L);
-			return;
-		}
-
-		// Upload buffers
-		vertexBuffer.flip();
-		uvBuffer.flip();
-		modelBuffer.flip();
-		modelBufferSmall.flip();
-		modelBufferUnordered.flip();
-
-		IntBuffer vertexBuffer = this.vertexBuffer.getBuffer();
-		FloatBuffer uvBuffer = this.uvBuffer.getBuffer();
-		IntBuffer modelBuffer = this.modelBuffer.getBuffer();
-		IntBuffer modelBufferSmall = this.modelBufferSmall.getBuffer();
-		IntBuffer modelBufferUnordered = this.modelBufferUnordered.getBuffer();
-
-		// temp buffers
-		updateBuffer(tmpVertexBuffer, GL_ARRAY_BUFFER, vertexBuffer.limit() * Integer.BYTES, vertexBuffer, GL_DYNAMIC_DRAW, CL_MEM_READ_ONLY);
-		updateBuffer(tmpUvBuffer, GL_ARRAY_BUFFER, uvBuffer.limit() * Float.BYTES, uvBuffer, GL_DYNAMIC_DRAW, CL_MEM_READ_ONLY);
-
-		// model buffers
-		updateBuffer(tmpModelBufferLarge, GL_ARRAY_BUFFER, modelBuffer.limit() * Integer.BYTES, modelBuffer, GL_DYNAMIC_DRAW, CL_MEM_READ_ONLY);
-		updateBuffer(tmpModelBufferSmall, GL_ARRAY_BUFFER, modelBufferSmall.limit() * Integer.BYTES, modelBufferSmall, GL_DYNAMIC_DRAW, CL_MEM_READ_ONLY);
-		updateBuffer(tmpModelBufferUnordered, GL_ARRAY_BUFFER, modelBufferUnordered.limit() * Integer.BYTES, modelBufferUnordered, GL_DYNAMIC_DRAW, CL_MEM_READ_ONLY);
-
-		// Output buffers
-		updateBuffer(tmpOutBuffer,
-			GL_ARRAY_BUFFER,
-			targetBufferOffset * 16, // each vertex is an ivec4, which is 16 bytes
-			null,
-			GL_STREAM_DRAW,
-			CL_MEM_WRITE_ONLY);
-		updateBuffer(tmpOutUvBuffer,
-			GL_ARRAY_BUFFER,
-			targetBufferOffset * 16, // each vertex is an ivec4, which is 16 bytes
-			null,
-			GL_STREAM_DRAW,
-			CL_MEM_WRITE_ONLY);
-
-		if (computeMode == ComputeMode.OPENCL)
-		{
-			// The docs for clEnqueueAcquireGLObjects say all pending GL operations must be completed before calling
-			// clEnqueueAcquireGLObjects, and recommends calling glFinish() as the only portable way to do that.
-			// However no issues have been observed from not calling it, and so will leave disabled for now.
-			// gl.glFinish();
-
-			openCLManager.compute(
-				unorderedModels, smallModels, largeModels,
-				sceneVertexBuffer, sceneUvBuffer,
-				tmpVertexBuffer, tmpUvBuffer,
-				tmpModelBufferUnordered, tmpModelBufferSmall, tmpModelBufferLarge,
-				tmpOutBuffer, tmpOutUvBuffer,
-				uniformBuffer);
-			return;
-		}
-
-		/*
-		 * Compute is split into three separate programs: 'unordered', 'small', and 'large'
-		 * to save on GPU resources. Small will sort <= 512 faces, large will do <= 4096.
-		 */
-
-		// Bind UBO to compute programs
-		gl.glUniformBlockBinding(glSmallComputeProgram, uniBlockSmall, 0);
-		gl.glUniformBlockBinding(glComputeProgram, uniBlockLarge, 0);
-
-		// unordered
-		gl.glUseProgram(glUnorderedComputeProgram);
-
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, tmpModelBufferUnordered.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 1, sceneVertexBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 2, tmpVertexBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 3, tmpOutBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 4, tmpOutUvBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 5, sceneUvBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 6, tmpUvBuffer.glBufferId);
-
-		gl.glDispatchCompute(unorderedModels, 1, 1);
-
-		// small
-		gl.glUseProgram(glSmallComputeProgram);
-
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, tmpModelBufferSmall.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 1, sceneVertexBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 2, tmpVertexBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 3, tmpOutBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 4, tmpOutUvBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 5, sceneUvBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 6, tmpUvBuffer.glBufferId);
-
-		gl.glDispatchCompute(smallModels, 1, 1);
-
-		// large
-		gl.glUseProgram(glComputeProgram);
-
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, tmpModelBufferLarge.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 1, sceneVertexBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 2, tmpVertexBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 3, tmpOutBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 4, tmpOutUvBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 5, sceneUvBuffer.glBufferId);
-		gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 6, tmpUvBuffer.glBufferId);
-
-		gl.glDispatchCompute(largeModels, 1, 1);
-	}
-
-	@Override
-	public void drawScenePaint(int orientation, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z,
-							SceneTilePaint paint, int tileZ, int tileX, int tileY,
-							int zoom, int centerX, int centerY)
-	{
-		if (computeMode == ComputeMode.NONE)
-		{
-			targetBufferOffset += sceneUploader.upload(paint,
-				tileZ, tileX, tileY,
-				vertexBuffer, uvBuffer,
-				Perspective.LOCAL_TILE_SIZE * tileX,
-				Perspective.LOCAL_TILE_SIZE * tileY,
-				true
-			);
-		}
-		else if (paint.getBufferLen() > 0)
-		{
-			final int localX = tileX * Perspective.LOCAL_TILE_SIZE;
-			final int localY = 0;
-			final int localZ = tileY * Perspective.LOCAL_TILE_SIZE;
-
-			GpuIntBuffer b = modelBufferUnordered;
-			++unorderedModels;
-
-			b.ensureCapacity(8);
-			IntBuffer buffer = b.getBuffer();
-			buffer.put(paint.getBufferOffset());
-			buffer.put(paint.getUvBufferOffset());
-			buffer.put(2);
-			buffer.put(targetBufferOffset);
-			buffer.put(FLAG_SCENE_BUFFER);
-			buffer.put(localX).put(localY).put(localZ);
-
-			targetBufferOffset += 2 * 3;
-		}
-	}
-
-	@Override
-	public void drawSceneModel(int orientation, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z,
-							SceneTileModel model, int tileZ, int tileX, int tileY,
-							int zoom, int centerX, int centerY)
-	{
-		if (computeMode == ComputeMode.NONE)
-		{
-			targetBufferOffset += sceneUploader.upload(model,
-				tileX, tileY,
-				vertexBuffer, uvBuffer,
-				tileX << Perspective.LOCAL_COORD_BITS, tileY << Perspective.LOCAL_COORD_BITS, true);
-		}
-		else if (model.getBufferLen() > 0)
-		{
-			final int localX = tileX * Perspective.LOCAL_TILE_SIZE;
-			final int localY = 0;
-			final int localZ = tileY * Perspective.LOCAL_TILE_SIZE;
-
-			GpuIntBuffer b = modelBufferUnordered;
-			++unorderedModels;
-
-			b.ensureCapacity(8);
-			IntBuffer buffer = b.getBuffer();
-			buffer.put(model.getBufferOffset());
-			buffer.put(model.getUvBufferOffset());
-			buffer.put(model.getBufferLen() / 3);
-			buffer.put(targetBufferOffset);
-			buffer.put(FLAG_SCENE_BUFFER);
-			buffer.put(localX).put(localY).put(localZ);
-
-			targetBufferOffset += model.getBufferLen();
-		}
-	}
-
-	@Override
-	public void draw(int overlayColor)
-	{
-		invokeOnMainThread(() -> drawFrame(overlayColor));
-	}
-
-	private void prepareInterfaceTexture(int canvasWidth, int canvasHeight)
-	{
-		if (canvasWidth != lastCanvasWidth || canvasHeight != lastCanvasHeight)
-		{
-			lastCanvasWidth = canvasWidth;
-			lastCanvasHeight = canvasHeight;
-
-			gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, interfacePbo);
-			gl.glBufferData(gl.GL_PIXEL_UNPACK_BUFFER, canvasWidth * canvasHeight * 4L, null, gl.GL_STREAM_DRAW);
-			gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, 0);
-
-			gl.glBindTexture(gl.GL_TEXTURE_2D, interfaceTexture);
-			gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, canvasWidth, canvasHeight, 0, gl.GL_BGRA, gl.GL_UNSIGNED_BYTE, null);
-			gl.glBindTexture(gl.GL_TEXTURE_2D, 0);
-		}
-
-		if (needsReset > 0)
-		{
-			assert OSType.getOSType() == OSType.MacOS;
-			if (needsReset == 1 && glDrawable instanceof GLFBODrawable)
-			{
-				// GLDrawables created with createGLDrawable() do not have a resize listener
-				// I don't know why this works with Windows/Linux, but on OSX
-				// it prevents JOGL from resizing its FBOs and underlying GL textures. So,
-				// we manually trigger a resize here.
-				GLFBODrawable glfboDrawable = (GLFBODrawable) glDrawable;
-				log.debug("Resetting GLFBODrawable size");
-				glfboDrawable.resetSize(gl);
-			}
-			needsReset--;
-		}
-
-		final BufferProvider bufferProvider = client.getBufferProvider();
-		final int[] pixels = bufferProvider.getPixels();
-		final int width = bufferProvider.getWidth();
-		final int height = bufferProvider.getHeight();
-
-		gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, interfacePbo);
-		gl.glMapBuffer(gl.GL_PIXEL_UNPACK_BUFFER, gl.GL_WRITE_ONLY)
-			.asIntBuffer()
-			.put(pixels, 0, width * height);
-		gl.glUnmapBuffer(gl.GL_PIXEL_UNPACK_BUFFER);
-		gl.glBindTexture(gl.GL_TEXTURE_2D, interfaceTexture);
-		gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, width, height, gl.GL_BGRA, gl.GL_UNSIGNED_INT_8_8_8_8_REV, 0);
-		gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, 0);
-		gl.glBindTexture(gl.GL_TEXTURE_2D, 0);
-	}
-
-	private void drawFrame(int overlayColor)
-	{
-		// We inject code in the game engine mixin to prevent the client from doing canvas replacement,
-		// so this should not ever be tripped
-		assert jawtWindow.getAWTComponent() == client.getCanvas() : "canvas invalidated";
-
-		final int canvasHeight = client.getCanvasHeight();
-		final int canvasWidth = client.getCanvasWidth();
-
-		final int viewportHeight = client.getViewportHeight();
-		final int viewportWidth = client.getViewportWidth();
-
-		prepareInterfaceTexture(canvasWidth, canvasHeight);
-
-		// Setup anti-aliasing
-		final AntiAliasingMode antiAliasingMode = config.antiAliasingMode();
-		final boolean aaEnabled = antiAliasingMode != AntiAliasingMode.DISABLED;
-
-		if (aaEnabled)
-		{
-			gl.glEnable(gl.GL_MULTISAMPLE);
-
-			final Dimension stretchedDimensions = client.getStretchedDimensions();
-
-			final int stretchedCanvasWidth = client.isStretchedEnabled() ? stretchedDimensions.width : canvasWidth;
-			final int stretchedCanvasHeight = client.isStretchedEnabled() ? stretchedDimensions.height : canvasHeight;
-
-			// Re-create fbo
-			if (lastStretchedCanvasWidth != stretchedCanvasWidth
-				|| lastStretchedCanvasHeight != stretchedCanvasHeight
-				|| lastAntiAliasingMode != antiAliasingMode)
-			{
-				shutdownAAFbo();
-
-				// Bind default FBO to check whether anti-aliasing is forced
-				gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0);
-				final int forcedAASamples = glGetInteger(gl, gl.GL_SAMPLES);
-				final int maxSamples = glGetInteger(gl, gl.GL_MAX_SAMPLES);
-				final int samples = forcedAASamples != 0 ? forcedAASamples :
-					Math.min(antiAliasingMode.getSamples(), maxSamples);
-
-				log.debug("AA samples: {}, max samples: {}, forced samples: {}", samples, maxSamples, forcedAASamples);
-
-				initAAFbo(stretchedCanvasWidth, stretchedCanvasHeight, samples);
-
-				lastStretchedCanvasWidth = stretchedCanvasWidth;
-				lastStretchedCanvasHeight = stretchedCanvasHeight;
-			}
-
-			gl.glBindFramebuffer(gl.GL_DRAW_FRAMEBUFFER, fboSceneHandle);
-		}
-		else
-		{
-			gl.glDisable(gl.GL_MULTISAMPLE);
-			shutdownAAFbo();
-		}
-
-		lastAntiAliasingMode = antiAliasingMode;
-
-		// Clear scene
-		int sky = client.getSkyboxColor();
-		gl.glClearColor((sky >> 16 & 0xFF) / 255f, (sky >> 8 & 0xFF) / 255f, (sky & 0xFF) / 255f, 1f);
-		gl.glClear(gl.GL_COLOR_BUFFER_BIT);
-
-		// Draw 3d scene
-		final GameState gameState = client.getGameState();
-		if (gameState.getState() >= GameState.LOADING.getState())
-		{
-			final TextureProvider textureProvider = client.getTextureProvider();
-			if (textureArrayId == -1)
-			{
-				// lazy init textures as they may not be loaded at plugin start.
-				// this will return -1 and retry if not all textures are loaded yet, too.
-				textureArrayId = textureManager.initTextureArray(textureProvider, gl);
-				if (textureArrayId > -1)
-				{
-					// if texture upload is successful, compute and set texture animations
-					float[] texAnims = textureManager.computeTextureAnimations(textureProvider);
-					gl.glUseProgram(glProgram);
-					gl.glUniform2fv(uniTextureAnimations, texAnims.length, texAnims, 0);
-					gl.glUseProgram(0);
-				}
-			}
-
-			int renderWidthOff = viewportOffsetX;
-			int renderHeightOff = viewportOffsetY;
-			int renderCanvasHeight = canvasHeight;
-			int renderViewportHeight = viewportHeight;
-			int renderViewportWidth = viewportWidth;
-
-			// Setup anisotropic filtering
-			final int anisotropicFilteringLevel = config.anisotropicFilteringLevel();
-
-			if (textureArrayId != -1 && lastAnisotropicFilteringLevel != anisotropicFilteringLevel)
-			{
-				textureManager.setAnisotropicFilteringLevel(textureArrayId, anisotropicFilteringLevel, gl);
-				lastAnisotropicFilteringLevel = anisotropicFilteringLevel;
-			}
-
-			if (client.isStretchedEnabled())
-			{
-				Dimension dim = client.getStretchedDimensions();
-				renderCanvasHeight = dim.height;
-
-				double scaleFactorY = dim.getHeight() / canvasHeight;
-				double scaleFactorX = dim.getWidth()  / canvasWidth;
-
-				// Pad the viewport a little because having ints for our viewport dimensions can introduce off-by-one errors.
-				final int padding = 1;
-
-				// Ceil the sizes because even if the size is 599.1 we want to treat it as size 600 (i.e. render to the x=599 pixel).
-				renderViewportHeight = (int) Math.ceil(scaleFactorY * (renderViewportHeight)) + padding * 2;
-				renderViewportWidth  = (int) Math.ceil(scaleFactorX * (renderViewportWidth ))  + padding * 2;
-
-				// Floor the offsets because even if the offset is 4.9, we want to render to the x=4 pixel anyway.
-				renderHeightOff      = (int) Math.floor(scaleFactorY * (renderHeightOff)) - padding;
-				renderWidthOff       = (int) Math.floor(scaleFactorX * (renderWidthOff )) - padding;
-			}
-
-			glDpiAwareViewport(renderWidthOff, renderCanvasHeight - renderViewportHeight - renderHeightOff, renderViewportWidth, renderViewportHeight);
-
-			gl.glUseProgram(glProgram);
-
-			final int drawDistance = getDrawDistance();
-			final int fogDepth = config.fogDepth();
-			gl.glUniform1i(uniUseFog, fogDepth > 0 ? 1 : 0);
-			gl.glUniform4f(uniFogColor, (sky >> 16 & 0xFF) / 255f, (sky >> 8 & 0xFF) / 255f, (sky & 0xFF) / 255f, 1f);
-			gl.glUniform1i(uniFogDepth, fogDepth);
-			gl.glUniform1i(uniDrawDistance, drawDistance * Perspective.LOCAL_TILE_SIZE);
-
-			// Brightness happens to also be stored in the texture provider, so we use that
-			gl.glUniform1f(uniBrightness, (float) textureProvider.getBrightness());
-			gl.glUniform1f(uniSmoothBanding, config.smoothBanding() ? 0f : 1f);
-			gl.glUniform1i(uniColorBlindMode, config.colorBlindMode().ordinal());
-			gl.glUniform1f(uniTextureLightMode, config.brightTextures() ? 1f : 0f);
-			if (gameState == GameState.LOGGED_IN)
-			{
-				// avoid textures animating during loading
-				gl.glUniform1i(uniTick, client.getGameCycle());
-			}
-
-			// Calculate projection matrix
-			Matrix4 projectionMatrix = new Matrix4();
-			projectionMatrix.scale(client.getScale(), client.getScale(), 1);
-			projectionMatrix.multMatrix(makeProjectionMatrix(viewportWidth, viewportHeight, 50));
-			projectionMatrix.rotate((float) (Math.PI - pitch * Perspective.UNIT), -1, 0, 0);
-			projectionMatrix.rotate((float) (yaw * Perspective.UNIT), 0, 1, 0);
-			projectionMatrix.translate(-client.getCameraX2(), -client.getCameraY2(), -client.getCameraZ2());
-			gl.glUniformMatrix4fv(uniProjectionMatrix, 1, false, projectionMatrix.getMatrix(), 0);
-
-			// Bind uniforms
-			gl.glUniformBlockBinding(glProgram, uniBlockMain, 0);
-			gl.glUniform1i(uniTextures, 1); // texture sampler array is bound to texture1
-
-			// We just allow the GL to do face culling. Note this requires the priority renderer
-			// to have logic to disregard culled faces in the priority depth testing.
-			gl.glEnable(gl.GL_CULL_FACE);
-
-			// Enable blending for alpha
-			gl.glEnable(gl.GL_BLEND);
-			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA);
-
-			// Draw buffers
-			gl.glBindVertexArray(vaoHandle);
-
-			int vertexBuffer, uvBuffer;
-			if (computeMode != ComputeMode.NONE)
-			{
-				if (computeMode == ComputeMode.OPENGL)
-				{
-					// Before reading the SSBOs written to from postDrawScene() we must insert a barrier
-					gl.glMemoryBarrier(gl.GL_SHADER_STORAGE_BARRIER_BIT);
-				}
-				else
-				{
-					// Wait for the command queue to finish, so that we know the compute is done
-					openCLManager.finish();
-				}
-
-				// Draw using the output buffer of the compute
-				vertexBuffer = tmpOutBuffer.glBufferId;
-				uvBuffer = tmpOutUvBuffer.glBufferId;
-			}
-			else
-			{
-				// Only use the temporary buffers, which will contain the full scene
-				vertexBuffer = tmpVertexBuffer.glBufferId;
-				uvBuffer = tmpUvBuffer.glBufferId;
-			}
-
-			gl.glEnableVertexAttribArray(0);
-			gl.glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-			gl.glVertexAttribIPointer(0, 4, gl.GL_INT, 0, 0);
-
-			gl.glEnableVertexAttribArray(1);
-			gl.glBindBuffer(GL_ARRAY_BUFFER, uvBuffer);
-			gl.glVertexAttribPointer(1, 4, gl.GL_FLOAT, false, 0, 0);
-
-			gl.glDrawArrays(gl.GL_TRIANGLES, 0, targetBufferOffset);
-
-			gl.glDisable(gl.GL_BLEND);
-			gl.glDisable(gl.GL_CULL_FACE);
-
-			gl.glUseProgram(0);
-		}
-
-		if (aaEnabled)
-		{
-			gl.glBindFramebuffer(gl.GL_READ_FRAMEBUFFER, fboSceneHandle);
-			gl.glBindFramebuffer(gl.GL_DRAW_FRAMEBUFFER, 0);
-			gl.glBlitFramebuffer(0, 0, lastStretchedCanvasWidth, lastStretchedCanvasHeight,
-				0, 0, lastStretchedCanvasWidth, lastStretchedCanvasHeight,
-				gl.GL_COLOR_BUFFER_BIT, gl.GL_NEAREST);
-
-			// Reset
-			gl.glBindFramebuffer(gl.GL_READ_FRAMEBUFFER, 0);
-		}
-
-		vertexBuffer.clear();
-		uvBuffer.clear();
-		modelBuffer.clear();
-		modelBufferSmall.clear();
-		modelBufferUnordered.clear();
-
-		smallModels = largeModels = unorderedModels = 0;
-		tempOffset = 0;
-		tempUvOffset = 0;
-
-		// Texture on UI
-		drawUi(overlayColor, canvasHeight, canvasWidth);
-
-		glDrawable.swapBuffers();
-
-		drawManager.processDrawComplete(this::screenshot);
-	}
-
-	private float[] makeProjectionMatrix(float w, float h, float n)
-	{
-		return new float[]
-		{
-			2 / w, 0, 0, 0,
-			0, 2 / h, 0, 0,
-			0, 0, -1, -1,
-			0, 0, -2 * n, 0
-		};
-	}
-
-	private void drawUi(final int overlayColor, final int canvasHeight, final int canvasWidth)
-	{
-		gl.glEnable(gl.GL_BLEND);
-		gl.glBlendFunc(gl.GL_ONE, gl.GL_ONE_MINUS_SRC_ALPHA);
-		gl.glBindTexture(gl.GL_TEXTURE_2D, interfaceTexture);
-
-		// Use the texture bound in the first pass
-		final UIScalingMode uiScalingMode = config.uiScalingMode();
-		gl.glUseProgram(glUiProgram);
-		gl.glUniform1i(uniTex, 0);
-		gl.glUniform1i(uniTexSamplingMode, uiScalingMode.getMode());
-		gl.glUniform2i(uniTexSourceDimensions, canvasWidth, canvasHeight);
-		gl.glUniform1i(uniUiColorBlindMode, config.colorBlindMode().ordinal());
-		gl.glUniform4f(uniUiAlphaOverlay,
-			(overlayColor >> 16 & 0xFF) / 255f,
-			(overlayColor >> 8 & 0xFF) / 255f,
-			(overlayColor & 0xFF) / 255f,
-			(overlayColor >>> 24) / 255f
-		);
-
-		if (client.isStretchedEnabled())
-		{
-			Dimension dim = client.getStretchedDimensions();
-			glDpiAwareViewport(0, 0, dim.width, dim.height);
-			gl.glUniform2i(uniTexTargetDimensions, dim.width, dim.height);
-		}
-		else
-		{
-			glDpiAwareViewport(0, 0, canvasWidth, canvasHeight);
-			gl.glUniform2i(uniTexTargetDimensions, canvasWidth, canvasHeight);
-		}
-
-		// Set the sampling function used when stretching the UI.
-		// This is probably better done with sampler objects instead of texture parameters, but this is easier and likely more portable.
-		// See https://www.khronos.org/opengl/wiki/Sampler_Object for details.
-		if (client.isStretchedEnabled())
-		{
-			// GL_NEAREST makes sampling for bicubic/xBR simpler, so it should be used whenever linear isn't
-			final int function = uiScalingMode == UIScalingMode.LINEAR ? gl.GL_LINEAR : gl.GL_NEAREST;
-			gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, function);
-			gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, function);
-		}
-
-		// Texture on UI
-		gl.glBindVertexArray(vaoUiHandle);
-		gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4);
-
-		// Reset
-		gl.glBindTexture(gl.GL_TEXTURE_2D, 0);
-		gl.glBindVertexArray(0);
-		gl.glUseProgram(0);
-		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA);
-		gl.glDisable(gl.GL_BLEND);
-
-		vertexBuffer.clear();
-	}
-
-	/**
-	 * Convert the front framebuffer to an Image
-	 *
-	 * @return
-	 */
-	private Image screenshot()
-	{
-		int width  = client.getCanvasWidth();
-		int height = client.getCanvasHeight();
-
-		if (client.isStretchedEnabled())
-		{
-			Dimension dim = client.getStretchedDimensions();
-			width  = dim.width;
-			height = dim.height;
-		}
-
-		if (OSType.getOSType() != OSType.MacOS)
-		{
-			final Graphics2D graphics = (Graphics2D) canvas.getGraphics();
-			final AffineTransform t = graphics.getTransform();
-			width = getScaledValue(t.getScaleX(), width);
-			height = getScaledValue(t.getScaleY(), height);
-			graphics.dispose();
-		}
-
-		ByteBuffer buffer = ByteBuffer.allocateDirect(width * height * 4)
-			.order(ByteOrder.nativeOrder());
-
-		gl.glReadBuffer(gl.GL_FRONT);
-		gl.glReadPixels(0, 0, width, height, GL.GL_RGBA, gl.GL_UNSIGNED_BYTE, buffer);
-
-		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-		int[] pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
-
-		for (int y = 0; y < height; ++y)
-		{
-			for (int x = 0; x < width; ++x)
-			{
-				int r = buffer.get() & 0xff;
-				int g = buffer.get() & 0xff;
-				int b = buffer.get() & 0xff;
-				buffer.get(); // alpha
-
-				pixels[(height - y - 1) * width + x] = (r << 16) | (g << 8) | b;
-			}
-		}
-
-		return image;
-	}
-
-	@Override
-	public void animate(Texture texture, int diff)
-	{
-		// texture animation happens on gpu
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		switch (gameStateChanged.getGameState())
-		{
-			case LOGGED_IN:
-				if (computeMode != ComputeMode.NONE)
-				{
-					invokeOnMainThread(this::uploadScene);
-				}
-				break;
-			case LOGIN_SCREEN:
-				// Avoid drawing the last frame's buffer during LOADING after LOGIN_SCREEN
-				targetBufferOffset = 0;
-		}
-	}
-
-	@Subscribe
-	public void onResizeableChanged(ResizeableChanged resizeableChanged)
-	{
-		if (OSType.getOSType() == OSType.MacOS)
-		{
-			// switching resizable mode adjusts the canvas size, without adjusting
-			// the client size. queue the GLFBODrawable resize for later.
-			needsReset = 5;
-		}
-	}
-
-	private void uploadScene()
-	{
-		vertexBuffer.clear();
-		uvBuffer.clear();
-
-		sceneUploader.upload(client.getScene(), vertexBuffer, uvBuffer);
-
-		vertexBuffer.flip();
-		uvBuffer.flip();
-
-		IntBuffer vertexBuffer = this.vertexBuffer.getBuffer();
-		FloatBuffer uvBuffer = this.uvBuffer.getBuffer();
-
-		updateBuffer(sceneVertexBuffer, GL_ARRAY_BUFFER, vertexBuffer.limit() * Integer.BYTES, vertexBuffer, GL_STATIC_COPY, CL_MEM_READ_ONLY);
-		updateBuffer(sceneUvBuffer, GL_ARRAY_BUFFER, uvBuffer.limit() * Float.BYTES, uvBuffer, GL_STATIC_COPY, CL_MEM_READ_ONLY);
-
-		gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		vertexBuffer.clear();
-		uvBuffer.clear();
-	}
-
-	/**
-	 * Check is a model is visible and should be drawn.
-	 */
-	private boolean isVisible(Model model, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z)
-	{
-		model.calculateBoundsCylinder();
-
-		final int xzMag = model.getXYZMag();
-		final int bottomY = model.getBottomY();
-		final int zoom = client.get3dZoom();
-		final int modelHeight = model.getModelHeight();
-
-		int Rasterizer3D_clipMidX2 = client.getRasterizer3D_clipMidX2(); // width / 2
-		int Rasterizer3D_clipNegativeMidX = client.getRasterizer3D_clipNegativeMidX(); // -width / 2
-		int Rasterizer3D_clipNegativeMidY = client.getRasterizer3D_clipNegativeMidY(); // -height / 2
-		int Rasterizer3D_clipMidY2 = client.getRasterizer3D_clipMidY2(); // height / 2
-
-		int var11 = yawCos * z - yawSin * x >> 16;
-		int var12 = pitchSin * y + pitchCos * var11 >> 16;
-		int var13 = pitchCos * xzMag >> 16;
-		int depth = var12 + var13;
-		if (depth > 50)
-		{
-			int rx = z * yawSin + yawCos * x >> 16;
-			int var16 = (rx - xzMag) * zoom;
-			if (var16 / depth < Rasterizer3D_clipMidX2)
-			{
-				int var17 = (rx + xzMag) * zoom;
-				if (var17 / depth > Rasterizer3D_clipNegativeMidX)
-				{
-					int ry = pitchCos * y - var11 * pitchSin >> 16;
-					int yheight = pitchSin * xzMag >> 16;
-					int ybottom = (pitchCos * bottomY >> 16) + yheight; // use bottom height instead of y pos for height
-					int var20 = (ry + ybottom) * zoom;
-					if (var20 / depth > Rasterizer3D_clipNegativeMidY)
-					{
-						int ytop = (pitchCos * modelHeight >> 16) + yheight;
-						int var22 = (ry - ytop) * zoom;
-						return var22 / depth < Rasterizer3D_clipMidY2;
-					}
-				}
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Draw a renderable in the scene
-	 *
-	 * @param renderable
-	 * @param orientation
-	 * @param pitchSin
-	 * @param pitchCos
-	 * @param yawSin
-	 * @param yawCos
-	 * @param x
-	 * @param y
-	 * @param z
-	 * @param hash
-	 */
-	@Override
-	public void draw(Renderable renderable, int orientation, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z, long hash)
-	{
-		if (computeMode == ComputeMode.NONE)
-		{
-			Model model = renderable instanceof Model ? (Model) renderable : renderable.getModel();
-			if (model != null)
-			{
-				// Apply height to renderable from the model
-				if (model != renderable)
-				{
-					renderable.setModelHeight(model.getModelHeight());
-				}
-
-				if (!isVisible(model, pitchSin, pitchCos, yawSin, yawCos, x, y, z))
-				{
-					return;
-				}
-
-				model.calculateExtreme(orientation);
-				client.checkClickbox(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash);
-
-				modelX = x + client.getCameraX2();
-				modelY = y + client.getCameraY2();
-				modelZ = z + client.getCameraZ2();
-				modelOrientation = orientation;
-				int triangleCount = model.getFaceCount();
-				vertexBuffer.ensureCapacity(12 * triangleCount);
-				uvBuffer.ensureCapacity(12 * triangleCount);
-
-				drawingModel = true;
-
-				renderable.draw(orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash);
-
-				drawingModel = false;
-			}
-		}
-		// Model may be in the scene buffer
-		else if (renderable instanceof Model && ((Model) renderable).getSceneId() == sceneUploader.sceneId)
-		{
-			Model model = (Model) renderable;
-
-			if (!isVisible(model, pitchSin, pitchCos, yawSin, yawCos, x, y, z))
-			{
-				return;
-			}
-
-			model.calculateExtreme(orientation);
-			client.checkClickbox(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash);
-
-			int tc = Math.min(MAX_TRIANGLE, model.getFaceCount());
-			int uvOffset = model.getUvBufferOffset();
-
-			GpuIntBuffer b = bufferForTriangles(tc);
-
-			b.ensureCapacity(8);
-			IntBuffer buffer = b.getBuffer();
-			buffer.put(model.getBufferOffset());
-			buffer.put(uvOffset);
-			buffer.put(tc);
-			buffer.put(targetBufferOffset);
-			buffer.put(FLAG_SCENE_BUFFER | (model.getRadius() << 12) | orientation);
-			buffer.put(x + client.getCameraX2()).put(y + client.getCameraY2()).put(z + client.getCameraZ2());
-
-			targetBufferOffset += tc * 3;
-		}
-		else
-		{
-			// Temporary model (animated or otherwise not a static Model on the scene)
-			Model model = renderable instanceof Model ? (Model) renderable : renderable.getModel();
-			if (model != null)
-			{
-				// Apply height to renderable from the model
-				if (model != renderable)
-				{
-					renderable.setModelHeight(model.getModelHeight());
-				}
-
-				if (!isVisible(model, pitchSin, pitchCos, yawSin, yawCos, x, y, z))
-				{
-					return;
-				}
-
-				model.calculateExtreme(orientation);
-				client.checkClickbox(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash);
-
-				boolean hasUv = model.getFaceTextures() != null;
-
-				int len = sceneUploader.pushModel(model, vertexBuffer, uvBuffer);
-
-				GpuIntBuffer b = bufferForTriangles(len / 3);
-
-				b.ensureCapacity(8);
-				IntBuffer buffer = b.getBuffer();
-				buffer.put(tempOffset);
-				buffer.put(hasUv ? tempUvOffset : -1);
-				buffer.put(len / 3);
-				buffer.put(targetBufferOffset);
-				buffer.put((model.getRadius() << 12) | orientation);
-				buffer.put(x + client.getCameraX2()).put(y + client.getCameraY2()).put(z + client.getCameraZ2());
-
-				tempOffset += len;
-				if (hasUv)
-				{
-					tempUvOffset += len;
-				}
-
-				targetBufferOffset += len;
-			}
-		}
-	}
-
-	@Override
-	public boolean drawFace(Model model, int face)
-	{
-		if (!drawingModel)
-		{
-			return false;
-		}
-
-		targetBufferOffset += sceneUploader.pushFace(model, face, true, vertexBuffer, uvBuffer, modelX, modelY, modelZ, modelOrientation);
-		return true;
-	}
-
-	/**
-	 * returns the correct buffer based on triangle count and updates model count
-	 *
-	 * @param triangles
-	 * @return
-	 */
-	private GpuIntBuffer bufferForTriangles(int triangles)
-	{
-		if (triangles <= SMALL_TRIANGLE_COUNT)
-		{
-			++smallModels;
-			return modelBufferSmall;
-		}
-		else
-		{
-			++largeModels;
-			return modelBuffer;
-		}
-	}
-
-	private int getScaledValue(final double scale, final int value)
-	{
-		return SurfaceScaleUtils.scale(value, (float) scale);
-	}
-
-	private void glDpiAwareViewport(final int x, final int y, final int width, final int height)
-	{
-		if (OSType.getOSType() == OSType.MacOS)
-		{
-			// JOGL seems to handle DPI scaling for us already
-			gl.glViewport(x, y, width, height);
-		}
-		else
-		{
-			final Graphics2D graphics = (Graphics2D) canvas.getGraphics();
-			final AffineTransform t = graphics.getTransform();
-			gl.glViewport(
-				getScaledValue(t.getScaleX(), x),
-				getScaledValue(t.getScaleY(), y),
-				getScaledValue(t.getScaleX(), width),
-				getScaledValue(t.getScaleY(), height));
-			graphics.dispose();
-		}
-	}
-
-	private int getDrawDistance()
-	{
-		final int limit = computeMode != ComputeMode.NONE ? MAX_DISTANCE : DEFAULT_DISTANCE;
-		return Ints.constrainToRange(config.drawDistance(), 0, limit);
-	}
-
-	private static void invokeOnMainThread(Runnable runnable)
-	{
-		if (OSType.getOSType() == OSType.MacOS)
-		{
-			OSXUtil.RunOnMainThread(true, false, runnable);
-		}
-		else
-		{
-			runnable.run();
-		}
-	}
-
-	private void updateBuffer(GLBuffer glBuffer, int target, int size, Buffer data, int usage, long clFlags)
-	{
-		gl.glBindBuffer(target, glBuffer.glBufferId);
-		if (size > glBuffer.size)
-		{
-			log.trace("Buffer resize: {} {} -> {}", glBuffer, glBuffer.size, size);
-
-			glBuffer.size = size;
-			gl.glBufferData(target, size, data, usage);
-
-			if (computeMode == ComputeMode.OPENCL)
-			{
-				if (glBuffer.cl_mem != null)
-				{
-					CL.clReleaseMemObject(glBuffer.cl_mem);
-				}
-				if (size == 0)
-				{
-					glBuffer.cl_mem = null;
-				}
-				else
-				{
-					glBuffer.cl_mem = clCreateFromGLBuffer(openCLManager.context, clFlags, glBuffer.glBufferId, null);
-				}
-			}
-		}
-		else if (data != null)
-		{
-			gl.glBufferSubData(target, 0, size, data);
-		}
-	}
+import org.jocl.cl_context;
+import org.jocl.cl_mem;
+import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GL43C;
+import org.lwjgl.opengl.GLCapabilities;
+import org.lwjgl.opengl.GLUtil;
+import org.lwjgl.system.Callback;
+import org.lwjgl.system.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@PluginDescriptor(name="GPU", description="Utilizes the GPU", enabledByDefault=false, tags={"fog", "draw distance"}, loadInSafeMode=false)
+public class GpuPlugin
+extends Plugin
+implements DrawCallbacks {
+    private static final Logger log = LoggerFactory.getLogger(GpuPlugin.class);
+    static final int MAX_TRIANGLE = 6144;
+    static final int SMALL_TRIANGLE_COUNT = 512;
+    private static final int FLAG_SCENE_BUFFER = Integer.MIN_VALUE;
+    private static final int DEFAULT_DISTANCE = 25;
+    static final int MAX_DISTANCE = 90;
+    static final int MAX_FOG_DEPTH = 100;
+    @Inject
+    private Client client;
+    @Inject
+    private OpenCLManager openCLManager;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private GpuPluginConfig config;
+    @Inject
+    private TextureManager textureManager;
+    @Inject
+    private SceneUploader sceneUploader;
+    @Inject
+    private DrawManager drawManager;
+    @Inject
+    private PluginManager pluginManager;
+    private ComputeMode computeMode = ComputeMode.NONE;
+    private Canvas canvas;
+    private AWTContext awtContext;
+    private Callback debugCallback;
+    static final String LINUX_VERSION_HEADER = "#version 420\n#extension GL_ARB_compute_shader : require\n#extension GL_ARB_shader_storage_buffer_object : require\n#extension GL_ARB_explicit_attrib_location : require\n";
+    static final String WINDOWS_VERSION_HEADER = "#version 430\n";
+    static final Shader PROGRAM = new Shader().add(35633, "vert.glsl").add(35632, "frag.glsl");
+    static final Shader COMPUTE_PROGRAM = new Shader().add(37305, "comp.glsl");
+    static final Shader SMALL_COMPUTE_PROGRAM = new Shader().add(37305, "comp.glsl");
+    static final Shader UNORDERED_COMPUTE_PROGRAM = new Shader().add(37305, "comp_unordered.glsl");
+    static final Shader UI_PROGRAM = new Shader().add(35633, "vertui.glsl").add(35632, "fragui.glsl");
+    private int glProgram;
+    private int glComputeProgram;
+    private int glSmallComputeProgram;
+    private int glUnorderedComputeProgram;
+    private int glUiProgram;
+    private int vaoHandle;
+    private int interfaceTexture;
+    private int interfacePbo;
+    private int vaoUiHandle;
+    private int vboUiHandle;
+    private int fboSceneHandle;
+    private int rboSceneHandle;
+    private final GLBuffer sceneVertexBuffer = new GLBuffer();
+    private final GLBuffer sceneUvBuffer = new GLBuffer();
+    private final GLBuffer tmpVertexBuffer = new GLBuffer();
+    private final GLBuffer tmpUvBuffer = new GLBuffer();
+    private final GLBuffer tmpModelBufferLarge = new GLBuffer();
+    private final GLBuffer tmpModelBufferSmall = new GLBuffer();
+    private final GLBuffer tmpModelBufferUnordered = new GLBuffer();
+    private final GLBuffer tmpOutBuffer = new GLBuffer();
+    private final GLBuffer tmpOutUvBuffer = new GLBuffer();
+    private int textureArrayId;
+    private final GLBuffer uniformBuffer = new GLBuffer();
+    private GpuIntBuffer vertexBuffer;
+    private GpuFloatBuffer uvBuffer;
+    private GpuIntBuffer modelBufferUnordered;
+    private GpuIntBuffer modelBufferSmall;
+    private GpuIntBuffer modelBuffer;
+    private int unorderedModels;
+    private int smallModels;
+    private int largeModels;
+    private int targetBufferOffset;
+    private int tempOffset;
+    private int tempUvOffset;
+    private int lastCanvasWidth;
+    private int lastCanvasHeight;
+    private int lastStretchedCanvasWidth;
+    private int lastStretchedCanvasHeight;
+    private AntiAliasingMode lastAntiAliasingMode;
+    private int lastAnisotropicFilteringLevel = -1;
+    private int yaw;
+    private int pitch;
+    private int viewportOffsetX;
+    private int viewportOffsetY;
+    private int uniColorBlindMode;
+    private int uniUiColorBlindMode;
+    private int uniUseFog;
+    private int uniFogColor;
+    private int uniFogDepth;
+    private int uniDrawDistance;
+    private int uniProjectionMatrix;
+    private int uniBrightness;
+    private int uniTex;
+    private int uniTexSamplingMode;
+    private int uniTexSourceDimensions;
+    private int uniTexTargetDimensions;
+    private int uniUiAlphaOverlay;
+    private int uniTextures;
+    private int uniTextureAnimations;
+    private int uniBlockSmall;
+    private int uniBlockLarge;
+    private int uniBlockMain;
+    private int uniSmoothBanding;
+    private int uniTextureLightMode;
+    private int uniTick;
+    private boolean lwjglInitted = false;
+
+    @Override
+    protected void startUp() {
+        this.clientThread.invoke(() -> {
+            try {
+                this.rboSceneHandle = -1;
+                this.fboSceneHandle = -1;
+                this.targetBufferOffset = 0;
+                this.largeModels = 0;
+                this.smallModels = 0;
+                this.unorderedModels = 0;
+                AWTContext.loadNatives();
+                this.canvas = this.client.getCanvas();
+                Object object = this.canvas.getTreeLock();
+                synchronized (object) {
+                    if (!this.canvas.isValid()) {
+                        return false;
+                    }
+                    this.awtContext = new AWTContext((Component)this.canvas);
+                    this.awtContext.configurePixelFormat(0, 0, 0);
+                }
+                this.awtContext.createGLContext();
+                this.canvas.setIgnoreRepaint(true);
+                this.computeMode = this.config.useComputeShaders() ? (OSType.getOSType() == OSType.MacOS ? ComputeMode.OPENCL : ComputeMode.OPENGL) : ComputeMode.NONE;
+                Configuration.SHARED_LIBRARY_EXTRACT_DIRECTORY.set((Object)("lwjgl-rl-" + System.getProperty("os.arch", "unknown")));
+                GL.createCapabilities();
+                log.info("Using device: {}", (Object)GL43C.glGetString((int)7937));
+                log.info("Using driver: {}", (Object)GL43C.glGetString((int)7938));
+                GLCapabilities caps = GL.getCapabilities();
+                if (!caps.OpenGL31) {
+                    throw new RuntimeException("OpenGL 3.1 is required but not available");
+                }
+                if (!caps.OpenGL43 && this.computeMode == ComputeMode.OPENGL) {
+                    log.info("disabling compute shaders because OpenGL 4.3 is not available");
+                    this.computeMode = ComputeMode.NONE;
+                }
+                if (this.computeMode == ComputeMode.NONE) {
+                    this.sceneUploader.initSortingBuffers();
+                }
+                this.lwjglInitted = true;
+                this.checkGLErrors();
+                if (log.isDebugEnabled() && caps.glDebugMessageControl != 0L) {
+                    this.debugCallback = GLUtil.setupDebugMessageCallback();
+                    if (this.debugCallback != null) {
+                        GL43C.glDebugMessageControl((int)33350, (int)33361, (int)4352, (int)131185, (boolean)false);
+                        GL43C.glDebugMessageControl((int)33350, (int)33360, (int)4352, (int)131154, (boolean)false);
+                    }
+                }
+                this.vertexBuffer = new GpuIntBuffer();
+                this.uvBuffer = new GpuFloatBuffer();
+                this.modelBufferUnordered = new GpuIntBuffer();
+                this.modelBufferSmall = new GpuIntBuffer();
+                this.modelBuffer = new GpuIntBuffer();
+                this.setupSyncMode();
+                this.initVao();
+                try {
+                    this.initProgram();
+                }
+                catch (ShaderException ex) {
+                    throw new RuntimeException(ex);
+                }
+                this.initInterfaceTexture();
+                this.initUniformBuffer();
+                this.initBuffers();
+                this.client.setDrawCallbacks((DrawCallbacks)this);
+                this.client.setGpu(true);
+                this.client.resizeCanvas();
+                this.lastCanvasHeight = -1;
+                this.lastCanvasWidth = -1;
+                this.lastStretchedCanvasHeight = -1;
+                this.lastStretchedCanvasWidth = -1;
+                this.lastAntiAliasingMode = null;
+                this.textureArrayId = -1;
+                if (this.client.getGameState() == GameState.LOGGED_IN) {
+                    this.uploadScene();
+                }
+                this.checkGLErrors();
+            }
+            catch (Throwable e) {
+                log.error("Error starting GPU plugin", e);
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        this.pluginManager.setPluginEnabled(this, false);
+                        this.pluginManager.stopPlugin(this);
+                    }
+                    catch (PluginInstantiationException ex) {
+                        log.error("error stopping plugin", (Throwable)ex);
+                    }
+                });
+                this.shutDown();
+            }
+            return true;
+        });
+    }
+
+    @Override
+    protected void shutDown() {
+        this.clientThread.invoke(() -> {
+            this.client.setGpu(false);
+            this.client.setDrawCallbacks(null);
+            this.client.setUnlockedFps(false);
+            this.sceneUploader.releaseSortingBuffers();
+            if (this.lwjglInitted) {
+                this.openCLManager.cleanup();
+                if (this.textureArrayId != -1) {
+                    this.textureManager.freeTextureArray(this.textureArrayId);
+                    this.textureArrayId = -1;
+                }
+                this.destroyGlBuffer(this.uniformBuffer);
+                this.shutdownBuffers();
+                this.shutdownInterfaceTexture();
+                this.shutdownProgram();
+                this.shutdownVao();
+                this.shutdownAAFbo();
+            }
+            if (this.awtContext != null) {
+                this.awtContext.destroy();
+                this.awtContext = null;
+            }
+            if (this.debugCallback != null) {
+                this.debugCallback.free();
+                this.debugCallback = null;
+            }
+            this.vertexBuffer = null;
+            this.uvBuffer = null;
+            this.modelBufferSmall = null;
+            this.modelBuffer = null;
+            this.modelBufferUnordered = null;
+            this.lastAnisotropicFilteringLevel = -1;
+            this.client.resizeCanvas();
+        });
+    }
+
+    @Provides
+    GpuPluginConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(GpuPluginConfig.class);
+    }
+
+    @Subscribe
+    public void onConfigChanged(ConfigChanged configChanged) {
+        if (configChanged.getGroup().equals("gpu") && (configChanged.getKey().equals("unlockFps") || configChanged.getKey().equals("vsyncMode") || configChanged.getKey().equals("fpsTarget"))) {
+            log.debug("Rebuilding sync mode");
+            this.clientThread.invokeLater(this::setupSyncMode);
+        }
+    }
+
+    private void setupSyncMode() {
+        boolean unlockFps = this.config.unlockFps();
+        this.client.setUnlockedFps(unlockFps);
+        GpuPluginConfig.SyncMode syncMode = unlockFps ? this.config.syncMode() : GpuPluginConfig.SyncMode.OFF;
+        int swapInterval = 0;
+        switch (syncMode) {
+            case ON: {
+                swapInterval = 1;
+                break;
+            }
+            case OFF: {
+                swapInterval = 0;
+                break;
+            }
+            case ADAPTIVE: {
+                swapInterval = -1;
+            }
+        }
+        int actualSwapInterval = this.awtContext.setSwapInterval(swapInterval);
+        if (actualSwapInterval != swapInterval) {
+            log.info("unsupported swap interval {}, got {}", (Object)swapInterval, (Object)actualSwapInterval);
+        }
+        this.client.setUnlockedFpsTarget(actualSwapInterval == 0 ? this.config.fpsTarget() : 0);
+        this.checkGLErrors();
+    }
+
+    private Template createTemplate(int threadCount, int facesPerThread) {
+        String versionHeader = OSType.getOSType() == OSType.Linux ? LINUX_VERSION_HEADER : WINDOWS_VERSION_HEADER;
+        Template template = new Template();
+        template.add(key -> {
+            if ("version_header".equals(key)) {
+                return versionHeader;
+            }
+            if ("thread_config".equals(key)) {
+                return "#define THREAD_COUNT " + threadCount + "\n#define FACES_PER_THREAD " + facesPerThread + "\n";
+            }
+            return null;
+        });
+        template.addInclude(GpuPlugin.class);
+        return template;
+    }
+
+    @Override
+    public String enableWarning() {
+        if (!SystemUtils.OS_ARCH.equals("x86")) {
+            return null;
+        }
+        return "The GPU plugin can cause crashes in places such as Prifddinas and Darkmeyer when using 32-bit Java.<br>Upgrade to 64-bit Java or use the 64-bit installer on <u>zaros.io/download</u>.";
+    }
+
+    private void initProgram() throws ShaderException {
+        Template template = this.createTemplate(-1, -1);
+        this.glProgram = PROGRAM.compile(template);
+        this.glUiProgram = UI_PROGRAM.compile(template);
+        if (this.computeMode == ComputeMode.OPENGL) {
+            this.glComputeProgram = COMPUTE_PROGRAM.compile(this.createTemplate(1024, 6));
+            this.glSmallComputeProgram = SMALL_COMPUTE_PROGRAM.compile(this.createTemplate(512, 1));
+            this.glUnorderedComputeProgram = UNORDERED_COMPUTE_PROGRAM.compile(template);
+        } else if (this.computeMode == ComputeMode.OPENCL) {
+            this.openCLManager.init(this.awtContext);
+        }
+        this.initUniforms();
+    }
+
+    private void initUniforms() {
+        this.uniProjectionMatrix = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"projectionMatrix");
+        this.uniBrightness = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"brightness");
+        this.uniSmoothBanding = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"smoothBanding");
+        this.uniUseFog = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"useFog");
+        this.uniFogColor = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"fogColor");
+        this.uniFogDepth = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"fogDepth");
+        this.uniDrawDistance = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"drawDistance");
+        this.uniColorBlindMode = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"colorBlindMode");
+        this.uniTextureLightMode = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"textureLightMode");
+        this.uniTick = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"tick");
+        this.uniTex = GL43C.glGetUniformLocation((int)this.glUiProgram, (CharSequence)"tex");
+        this.uniTexSamplingMode = GL43C.glGetUniformLocation((int)this.glUiProgram, (CharSequence)"samplingMode");
+        this.uniTexTargetDimensions = GL43C.glGetUniformLocation((int)this.glUiProgram, (CharSequence)"targetDimensions");
+        this.uniTexSourceDimensions = GL43C.glGetUniformLocation((int)this.glUiProgram, (CharSequence)"sourceDimensions");
+        this.uniUiColorBlindMode = GL43C.glGetUniformLocation((int)this.glUiProgram, (CharSequence)"colorBlindMode");
+        this.uniUiAlphaOverlay = GL43C.glGetUniformLocation((int)this.glUiProgram, (CharSequence)"alphaOverlay");
+        this.uniTextures = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"textures");
+        this.uniTextureAnimations = GL43C.glGetUniformLocation((int)this.glProgram, (CharSequence)"textureAnimations");
+        if (this.computeMode == ComputeMode.OPENGL) {
+            this.uniBlockSmall = GL43C.glGetUniformBlockIndex((int)this.glSmallComputeProgram, (CharSequence)"uniforms");
+            this.uniBlockLarge = GL43C.glGetUniformBlockIndex((int)this.glComputeProgram, (CharSequence)"uniforms");
+            this.uniBlockMain = GL43C.glGetUniformBlockIndex((int)this.glProgram, (CharSequence)"uniforms");
+        }
+    }
+
+    private void shutdownProgram() {
+        GL43C.glDeleteProgram((int)this.glProgram);
+        this.glProgram = -1;
+        GL43C.glDeleteProgram((int)this.glComputeProgram);
+        this.glComputeProgram = -1;
+        GL43C.glDeleteProgram((int)this.glSmallComputeProgram);
+        this.glSmallComputeProgram = -1;
+        GL43C.glDeleteProgram((int)this.glUnorderedComputeProgram);
+        this.glUnorderedComputeProgram = -1;
+        GL43C.glDeleteProgram((int)this.glUiProgram);
+        this.glUiProgram = -1;
+    }
+
+    private void initVao() {
+        this.vaoHandle = GL43C.glGenVertexArrays();
+        this.vaoUiHandle = GL43C.glGenVertexArrays();
+        this.vboUiHandle = GL43C.glGenBuffers();
+        GL43C.glBindVertexArray((int)this.vaoUiHandle);
+        FloatBuffer vboUiBuf = GpuFloatBuffer.allocateDirect(20);
+        vboUiBuf.put(new float[]{1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 0.0f, 1.0f, 1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f});
+        vboUiBuf.rewind();
+        GL43C.glBindBuffer((int)34962, (int)this.vboUiHandle);
+        GL43C.glBufferData((int)34962, (FloatBuffer)vboUiBuf, (int)35044);
+        GL43C.glVertexAttribPointer((int)0, (int)3, (int)5126, (boolean)false, (int)20, (long)0L);
+        GL43C.glEnableVertexAttribArray((int)0);
+        GL43C.glVertexAttribPointer((int)1, (int)2, (int)5126, (boolean)false, (int)20, (long)12L);
+        GL43C.glEnableVertexAttribArray((int)1);
+        GL43C.glBindBuffer((int)34962, (int)0);
+    }
+
+    private void shutdownVao() {
+        GL43C.glDeleteVertexArrays((int)this.vaoHandle);
+        this.vaoHandle = -1;
+        GL43C.glDeleteBuffers((int)this.vboUiHandle);
+        this.vboUiHandle = -1;
+        GL43C.glDeleteVertexArrays((int)this.vaoUiHandle);
+        this.vaoUiHandle = -1;
+    }
+
+    private void initBuffers() {
+        this.initGlBuffer(this.sceneVertexBuffer);
+        this.initGlBuffer(this.sceneUvBuffer);
+        this.initGlBuffer(this.tmpVertexBuffer);
+        this.initGlBuffer(this.tmpUvBuffer);
+        this.initGlBuffer(this.tmpModelBufferLarge);
+        this.initGlBuffer(this.tmpModelBufferSmall);
+        this.initGlBuffer(this.tmpModelBufferUnordered);
+        this.initGlBuffer(this.tmpOutBuffer);
+        this.initGlBuffer(this.tmpOutUvBuffer);
+    }
+
+    private void initGlBuffer(GLBuffer glBuffer) {
+        glBuffer.glBufferId = GL43C.glGenBuffers();
+    }
+
+    private void shutdownBuffers() {
+        this.destroyGlBuffer(this.sceneVertexBuffer);
+        this.destroyGlBuffer(this.sceneUvBuffer);
+        this.destroyGlBuffer(this.tmpVertexBuffer);
+        this.destroyGlBuffer(this.tmpUvBuffer);
+        this.destroyGlBuffer(this.tmpModelBufferLarge);
+        this.destroyGlBuffer(this.tmpModelBufferSmall);
+        this.destroyGlBuffer(this.tmpModelBufferUnordered);
+        this.destroyGlBuffer(this.tmpOutBuffer);
+        this.destroyGlBuffer(this.tmpOutUvBuffer);
+    }
+
+    private void destroyGlBuffer(GLBuffer glBuffer) {
+        if (glBuffer.glBufferId != -1) {
+            GL43C.glDeleteBuffers((int)glBuffer.glBufferId);
+            glBuffer.glBufferId = -1;
+        }
+        glBuffer.size = -1;
+        if (glBuffer.cl_mem != null) {
+            CL.clReleaseMemObject((cl_mem)glBuffer.cl_mem);
+            glBuffer.cl_mem = null;
+        }
+    }
+
+    private void initInterfaceTexture() {
+        this.interfacePbo = GL43C.glGenBuffers();
+        this.interfaceTexture = GL43C.glGenTextures();
+        GL43C.glBindTexture((int)3553, (int)this.interfaceTexture);
+        GL43C.glTexParameteri((int)3553, (int)10242, (int)33071);
+        GL43C.glTexParameteri((int)3553, (int)10243, (int)33071);
+        GL43C.glTexParameteri((int)3553, (int)10241, (int)9729);
+        GL43C.glTexParameteri((int)3553, (int)10240, (int)9729);
+        GL43C.glBindTexture((int)3553, (int)0);
+    }
+
+    private void shutdownInterfaceTexture() {
+        GL43C.glDeleteBuffers((int)this.interfacePbo);
+        GL43C.glDeleteTextures((int)this.interfaceTexture);
+        this.interfaceTexture = -1;
+    }
+
+    private void initUniformBuffer() {
+        this.initGlBuffer(this.uniformBuffer);
+        IntBuffer uniformBuf = GpuIntBuffer.allocateDirect(8200);
+        uniformBuf.put(new int[8]);
+        int[] pad = new int[2];
+        for (int i = 0; i < 2048; ++i) {
+            uniformBuf.put(Perspective.SINE[i]);
+            uniformBuf.put(Perspective.COSINE[i]);
+            uniformBuf.put(pad);
+        }
+        uniformBuf.flip();
+        this.updateBuffer(this.uniformBuffer, 35345, uniformBuf, 35048, 4L);
+        GL43C.glBindBuffer((int)35345, (int)0);
+    }
+
+    private void initAAFbo(int width, int height, int aaSamples) {
+        this.fboSceneHandle = GL43C.glGenFramebuffers();
+        GL43C.glBindFramebuffer((int)36160, (int)this.fboSceneHandle);
+        this.rboSceneHandle = GL43C.glGenRenderbuffers();
+        GL43C.glBindRenderbuffer((int)36161, (int)this.rboSceneHandle);
+        GL43C.glRenderbufferStorageMultisample((int)36161, (int)aaSamples, (int)6408, (int)width, (int)height);
+        GL43C.glFramebufferRenderbuffer((int)36160, (int)36064, (int)36161, (int)this.rboSceneHandle);
+        GL43C.glBindFramebuffer((int)36160, (int)this.awtContext.getFramebuffer(false));
+        GL43C.glBindRenderbuffer((int)36161, (int)0);
+    }
+
+    private void shutdownAAFbo() {
+        if (this.fboSceneHandle != -1) {
+            GL43C.glDeleteFramebuffers((int)this.fboSceneHandle);
+            this.fboSceneHandle = -1;
+        }
+        if (this.rboSceneHandle != -1) {
+            GL43C.glDeleteRenderbuffers((int)this.rboSceneHandle);
+            this.rboSceneHandle = -1;
+        }
+    }
+
+    public void drawScene(int cameraX, int cameraY, int cameraZ, int cameraPitch, int cameraYaw, int plane) {
+        this.yaw = this.client.getCameraYaw();
+        this.pitch = this.client.getCameraPitch();
+        this.viewportOffsetX = this.client.getViewportXOffset();
+        this.viewportOffsetY = this.client.getViewportYOffset();
+        Scene scene = this.client.getScene();
+        scene.setDrawDistance(this.getDrawDistance());
+        this.targetBufferOffset = 0;
+        this.vertexBuffer.clear();
+        this.vertexBuffer.ensureCapacity(32);
+        IntBuffer uniformBuf = this.vertexBuffer.getBuffer();
+        uniformBuf.put(this.yaw).put(this.pitch).put(this.client.getCenterX()).put(this.client.getCenterY()).put(this.client.getScale()).put(cameraX).put(cameraY).put(cameraZ);
+        uniformBuf.flip();
+        GL43C.glBindBuffer((int)35345, (int)this.uniformBuffer.glBufferId);
+        GL43C.glBufferSubData((int)35345, (long)0L, (IntBuffer)uniformBuf);
+        GL43C.glBindBuffer((int)35345, (int)0);
+        GL43C.glBindBufferBase((int)35345, (int)0, (int)this.uniformBuffer.glBufferId);
+        uniformBuf.clear();
+        this.checkGLErrors();
+    }
+
+    public void postDrawScene() {
+        if (this.computeMode == ComputeMode.NONE) {
+            this.vertexBuffer.flip();
+            this.uvBuffer.flip();
+            IntBuffer vertexBuffer = this.vertexBuffer.getBuffer();
+            FloatBuffer uvBuffer = this.uvBuffer.getBuffer();
+            this.updateBuffer(this.tmpVertexBuffer, 34962, vertexBuffer, 35048, 0L);
+            this.updateBuffer(this.tmpUvBuffer, 34962, uvBuffer, 35048, 0L);
+            this.checkGLErrors();
+            return;
+        }
+        this.vertexBuffer.flip();
+        this.uvBuffer.flip();
+        this.modelBuffer.flip();
+        this.modelBufferSmall.flip();
+        this.modelBufferUnordered.flip();
+        IntBuffer vertexBuffer = this.vertexBuffer.getBuffer();
+        FloatBuffer uvBuffer = this.uvBuffer.getBuffer();
+        IntBuffer modelBuffer = this.modelBuffer.getBuffer();
+        IntBuffer modelBufferSmall = this.modelBufferSmall.getBuffer();
+        IntBuffer modelBufferUnordered = this.modelBufferUnordered.getBuffer();
+        this.updateBuffer(this.tmpVertexBuffer, 34962, vertexBuffer, 35048, 4L);
+        this.updateBuffer(this.tmpUvBuffer, 34962, uvBuffer, 35048, 4L);
+        this.updateBuffer(this.tmpModelBufferLarge, 34962, modelBuffer, 35048, 4L);
+        this.updateBuffer(this.tmpModelBufferSmall, 34962, modelBufferSmall, 35048, 4L);
+        this.updateBuffer(this.tmpModelBufferUnordered, 34962, modelBufferUnordered, 35048, 4L);
+        this.updateBuffer(this.tmpOutBuffer, 34962, this.targetBufferOffset * 16, 35040, 2L);
+        this.updateBuffer(this.tmpOutUvBuffer, 34962, this.targetBufferOffset * 16, 35040, 2L);
+        if (this.computeMode == ComputeMode.OPENCL) {
+            this.openCLManager.compute(this.unorderedModels, this.smallModels, this.largeModels, this.sceneVertexBuffer, this.sceneUvBuffer, this.tmpVertexBuffer, this.tmpUvBuffer, this.tmpModelBufferUnordered, this.tmpModelBufferSmall, this.tmpModelBufferLarge, this.tmpOutBuffer, this.tmpOutUvBuffer, this.uniformBuffer);
+            this.checkGLErrors();
+            return;
+        }
+        GL43C.glUniformBlockBinding((int)this.glSmallComputeProgram, (int)this.uniBlockSmall, (int)0);
+        GL43C.glUniformBlockBinding((int)this.glComputeProgram, (int)this.uniBlockLarge, (int)0);
+        GL43C.glUseProgram((int)this.glUnorderedComputeProgram);
+        GL43C.glBindBufferBase((int)37074, (int)0, (int)this.tmpModelBufferUnordered.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)1, (int)this.sceneVertexBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)2, (int)this.tmpVertexBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)3, (int)this.tmpOutBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)4, (int)this.tmpOutUvBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)5, (int)this.sceneUvBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)6, (int)this.tmpUvBuffer.glBufferId);
+        GL43C.glDispatchCompute((int)this.unorderedModels, (int)1, (int)1);
+        GL43C.glUseProgram((int)this.glSmallComputeProgram);
+        GL43C.glBindBufferBase((int)37074, (int)0, (int)this.tmpModelBufferSmall.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)1, (int)this.sceneVertexBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)2, (int)this.tmpVertexBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)3, (int)this.tmpOutBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)4, (int)this.tmpOutUvBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)5, (int)this.sceneUvBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)6, (int)this.tmpUvBuffer.glBufferId);
+        GL43C.glDispatchCompute((int)this.smallModels, (int)1, (int)1);
+        GL43C.glUseProgram((int)this.glComputeProgram);
+        GL43C.glBindBufferBase((int)37074, (int)0, (int)this.tmpModelBufferLarge.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)1, (int)this.sceneVertexBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)2, (int)this.tmpVertexBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)3, (int)this.tmpOutBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)4, (int)this.tmpOutUvBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)5, (int)this.sceneUvBuffer.glBufferId);
+        GL43C.glBindBufferBase((int)37074, (int)6, (int)this.tmpUvBuffer.glBufferId);
+        GL43C.glDispatchCompute((int)this.largeModels, (int)1, (int)1);
+        this.checkGLErrors();
+    }
+
+    public void drawScenePaint(int orientation, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z, SceneTilePaint paint, int tileZ, int tileX, int tileY, int zoom, int centerX, int centerY) {
+        if (this.computeMode == ComputeMode.NONE) {
+            this.targetBufferOffset += this.sceneUploader.upload(paint, tileZ, tileX, tileY, this.vertexBuffer, this.uvBuffer, 128 * tileX, 128 * tileY, true);
+        } else if (paint.getBufferLen() > 0) {
+            int localX = tileX * 128;
+            boolean localY = false;
+            int localZ = tileY * 128;
+            GpuIntBuffer b = this.modelBufferUnordered;
+            ++this.unorderedModels;
+            b.ensureCapacity(8);
+            IntBuffer buffer = b.getBuffer();
+            buffer.put(paint.getBufferOffset());
+            buffer.put(paint.getUvBufferOffset());
+            buffer.put(2);
+            buffer.put(this.targetBufferOffset);
+            buffer.put(Integer.MIN_VALUE);
+            buffer.put(localX).put(0).put(localZ);
+            this.targetBufferOffset += 6;
+        }
+    }
+
+    public void drawSceneModel(int orientation, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z, SceneTileModel model, int tileZ, int tileX, int tileY, int zoom, int centerX, int centerY) {
+        if (this.computeMode == ComputeMode.NONE) {
+            this.targetBufferOffset += this.sceneUploader.upload(model, tileX, tileY, this.vertexBuffer, this.uvBuffer, tileX << 7, tileY << 7, true);
+        } else if (model.getBufferLen() > 0) {
+            int localX = tileX * 128;
+            boolean localY = false;
+            int localZ = tileY * 128;
+            GpuIntBuffer b = this.modelBufferUnordered;
+            ++this.unorderedModels;
+            b.ensureCapacity(8);
+            IntBuffer buffer = b.getBuffer();
+            buffer.put(model.getBufferOffset());
+            buffer.put(model.getUvBufferOffset());
+            buffer.put(model.getBufferLen() / 3);
+            buffer.put(this.targetBufferOffset);
+            buffer.put(Integer.MIN_VALUE);
+            buffer.put(localX).put(0).put(localZ);
+            this.targetBufferOffset += model.getBufferLen();
+        }
+    }
+
+    private void prepareInterfaceTexture(int canvasWidth, int canvasHeight) {
+        if (canvasWidth != this.lastCanvasWidth || canvasHeight != this.lastCanvasHeight) {
+            this.lastCanvasWidth = canvasWidth;
+            this.lastCanvasHeight = canvasHeight;
+            GL43C.glBindBuffer((int)35052, (int)this.interfacePbo);
+            GL43C.glBufferData((int)35052, (long)((long)(canvasWidth * canvasHeight) * 4L), (int)35040);
+            GL43C.glBindBuffer((int)35052, (int)0);
+            GL43C.glBindTexture((int)3553, (int)this.interfaceTexture);
+            GL43C.glTexImage2D((int)3553, (int)0, (int)6408, (int)canvasWidth, (int)canvasHeight, (int)0, (int)32993, (int)5121, (long)0L);
+            GL43C.glBindTexture((int)3553, (int)0);
+        }
+        BufferProvider bufferProvider = this.client.getBufferProvider();
+        int[] pixels = bufferProvider.getPixels();
+        int width = bufferProvider.getWidth();
+        int height = bufferProvider.getHeight();
+        GL43C.glBindBuffer((int)35052, (int)this.interfacePbo);
+        GL43C.glMapBuffer((int)35052, (int)35001).asIntBuffer().put(pixels, 0, width * height);
+        GL43C.glUnmapBuffer((int)35052);
+        GL43C.glBindTexture((int)3553, (int)this.interfaceTexture);
+        GL43C.glTexSubImage2D((int)3553, (int)0, (int)0, (int)0, (int)width, (int)height, (int)32993, (int)33639, (long)0L);
+        GL43C.glBindBuffer((int)35052, (int)0);
+        GL43C.glBindTexture((int)3553, (int)0);
+    }
+
+    public void draw(int overlayColor) {
+        boolean aaEnabled;
+        int canvasHeight = this.client.getCanvasHeight();
+        int canvasWidth = this.client.getCanvasWidth();
+        int viewportHeight = this.client.getViewportHeight();
+        int viewportWidth = this.client.getViewportWidth();
+        this.prepareInterfaceTexture(canvasWidth, canvasHeight);
+        AntiAliasingMode antiAliasingMode = this.config.antiAliasingMode();
+        boolean bl = aaEnabled = antiAliasingMode != AntiAliasingMode.DISABLED;
+        if (aaEnabled) {
+            int stretchedCanvasHeight;
+            GL43C.glEnable((int)32925);
+            Dimension stretchedDimensions = this.client.getStretchedDimensions();
+            int stretchedCanvasWidth = this.client.isStretchedEnabled() ? stretchedDimensions.width : canvasWidth;
+            int n = stretchedCanvasHeight = this.client.isStretchedEnabled() ? stretchedDimensions.height : canvasHeight;
+            if (this.lastStretchedCanvasWidth != stretchedCanvasWidth || this.lastStretchedCanvasHeight != stretchedCanvasHeight || this.lastAntiAliasingMode != antiAliasingMode) {
+                this.shutdownAAFbo();
+                GL43C.glBindFramebuffer((int)36160, (int)this.awtContext.getFramebuffer(false));
+                int forcedAASamples = GL43C.glGetInteger((int)32937);
+                int maxSamples = GL43C.glGetInteger((int)36183);
+                int samples = forcedAASamples != 0 ? forcedAASamples : Math.min(antiAliasingMode.getSamples(), maxSamples);
+                log.debug("AA samples: {}, max samples: {}, forced samples: {}", new Object[]{samples, maxSamples, forcedAASamples});
+                this.initAAFbo(stretchedCanvasWidth, stretchedCanvasHeight, samples);
+                this.lastStretchedCanvasWidth = stretchedCanvasWidth;
+                this.lastStretchedCanvasHeight = stretchedCanvasHeight;
+            }
+            GL43C.glBindFramebuffer((int)36009, (int)this.fboSceneHandle);
+        } else {
+            GL43C.glDisable((int)32925);
+            this.shutdownAAFbo();
+        }
+        this.lastAntiAliasingMode = antiAliasingMode;
+        int sky = this.client.getSkyboxColor();
+        GL43C.glClearColor((float)((float)(sky >> 16 & 0xFF) / 255.0f), (float)((float)(sky >> 8 & 0xFF) / 255.0f), (float)((float)(sky & 0xFF) / 255.0f), (float)1.0f);
+        GL43C.glClear((int)16384);
+        GameState gameState = this.client.getGameState();
+        if (gameState.getState() >= GameState.LOADING.getState()) {
+            int uvBuffer;
+            int vertexBuffer;
+            TextureProvider textureProvider = this.client.getTextureProvider();
+            if (this.textureArrayId == -1) {
+                this.textureArrayId = this.textureManager.initTextureArray(textureProvider);
+                if (this.textureArrayId > -1) {
+                    float[] texAnims = this.textureManager.computeTextureAnimations(textureProvider);
+                    GL43C.glUseProgram((int)this.glProgram);
+                    GL43C.glUniform2fv((int)this.uniTextureAnimations, (float[])texAnims);
+                    GL43C.glUseProgram((int)0);
+                }
+            }
+            int renderWidthOff = this.viewportOffsetX;
+            int renderHeightOff = this.viewportOffsetY;
+            int renderCanvasHeight = canvasHeight;
+            int renderViewportHeight = viewportHeight;
+            int renderViewportWidth = viewportWidth;
+            int anisotropicFilteringLevel = this.config.anisotropicFilteringLevel();
+            if (this.textureArrayId != -1 && this.lastAnisotropicFilteringLevel != anisotropicFilteringLevel) {
+                this.textureManager.setAnisotropicFilteringLevel(this.textureArrayId, anisotropicFilteringLevel);
+                this.lastAnisotropicFilteringLevel = anisotropicFilteringLevel;
+            }
+            if (this.client.isStretchedEnabled()) {
+                Dimension dim = this.client.getStretchedDimensions();
+                renderCanvasHeight = dim.height;
+                double scaleFactorY = dim.getHeight() / (double)canvasHeight;
+                double scaleFactorX = dim.getWidth() / (double)canvasWidth;
+                boolean padding = true;
+                renderViewportHeight = (int)Math.ceil(scaleFactorY * (double)renderViewportHeight) + 2;
+                renderViewportWidth = (int)Math.ceil(scaleFactorX * (double)renderViewportWidth) + 2;
+                renderHeightOff = (int)Math.floor(scaleFactorY * (double)renderHeightOff) - 1;
+                renderWidthOff = (int)Math.floor(scaleFactorX * (double)renderWidthOff) - 1;
+            }
+            this.glDpiAwareViewport(renderWidthOff, renderCanvasHeight - renderViewportHeight - renderHeightOff, renderViewportWidth, renderViewportHeight);
+            GL43C.glUseProgram((int)this.glProgram);
+            int drawDistance = this.getDrawDistance();
+            int fogDepth = this.config.fogDepth();
+            GL43C.glUniform1i((int)this.uniUseFog, (int)(fogDepth > 0 ? 1 : 0));
+            GL43C.glUniform4f((int)this.uniFogColor, (float)((float)(sky >> 16 & 0xFF) / 255.0f), (float)((float)(sky >> 8 & 0xFF) / 255.0f), (float)((float)(sky & 0xFF) / 255.0f), (float)1.0f);
+            GL43C.glUniform1i((int)this.uniFogDepth, (int)fogDepth);
+            GL43C.glUniform1i((int)this.uniDrawDistance, (int)(drawDistance * 128));
+            GL43C.glUniform1f((int)this.uniBrightness, (float)((float)textureProvider.getBrightness()));
+            GL43C.glUniform1f((int)this.uniSmoothBanding, (float)(this.config.smoothBanding() ? 0.0f : 1.0f));
+            GL43C.glUniform1i((int)this.uniColorBlindMode, (int)this.config.colorBlindMode().ordinal());
+            GL43C.glUniform1f((int)this.uniTextureLightMode, (float)(this.config.brightTextures() ? 1.0f : 0.0f));
+            if (gameState == GameState.LOGGED_IN) {
+                GL43C.glUniform1i((int)this.uniTick, (int)this.client.getGameCycle());
+            }
+            float[] projectionMatrix = Mat4.scale(this.client.getScale(), this.client.getScale(), 1.0f);
+            Mat4.mul(projectionMatrix, Mat4.projection(viewportWidth, viewportHeight, 50.0f));
+            Mat4.mul(projectionMatrix, Mat4.rotateX((float)(-(Math.PI - (double)this.pitch * 0.0030679615757712823))));
+            Mat4.mul(projectionMatrix, Mat4.rotateY((float)((double)this.yaw * 0.0030679615757712823)));
+            Mat4.mul(projectionMatrix, Mat4.translate(-this.client.getCameraX2(), -this.client.getCameraY2(), -this.client.getCameraZ2()));
+            GL43C.glUniformMatrix4fv((int)this.uniProjectionMatrix, (boolean)false, (float[])projectionMatrix);
+            GL43C.glUniformBlockBinding((int)this.glProgram, (int)this.uniBlockMain, (int)0);
+            GL43C.glUniform1i((int)this.uniTextures, (int)1);
+            GL43C.glEnable((int)2884);
+            GL43C.glEnable((int)3042);
+            GL43C.glBlendFuncSeparate((int)770, (int)771, (int)1, (int)1);
+            GL43C.glBindVertexArray((int)this.vaoHandle);
+            if (this.computeMode != ComputeMode.NONE) {
+                if (this.computeMode == ComputeMode.OPENGL) {
+                    GL43C.glMemoryBarrier((int)8192);
+                } else {
+                    this.openCLManager.finish();
+                }
+                vertexBuffer = this.tmpOutBuffer.glBufferId;
+                uvBuffer = this.tmpOutUvBuffer.glBufferId;
+            } else {
+                vertexBuffer = this.tmpVertexBuffer.glBufferId;
+                uvBuffer = this.tmpUvBuffer.glBufferId;
+            }
+            GL43C.glEnableVertexAttribArray((int)0);
+            GL43C.glBindBuffer((int)34962, (int)vertexBuffer);
+            GL43C.glVertexAttribIPointer((int)0, (int)4, (int)5124, (int)0, (long)0L);
+            GL43C.glEnableVertexAttribArray((int)1);
+            GL43C.glBindBuffer((int)34962, (int)uvBuffer);
+            GL43C.glVertexAttribPointer((int)1, (int)4, (int)5126, (boolean)false, (int)0, (long)0L);
+            GL43C.glDrawArrays((int)4, (int)0, (int)this.targetBufferOffset);
+            GL43C.glDisable((int)3042);
+            GL43C.glDisable((int)2884);
+            GL43C.glUseProgram((int)0);
+        }
+        if (aaEnabled) {
+            GL43C.glBindFramebuffer((int)36008, (int)this.fboSceneHandle);
+            GL43C.glBindFramebuffer((int)36009, (int)this.awtContext.getFramebuffer(false));
+            GL43C.glBlitFramebuffer((int)0, (int)0, (int)this.lastStretchedCanvasWidth, (int)this.lastStretchedCanvasHeight, (int)0, (int)0, (int)this.lastStretchedCanvasWidth, (int)this.lastStretchedCanvasHeight, (int)16384, (int)9728);
+            GL43C.glBindFramebuffer((int)36008, (int)this.awtContext.getFramebuffer(false));
+        }
+        this.vertexBuffer.clear();
+        this.uvBuffer.clear();
+        this.modelBuffer.clear();
+        this.modelBufferSmall.clear();
+        this.modelBufferUnordered.clear();
+        this.unorderedModels = 0;
+        this.largeModels = 0;
+        this.smallModels = 0;
+        this.tempOffset = 0;
+        this.tempUvOffset = 0;
+        this.drawUi(overlayColor, canvasHeight, canvasWidth);
+        this.awtContext.swapBuffers();
+        this.drawManager.processDrawComplete(this::screenshot);
+        GL43C.glBindFramebuffer((int)36160, (int)this.awtContext.getFramebuffer(false));
+        this.checkGLErrors();
+    }
+
+    private void drawUi(int overlayColor, int canvasHeight, int canvasWidth) {
+        GL43C.glEnable((int)3042);
+        GL43C.glBlendFunc((int)1, (int)771);
+        GL43C.glBindTexture((int)3553, (int)this.interfaceTexture);
+        UIScalingMode uiScalingMode = this.config.uiScalingMode();
+        GL43C.glUseProgram((int)this.glUiProgram);
+        GL43C.glUniform1i((int)this.uniTex, (int)0);
+        GL43C.glUniform1i((int)this.uniTexSamplingMode, (int)uiScalingMode.getMode());
+        GL43C.glUniform2i((int)this.uniTexSourceDimensions, (int)canvasWidth, (int)canvasHeight);
+        GL43C.glUniform1i((int)this.uniUiColorBlindMode, (int)this.config.colorBlindMode().ordinal());
+        GL43C.glUniform4f((int)this.uniUiAlphaOverlay, (float)((float)(overlayColor >> 16 & 0xFF) / 255.0f), (float)((float)(overlayColor >> 8 & 0xFF) / 255.0f), (float)((float)(overlayColor & 0xFF) / 255.0f), (float)((float)(overlayColor >>> 24) / 255.0f));
+        if (this.client.isStretchedEnabled()) {
+            Dimension dim = this.client.getStretchedDimensions();
+            this.glDpiAwareViewport(0, 0, dim.width, dim.height);
+            GL43C.glUniform2i((int)this.uniTexTargetDimensions, (int)dim.width, (int)dim.height);
+        } else {
+            this.glDpiAwareViewport(0, 0, canvasWidth, canvasHeight);
+            GL43C.glUniform2i((int)this.uniTexTargetDimensions, (int)canvasWidth, (int)canvasHeight);
+        }
+        if (this.client.isStretchedEnabled()) {
+            int function = uiScalingMode == UIScalingMode.LINEAR ? 9729 : 9728;
+            GL43C.glTexParameteri((int)3553, (int)10241, (int)function);
+            GL43C.glTexParameteri((int)3553, (int)10240, (int)function);
+        }
+        GL43C.glBindVertexArray((int)this.vaoUiHandle);
+        GL43C.glDrawArrays((int)6, (int)0, (int)4);
+        GL43C.glBindTexture((int)3553, (int)0);
+        GL43C.glBindVertexArray((int)0);
+        GL43C.glUseProgram((int)0);
+        GL43C.glBlendFunc((int)770, (int)771);
+        GL43C.glDisable((int)3042);
+        this.vertexBuffer.clear();
+    }
+
+    private Image screenshot() {
+        int width = this.client.getCanvasWidth();
+        int height = this.client.getCanvasHeight();
+        if (this.client.isStretchedEnabled()) {
+            Dimension dim = this.client.getStretchedDimensions();
+            width = dim.width;
+            height = dim.height;
+        }
+        if (OSType.getOSType() != OSType.MacOS) {
+            Graphics2D graphics = (Graphics2D)this.canvas.getGraphics();
+            AffineTransform t = graphics.getTransform();
+            width = this.getScaledValue(t.getScaleX(), width);
+            height = this.getScaledValue(t.getScaleY(), height);
+            graphics.dispose();
+        }
+        ByteBuffer buffer = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder());
+        GL43C.glReadBuffer((int)this.awtContext.getBufferMode());
+        GL43C.glReadPixels((int)0, (int)0, (int)width, (int)height, (int)6408, (int)5121, (ByteBuffer)buffer);
+        BufferedImage image = new BufferedImage(width, height, 1);
+        int[] pixels = ((DataBufferInt)image.getRaster().getDataBuffer()).getData();
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                int r = buffer.get() & 0xFF;
+                int g = buffer.get() & 0xFF;
+                int b = buffer.get() & 0xFF;
+                buffer.get();
+                pixels[(height - y - 1) * width + x] = r << 16 | g << 8 | b;
+            }
+        }
+        return image;
+    }
+
+    public void animate(Texture texture, int diff) {
+    }
+
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged gameStateChanged) {
+        switch (gameStateChanged.getGameState()) {
+            case LOGGED_IN: {
+                if (this.computeMode == ComputeMode.NONE) break;
+                this.uploadScene();
+                this.checkGLErrors();
+                break;
+            }
+            case LOGIN_SCREEN: {
+                this.targetBufferOffset = 0;
+            }
+        }
+    }
+
+    private void uploadScene() {
+        this.vertexBuffer.clear();
+        this.uvBuffer.clear();
+        this.sceneUploader.upload(this.client.getScene(), this.vertexBuffer, this.uvBuffer);
+        this.vertexBuffer.flip();
+        this.uvBuffer.flip();
+        IntBuffer vertexBuffer = this.vertexBuffer.getBuffer();
+        FloatBuffer uvBuffer = this.uvBuffer.getBuffer();
+        this.updateBuffer(this.sceneVertexBuffer, 34962, vertexBuffer, 35046, 4L);
+        this.updateBuffer(this.sceneUvBuffer, 34962, uvBuffer, 35046, 4L);
+        GL43C.glBindBuffer((int)34962, (int)0);
+        vertexBuffer.clear();
+        uvBuffer.clear();
+    }
+
+    private boolean isVisible(Model model, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z) {
+        int yheight;
+        int ybottom;
+        int ry;
+        int var20;
+        int var17;
+        int rx;
+        int var16;
+        model.calculateBoundsCylinder();
+        int xzMag = model.getXYZMag();
+        int bottomY = model.getBottomY();
+        int zoom = this.client.get3dZoom();
+        int modelHeight = model.getModelHeight();
+        int Rasterizer3D_clipMidX2 = this.client.getRasterizer3D_clipMidX2();
+        int Rasterizer3D_clipNegativeMidX = this.client.getRasterizer3D_clipNegativeMidX();
+        int Rasterizer3D_clipNegativeMidY = this.client.getRasterizer3D_clipNegativeMidY();
+        int Rasterizer3D_clipMidY2 = this.client.getRasterizer3D_clipMidY2();
+        int var11 = yawCos * z - yawSin * x >> 16;
+        int var12 = pitchSin * y + pitchCos * var11 >> 16;
+        int var13 = pitchCos * xzMag >> 16;
+        int depth = var12 + var13;
+        if (depth > 50 && (var16 = ((rx = z * yawSin + yawCos * x >> 16) - xzMag) * zoom) / depth < Rasterizer3D_clipMidX2 && (var17 = (rx + xzMag) * zoom) / depth > Rasterizer3D_clipNegativeMidX && (var20 = ((ry = pitchCos * y - var11 * pitchSin >> 16) + (ybottom = (pitchCos * bottomY >> 16) + (yheight = pitchSin * xzMag >> 16))) * zoom) / depth > Rasterizer3D_clipNegativeMidY) {
+            int ytop = (pitchCos * modelHeight >> 16) + yheight;
+            int var22 = (ry - ytop) * zoom;
+            return var22 / depth < Rasterizer3D_clipMidY2;
+        }
+        return false;
+    }
+
+    public void draw(Renderable renderable, int orientation, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z, long hash) {
+        if (this.computeMode == ComputeMode.NONE) {
+            Model model;
+            Model model2 = model = renderable instanceof Model ? (Model)renderable : renderable.getModel();
+            if (model != null) {
+                if (model != renderable) {
+                    renderable.setModelHeight(model.getModelHeight());
+                }
+                if (!this.isVisible(model, pitchSin, pitchCos, yawSin, yawCos, x, y, z)) {
+                    return;
+                }
+                model.calculateExtreme(orientation);
+                this.client.checkClickbox(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash);
+                this.targetBufferOffset += this.sceneUploader.pushSortedModel(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, this.vertexBuffer, this.uvBuffer);
+            }
+        } else if (renderable instanceof Model && ((Model)renderable).getSceneId() == this.sceneUploader.sceneId) {
+            Model model = (Model)renderable;
+            if (!this.isVisible(model, pitchSin, pitchCos, yawSin, yawCos, x, y, z)) {
+                return;
+            }
+            model.calculateExtreme(orientation);
+            this.client.checkClickbox(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash);
+            int tc = Math.min(6144, model.getFaceCount());
+            int uvOffset = model.getUvBufferOffset();
+            GpuIntBuffer b = this.bufferForTriangles(tc);
+            b.ensureCapacity(8);
+            IntBuffer buffer = b.getBuffer();
+            buffer.put(model.getBufferOffset());
+            buffer.put(uvOffset);
+            buffer.put(tc);
+            buffer.put(this.targetBufferOffset);
+            buffer.put(Integer.MIN_VALUE | model.getRadius() << 12 | orientation);
+            buffer.put(x + this.client.getCameraX2()).put(y + this.client.getCameraY2()).put(z + this.client.getCameraZ2());
+            this.targetBufferOffset += tc * 3;
+        } else {
+            Model model;
+            Model model3 = model = renderable instanceof Model ? (Model)renderable : renderable.getModel();
+            if (model != null) {
+                if (model != renderable) {
+                    renderable.setModelHeight(model.getModelHeight());
+                }
+                if (!this.isVisible(model, pitchSin, pitchCos, yawSin, yawCos, x, y, z)) {
+                    return;
+                }
+                model.calculateExtreme(orientation);
+                this.client.checkClickbox(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash);
+                boolean hasUv = model.getFaceTextures() != null;
+                int len = this.sceneUploader.pushModel(model, this.vertexBuffer, this.uvBuffer);
+                GpuIntBuffer b = this.bufferForTriangles(len / 3);
+                b.ensureCapacity(8);
+                IntBuffer buffer = b.getBuffer();
+                buffer.put(this.tempOffset);
+                buffer.put(hasUv ? this.tempUvOffset : -1);
+                buffer.put(len / 3);
+                buffer.put(this.targetBufferOffset);
+                buffer.put(model.getRadius() << 12 | orientation);
+                buffer.put(x + this.client.getCameraX2()).put(y + this.client.getCameraY2()).put(z + this.client.getCameraZ2());
+                this.tempOffset += len;
+                if (hasUv) {
+                    this.tempUvOffset += len;
+                }
+                this.targetBufferOffset += len;
+            }
+        }
+    }
+
+    public boolean drawFace(Model model, int face) {
+        return false;
+    }
+
+    private GpuIntBuffer bufferForTriangles(int triangles) {
+        if (triangles <= 512) {
+            ++this.smallModels;
+            return this.modelBufferSmall;
+        }
+        ++this.largeModels;
+        return this.modelBuffer;
+    }
+
+    private int getScaledValue(double scale, int value) {
+        return (int)((double)value * scale + 0.5);
+    }
+
+    private void glDpiAwareViewport(int x, int y, int width, int height) {
+        if (OSType.getOSType() == OSType.MacOS) {
+            GL43C.glViewport((int)x, (int)y, (int)width, (int)height);
+        } else {
+            Graphics2D graphics = (Graphics2D)this.canvas.getGraphics();
+            AffineTransform t = graphics.getTransform();
+            GL43C.glViewport((int)this.getScaledValue(t.getScaleX(), x), (int)this.getScaledValue(t.getScaleY(), y), (int)this.getScaledValue(t.getScaleX(), width), (int)this.getScaledValue(t.getScaleY(), height));
+            graphics.dispose();
+        }
+    }
+
+    private int getDrawDistance() {
+        int limit = this.computeMode != ComputeMode.NONE ? 90 : 25;
+        return Ints.constrainToRange((int)this.config.drawDistance(), (int)0, (int)limit);
+    }
+
+    private void updateBuffer(@Nonnull GLBuffer glBuffer, int target, @Nonnull IntBuffer data, int usage, long clFlags) {
+        GL43C.glBindBuffer((int)target, (int)glBuffer.glBufferId);
+        int size = data.remaining();
+        if (size > glBuffer.size) {
+            log.trace("Buffer resize: {} {} -> {}", new Object[]{glBuffer, glBuffer.size, size});
+            glBuffer.size = size;
+            GL43C.glBufferData((int)target, (IntBuffer)data, (int)usage);
+            this.recreateCLBuffer(glBuffer, clFlags);
+        } else {
+            GL43C.glBufferSubData((int)target, (long)0L, (IntBuffer)data);
+        }
+    }
+
+    private void updateBuffer(@Nonnull GLBuffer glBuffer, int target, @Nonnull FloatBuffer data, int usage, long clFlags) {
+        GL43C.glBindBuffer((int)target, (int)glBuffer.glBufferId);
+        int size = data.remaining();
+        if (size > glBuffer.size) {
+            log.trace("Buffer resize: {} {} -> {}", new Object[]{glBuffer, glBuffer.size, size});
+            glBuffer.size = size;
+            GL43C.glBufferData((int)target, (FloatBuffer)data, (int)usage);
+            this.recreateCLBuffer(glBuffer, clFlags);
+        } else {
+            GL43C.glBufferSubData((int)target, (long)0L, (FloatBuffer)data);
+        }
+    }
+
+    private void updateBuffer(@Nonnull GLBuffer glBuffer, int target, int size, int usage, long clFlags) {
+        GL43C.glBindBuffer((int)target, (int)glBuffer.glBufferId);
+        if (size > glBuffer.size) {
+            log.trace("Buffer resize: {} {} -> {}", new Object[]{glBuffer, glBuffer.size, size});
+            glBuffer.size = size;
+            GL43C.glBufferData((int)target, (long)size, (int)usage);
+            this.recreateCLBuffer(glBuffer, clFlags);
+        }
+    }
+
+    private void recreateCLBuffer(GLBuffer glBuffer, long clFlags) {
+        if (this.computeMode == ComputeMode.OPENCL) {
+            if (glBuffer.cl_mem != null) {
+                CL.clReleaseMemObject((cl_mem)glBuffer.cl_mem);
+            }
+            glBuffer.cl_mem = glBuffer.size == 0 ? null : CL.clCreateFromGLBuffer((cl_context)this.openCLManager.context, (long)clFlags, (int)glBuffer.glBufferId, null);
+        }
+    }
+
+    private void checkGLErrors() {
+        if (!log.isDebugEnabled()) {
+            return;
+        }
+        int err;
+        while ((err = GL43C.glGetError()) != 0) {
+            String errStr;
+            switch (err) {
+                case 1280: {
+                    errStr = "INVALID_ENUM";
+                    break;
+                }
+                case 1281: {
+                    errStr = "INVALID_VALUE";
+                    break;
+                }
+                case 1282: {
+                    errStr = "INVALID_OPERATION";
+                    break;
+                }
+                case 1286: {
+                    errStr = "INVALID_FRAMEBUFFER_OPERATION";
+                    break;
+                }
+                default: {
+                    errStr = "" + err;
+                }
+            }
+            log.debug("glGetError:", (Throwable)new Exception(errStr));
+        }
+        return;
+    }
+
+    static enum ComputeMode {
+        NONE,
+        OPENGL,
+        OPENCL;
+
+    }
 }
+

@@ -1,41 +1,99 @@
 /*
- * Copyright (c) 2019, Weird Gloop <admin@weirdgloop.org>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
-
 package net.runelite.client.plugins.crowdsourcing.cooking;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+public class CookingData {
+    private final String message;
+    private final boolean hasCookingGauntlets;
+    private final boolean inHosidiusKitchen;
+    private final boolean kourendElite;
+    private final int lastGameObjectClicked;
+    private final int level;
 
-@Data
-@AllArgsConstructor
-public class CookingData
-{
-	private final String message;
-	private final boolean hasCookingGauntlets;
-	private final boolean inHosidiusKitchen;
-	private final boolean kourendElite;
-	private final int lastGameObjectClicked;
-	private final int level;
+    public String getMessage() {
+        return this.message;
+    }
+
+    public boolean isHasCookingGauntlets() {
+        return this.hasCookingGauntlets;
+    }
+
+    public boolean isInHosidiusKitchen() {
+        return this.inHosidiusKitchen;
+    }
+
+    public boolean isKourendElite() {
+        return this.kourendElite;
+    }
+
+    public int getLastGameObjectClicked() {
+        return this.lastGameObjectClicked;
+    }
+
+    public int getLevel() {
+        return this.level;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof CookingData)) {
+            return false;
+        }
+        CookingData other = (CookingData)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.isHasCookingGauntlets() != other.isHasCookingGauntlets()) {
+            return false;
+        }
+        if (this.isInHosidiusKitchen() != other.isInHosidiusKitchen()) {
+            return false;
+        }
+        if (this.isKourendElite() != other.isKourendElite()) {
+            return false;
+        }
+        if (this.getLastGameObjectClicked() != other.getLastGameObjectClicked()) {
+            return false;
+        }
+        if (this.getLevel() != other.getLevel()) {
+            return false;
+        }
+        String this$message = this.getMessage();
+        String other$message = other.getMessage();
+        return !(this$message == null ? other$message != null : !this$message.equals(other$message));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof CookingData;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + (this.isHasCookingGauntlets() ? 79 : 97);
+        result = result * 59 + (this.isInHosidiusKitchen() ? 79 : 97);
+        result = result * 59 + (this.isKourendElite() ? 79 : 97);
+        result = result * 59 + this.getLastGameObjectClicked();
+        result = result * 59 + this.getLevel();
+        String $message = this.getMessage();
+        result = result * 59 + ($message == null ? 43 : $message.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "CookingData(message=" + this.getMessage() + ", hasCookingGauntlets=" + this.isHasCookingGauntlets() + ", inHosidiusKitchen=" + this.isInHosidiusKitchen() + ", kourendElite=" + this.isKourendElite() + ", lastGameObjectClicked=" + this.getLastGameObjectClicked() + ", level=" + this.getLevel() + ")";
+    }
+
+    public CookingData(String message, boolean hasCookingGauntlets, boolean inHosidiusKitchen, boolean kourendElite, int lastGameObjectClicked, int level) {
+        this.message = message;
+        this.hasCookingGauntlets = hasCookingGauntlets;
+        this.inHosidiusKitchen = inHosidiusKitchen;
+        this.kourendElite = kourendElite;
+        this.lastGameObjectClicked = lastGameObjectClicked;
+        this.level = level;
+    }
 }
+

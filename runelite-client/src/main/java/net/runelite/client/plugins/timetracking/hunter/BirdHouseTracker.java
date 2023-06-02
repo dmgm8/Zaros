@@ -1,27 +1,12 @@
 /*
- * Copyright (c) 2018 Abex
- * Copyright (c) 2018, Daniel Teo <https://github.com/takuyakanbr>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ImmutableSet
+ *  com.google.inject.Inject
+ *  com.google.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.coords.WorldPoint
  */
 package net.runelite.client.plugins.timetracking.hunter;
 
@@ -34,8 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import lombok.AccessLevel;
-import lombok.Getter;
 import net.runelite.api.Client;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.Notifier;
@@ -43,207 +26,143 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.timetracking.SummaryState;
 import net.runelite.client.plugins.timetracking.TimeTrackingConfig;
+import net.runelite.client.plugins.timetracking.hunter.BirdHouseData;
+import net.runelite.client.plugins.timetracking.hunter.BirdHouseSpace;
+import net.runelite.client.plugins.timetracking.hunter.BirdHouseState;
+import net.runelite.client.plugins.timetracking.hunter.BirdHouseTabPanel;
 
 @Singleton
-public class BirdHouseTracker
-{
-	// average time taken to harvest 10 birds, in seconds
-	static final int BIRD_HOUSE_DURATION = (int) Duration.ofMinutes(50).getSeconds();
+public class BirdHouseTracker {
+    static final int BIRD_HOUSE_DURATION = (int)Duration.ofMinutes(50L).getSeconds();
+    private static ImmutableSet<Integer> FOSSIL_ISLAND_REGIONS = ImmutableSet.of((Object)14650, (Object)14651, (Object)14652, (Object)14906, (Object)14907, (Object)15162, (Object[])new Integer[]{15163});
+    private final Client client;
+    private final ItemManager itemManager;
+    private final ConfigManager configManager;
+    private final TimeTrackingConfig config;
+    private final Notifier notifier;
+    private final ConcurrentMap<BirdHouseSpace, BirdHouseData> birdHouseData = new ConcurrentHashMap<BirdHouseSpace, BirdHouseData>();
+    private SummaryState summary = SummaryState.UNKNOWN;
+    private long completionTime = -1L;
 
-	private static ImmutableSet<Integer> FOSSIL_ISLAND_REGIONS = ImmutableSet.of(14650, 14651, 14652, 14906, 14907, 15162, 15163);
+    @Inject
+    private BirdHouseTracker(Client client, ItemManager itemManager, ConfigManager configManager, TimeTrackingConfig config, Notifier notifier) {
+        this.client = client;
+        this.itemManager = itemManager;
+        this.configManager = configManager;
+        this.config = config;
+        this.notifier = notifier;
+    }
 
-	private final Client client;
-	private final ItemManager itemManager;
-	private final ConfigManager configManager;
-	private final TimeTrackingConfig config;
-	private final Notifier notifier;
+    public BirdHouseTabPanel createBirdHouseTabPanel() {
+        return new BirdHouseTabPanel(this.configManager, this.itemManager, this, this.config);
+    }
 
-	@Getter(AccessLevel.PACKAGE)
-	private final ConcurrentMap<BirdHouseSpace, BirdHouseData> birdHouseData = new ConcurrentHashMap<>();
+    public void loadFromConfig() {
+        this.birdHouseData.clear();
+        for (BirdHouseSpace space : BirdHouseSpace.values()) {
+            String[] parts;
+            String key = "birdhouse." + space.getVarp().getId();
+            String storedValue = this.configManager.getRSProfileConfiguration("timetracking", key);
+            if (storedValue == null || (parts = storedValue.split(":")).length != 2) continue;
+            try {
+                int varp = Integer.parseInt(parts[0]);
+                long timestamp = Long.parseLong(parts[1]);
+                this.birdHouseData.put(space, new BirdHouseData(space, varp, timestamp));
+            }
+            catch (NumberFormatException numberFormatException) {
+                // empty catch block
+            }
+        }
+        this.updateCompletionTime();
+    }
 
-	@Getter
-	private SummaryState summary = SummaryState.UNKNOWN;
+    public boolean updateData(WorldPoint location) {
+        boolean changed = false;
+        if (FOSSIL_ISLAND_REGIONS.contains((Object)location.getRegionID()) && location.getPlane() == 0) {
+            HashMap<BirdHouseSpace, BirdHouseData> newData = new HashMap<BirdHouseSpace, BirdHouseData>();
+            long currentTime = Instant.now().getEpochSecond();
+            int removalCount = 0;
+            for (BirdHouseSpace space : BirdHouseSpace.values()) {
+                int oldVarp;
+                int varp = this.client.getVarpValue(space.getVarp());
+                BirdHouseData oldData = (BirdHouseData)this.birdHouseData.get((Object)space);
+                int n = oldVarp = oldData == null ? -1 : oldData.getVarp();
+                if (varp != oldVarp) {
+                    newData.put(space, new BirdHouseData(space, varp, currentTime));
+                    changed = true;
+                }
+                if (varp > 0 || oldVarp <= 0) continue;
+                ++removalCount;
+            }
+            if (removalCount > 2) {
+                return false;
+            }
+            if (changed) {
+                this.birdHouseData.putAll(newData);
+                this.updateCompletionTime();
+                this.saveToConfig(newData);
+            }
+        }
+        return changed;
+    }
 
-	/**
-	 * The time at which all the bird houses will be ready to be dismantled,
-	 * or {@code -1} if we have no data about any of the bird house spaces.
-	 */
-	@Getter
-	private long completionTime = -1;
+    public boolean checkCompletion() {
+        if (this.summary == SummaryState.IN_PROGRESS && this.completionTime < Instant.now().getEpochSecond()) {
+            this.summary = SummaryState.COMPLETED;
+            this.completionTime = 0L;
+            if (Boolean.TRUE.equals(this.configManager.getRSProfileConfiguration("timetracking", "birdHouseNotification", Boolean.TYPE))) {
+                this.notifier.notify("Your bird houses are ready to be dismantled.");
+            }
+            return true;
+        }
+        return false;
+    }
 
-	@Inject
-	private BirdHouseTracker(Client client, ItemManager itemManager, ConfigManager configManager,
-		TimeTrackingConfig config, Notifier notifier)
-	{
-		this.client = client;
-		this.itemManager = itemManager;
-		this.configManager = configManager;
-		this.config = config;
-		this.notifier = notifier;
-	}
+    private void updateCompletionTime() {
+        if (this.birdHouseData.isEmpty()) {
+            this.summary = SummaryState.UNKNOWN;
+            this.completionTime = -1L;
+            return;
+        }
+        boolean allEmpty = true;
+        long maxCompletionTime = 0L;
+        for (BirdHouseData data : this.birdHouseData.values()) {
+            BirdHouseState state = BirdHouseState.fromVarpValue(data.getVarp());
+            if (state != BirdHouseState.EMPTY) {
+                allEmpty = false;
+            }
+            if (state != BirdHouseState.SEEDED) continue;
+            maxCompletionTime = Math.max(maxCompletionTime, data.getTimestamp() + (long)BIRD_HOUSE_DURATION);
+        }
+        if (allEmpty) {
+            this.summary = SummaryState.EMPTY;
+            this.completionTime = 0L;
+        } else if (maxCompletionTime <= Instant.now().getEpochSecond()) {
+            this.summary = SummaryState.COMPLETED;
+            this.completionTime = 0L;
+        } else {
+            this.summary = SummaryState.IN_PROGRESS;
+            this.completionTime = maxCompletionTime;
+        }
+    }
 
-	public BirdHouseTabPanel createBirdHouseTabPanel()
-	{
-		return new BirdHouseTabPanel(configManager, itemManager, this, config);
-	}
+    private void saveToConfig(Map<BirdHouseSpace, BirdHouseData> updatedData) {
+        for (BirdHouseData data : updatedData.values()) {
+            String key = "birdhouse." + data.getSpace().getVarp().getId();
+            this.configManager.setRSProfileConfiguration("timetracking", key, data.getVarp() + ":" + data.getTimestamp());
+        }
+    }
 
-	public void loadFromConfig()
-	{
-		birdHouseData.clear();
+    ConcurrentMap<BirdHouseSpace, BirdHouseData> getBirdHouseData() {
+        return this.birdHouseData;
+    }
 
-		for (BirdHouseSpace space : BirdHouseSpace.values())
-		{
-			String key = TimeTrackingConfig.BIRD_HOUSE + "." + space.getVarp().getId();
-			String storedValue = configManager.getRSProfileConfiguration(TimeTrackingConfig.CONFIG_GROUP, key);
+    public SummaryState getSummary() {
+        return this.summary;
+    }
 
-			if (storedValue != null)
-			{
-				String[] parts = storedValue.split(":");
-				if (parts.length == 2)
-				{
-					try
-					{
-						int varp = Integer.parseInt(parts[0]);
-						long timestamp = Long.parseLong(parts[1]);
-						birdHouseData.put(space, new BirdHouseData(space, varp, timestamp));
-					}
-					catch (NumberFormatException e)
-					{
-						// ignored
-					}
-				}
-			}
-		}
-
-		updateCompletionTime();
-	}
-
-	/**
-	 * Updates tracker data if player is within range of any bird house. Returns true if any data was changed.
-	 */
-	public boolean updateData(WorldPoint location)
-	{
-		boolean changed = false;
-
-		if (FOSSIL_ISLAND_REGIONS.contains(location.getRegionID()) && location.getPlane() == 0)
-		{
-			final Map<BirdHouseSpace, BirdHouseData> newData = new HashMap<>();
-			final long currentTime = Instant.now().getEpochSecond();
-			int removalCount = 0;
-
-			for (BirdHouseSpace space : BirdHouseSpace.values())
-			{
-				int varp = client.getVar(space.getVarp());
-				BirdHouseData oldData = birdHouseData.get(space);
-				int oldVarp = oldData == null ? -1 : oldData.getVarp();
-
-				// update data if there isn't one, or if the varp doesn't match
-				if (varp != oldVarp)
-				{
-					newData.put(space, new BirdHouseData(space, varp, currentTime));
-					changed = true;
-				}
-
-				if (varp <= 0 && oldVarp > 0)
-				{
-					removalCount++;
-				}
-			}
-
-			// Prevent the resetting of bird house data that could occur if the varps have not been updated yet
-			// after the player enters the region. We assume that players would generally have 3 or 4 bird houses
-			// built at any time, and that dropping from 3/4 to 0 built bird houses is not normally possible.
-			if (removalCount > 2)
-			{
-				return false;
-			}
-
-			if (changed)
-			{
-				birdHouseData.putAll(newData);
-				updateCompletionTime();
-				saveToConfig(newData);
-			}
-		}
-
-		return changed;
-	}
-
-	/**
-	 * Checks if the bird houses have become ready to be dismantled,
-	 * and sends a notification if required.
-	 */
-	public boolean checkCompletion()
-	{
-		if (summary == SummaryState.IN_PROGRESS && completionTime < Instant.now().getEpochSecond())
-		{
-			summary = SummaryState.COMPLETED;
-			completionTime = 0;
-
-			if (Boolean.TRUE.equals(configManager.getRSProfileConfiguration(TimeTrackingConfig.CONFIG_GROUP, TimeTrackingConfig.BIRDHOUSE_NOTIFY, boolean.class)))
-			{
-				notifier.notify("Your bird houses are ready to be dismantled.");
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-
-	/**
-	 * Updates the overall completion time of the bird houses.
-	 * @see #completionTime
-	 */
-	private void updateCompletionTime()
-	{
-		if (birdHouseData.isEmpty())
-		{
-			summary = SummaryState.UNKNOWN;
-			completionTime = -1;
-			return;
-		}
-
-		boolean allEmpty = true;
-		long maxCompletionTime = 0;
-		for (BirdHouseData data : birdHouseData.values())
-		{
-			final BirdHouseState state = BirdHouseState.fromVarpValue(data.getVarp());
-
-			if (state != BirdHouseState.EMPTY)
-			{
-				allEmpty = false;
-			}
-
-			if (state == BirdHouseState.SEEDED)
-			{
-				maxCompletionTime = Math.max(maxCompletionTime, data.getTimestamp() + BIRD_HOUSE_DURATION);
-			}
-		}
-
-		if (allEmpty)
-		{
-			summary = SummaryState.EMPTY;
-			completionTime = 0;
-		}
-		else if (maxCompletionTime <= Instant.now().getEpochSecond())
-		{
-			summary = SummaryState.COMPLETED;
-			completionTime = 0;
-		}
-		else
-		{
-			summary = SummaryState.IN_PROGRESS;
-			completionTime = maxCompletionTime;
-		}
-	}
-
-	private void saveToConfig(Map<BirdHouseSpace, BirdHouseData> updatedData)
-	{
-		for (BirdHouseData data : updatedData.values())
-		{
-			String key = TimeTrackingConfig.BIRD_HOUSE + "." + data.getSpace().getVarp().getId();
-			configManager.setRSProfileConfiguration(TimeTrackingConfig.CONFIG_GROUP, key, data.getVarp() + ":" + data.getTimestamp());
-		}
-	}
+    public long getCompletionTime() {
+        return this.completionTime;
+    }
 }
+

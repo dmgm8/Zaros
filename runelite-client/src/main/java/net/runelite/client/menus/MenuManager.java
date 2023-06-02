@@ -1,26 +1,19 @@
 /*
- * Copyright (c) 2017, Robin <robin.weymans@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Preconditions
+ *  com.google.common.collect.LinkedHashMultimap
+ *  com.google.common.collect.Multimap
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.MenuEntry
+ *  net.runelite.api.events.MenuEntryAdded
+ *  net.runelite.api.events.PlayerMenuOptionsChanged
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.menus;
 
@@ -33,227 +26,124 @@ import java.util.Map;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.events.MenuEntryAdded;
-import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.PlayerMenuOptionsChanged;
-import net.runelite.api.events.WidgetMenuOptionClicked;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.menus.WidgetMenuOption;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
-@Slf4j
-public class MenuManager
-{
-	/*
-	 * The index needs to be between 4 and 7,
-	 */
-	private static final int IDX_LOWER = 4;
-	private static final int IDX_UPPER = 8;
+public class MenuManager {
+    private static final Logger log = LoggerFactory.getLogger(MenuManager.class);
+    private static final int IDX_LOWER = 4;
+    private static final int IDX_UPPER = 8;
+    private final Client client;
+    private final Map<Integer, String> playerMenuIndexMap = new HashMap<Integer, String>();
+    private final Multimap<Integer, WidgetMenuOption> managedMenuOptions = LinkedHashMultimap.create();
 
-	private final Client client;
-	private final EventBus eventBus;
+    @Inject
+    private MenuManager(Client client, EventBus eventBus) {
+        this.client = client;
+        eventBus.register(this);
+    }
 
-	//Maps the indexes that are being used to the menu option.
-	private final Map<Integer, String> playerMenuIndexMap = new HashMap<>();
-	//Used to manage custom non-player menu options
-	private final Multimap<Integer, WidgetMenuOption> managedMenuOptions = LinkedHashMultimap.create();
+    public void addManagedCustomMenu(WidgetMenuOption customMenuOption, Consumer<MenuEntry> callback) {
+        this.managedMenuOptions.put((Object)customMenuOption.getWidgetId(), (Object)customMenuOption);
+        customMenuOption.callback = callback;
+    }
 
-	@Inject
-	private MenuManager(Client client, EventBus eventBus)
-	{
-		this.client = client;
-		this.eventBus = eventBus;
+    public void removeManagedCustomMenu(WidgetMenuOption customMenuOption) {
+        this.managedMenuOptions.remove((Object)customMenuOption.getWidgetId(), (Object)customMenuOption);
+    }
 
-		eventBus.register(this);
-	}
+    private static boolean menuContainsCustomMenu(MenuEntry[] menuEntries, WidgetMenuOption customMenuOption) {
+        for (MenuEntry menuEntry : menuEntries) {
+            String option = menuEntry.getOption();
+            String target = menuEntry.getTarget();
+            if (!option.equals(customMenuOption.getMenuOption()) || !target.equals(customMenuOption.getMenuTarget())) continue;
+            return true;
+        }
+        return false;
+    }
 
-	/**
-	 * Adds a CustomMenuOption to the list of managed menu options.
-	 *
-	 * @param customMenuOption The custom menu to add
-	 * @param callback callback to be called when the menu is clicked
-	 */
-	public void addManagedCustomMenu(WidgetMenuOption customMenuOption, Consumer<MenuEntry> callback)
-	{
-		managedMenuOptions.put(customMenuOption.getWidgetId(), customMenuOption);
-		customMenuOption.callback = callback;
-	}
+    @Subscribe
+    public void onMenuEntryAdded(MenuEntryAdded event) {
+        if (this.client.getSpellSelected() || event.getType() != MenuAction.CC_OP.getId()) {
+            return;
+        }
+        int widgetId = event.getActionParam1();
+        Collection options = this.managedMenuOptions.get((Object)widgetId);
+        if (options.isEmpty()) {
+            return;
+        }
+        MenuEntry[] menuEntries = this.client.getMenuEntries();
+        int insertIdx = -1;
+        for (WidgetMenuOption currentMenu : options) {
+            if (MenuManager.menuContainsCustomMenu(menuEntries, currentMenu)) {
+                return;
+            }
+            this.client.createMenuEntry(insertIdx--).setOption(currentMenu.getMenuOption()).setTarget(currentMenu.getMenuTarget()).setType(MenuAction.RUNELITE).setParam1(widgetId).onClick(currentMenu.callback);
+        }
+    }
 
-	/**
-	 * Removes a CustomMenuOption from the list of managed menu options.
-	 *
-	 * @param customMenuOption The custom menu to add
-	 */
-	public void removeManagedCustomMenu(WidgetMenuOption customMenuOption)
-	{
-		managedMenuOptions.remove(customMenuOption.getWidgetId(), customMenuOption);
-	}
+    public void addPlayerMenuItem(String menuText) {
+        Preconditions.checkNotNull((Object)menuText);
+        int playerMenuIndex = this.findEmptyPlayerMenuIndex();
+        if (playerMenuIndex == 8) {
+            return;
+        }
+        this.addPlayerMenuItem(playerMenuIndex, menuText);
+    }
 
-	private static boolean menuContainsCustomMenu(MenuEntry[] menuEntries, WidgetMenuOption customMenuOption)
-	{
-		for (MenuEntry menuEntry : menuEntries)
-		{
-			String option = menuEntry.getOption();
-			String target = menuEntry.getTarget();
+    public void removePlayerMenuItem(String menuText) {
+        Preconditions.checkNotNull((Object)menuText);
+        for (Map.Entry<Integer, String> entry : this.playerMenuIndexMap.entrySet()) {
+            if (!entry.getValue().equalsIgnoreCase(menuText)) continue;
+            this.removePlayerMenuItem(entry.getKey());
+            break;
+        }
+    }
 
-			if (option.equals(customMenuOption.getMenuOption()) && target.equals(customMenuOption.getMenuTarget()))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+    @Subscribe
+    public void onPlayerMenuOptionsChanged(PlayerMenuOptionsChanged event) {
+        int idx = event.getIndex();
+        String menuText = this.playerMenuIndexMap.get(idx);
+        if (menuText == null) {
+            return;
+        }
+        int newIdx = this.findEmptyPlayerMenuIndex();
+        if (newIdx == 8) {
+            log.debug("Client has updated player menu index {} where option {} was, and there are no more free slots available", (Object)idx, (Object)menuText);
+            return;
+        }
+        log.debug("Client has updated player menu index {} where option {} was, moving to index {}", new Object[]{idx, menuText, newIdx});
+        this.playerMenuIndexMap.remove(idx);
+        this.addPlayerMenuItem(newIdx, menuText);
+    }
 
-	@Subscribe
-	public void onMenuEntryAdded(MenuEntryAdded event)
-	{
-		if (client.getSpellSelected() || event.getType() != MenuAction.CC_OP.getId())
-		{
-			return;
-		}
+    private void addPlayerMenuItem(int playerOptionIndex, String menuText) {
+        this.client.getPlayerOptions()[playerOptionIndex] = menuText;
+        this.client.getPlayerOptionsPriorities()[playerOptionIndex] = true;
+        this.client.getPlayerMenuTypes()[playerOptionIndex] = MenuAction.RUNELITE_PLAYER.getId();
+        this.playerMenuIndexMap.put(playerOptionIndex, menuText);
+    }
 
-		int widgetId = event.getActionParam1();
-		Collection<WidgetMenuOption> options = managedMenuOptions.get(widgetId);
-		if (options.isEmpty())
-		{
-			return;
-		}
+    private void removePlayerMenuItem(int playerOptionIndex) {
+        this.client.getPlayerOptions()[playerOptionIndex] = null;
+        this.playerMenuIndexMap.remove(playerOptionIndex);
+    }
 
-		MenuEntry[] menuEntries = client.getMenuEntries();
-
-		// Menu entries are sorted with higher-index entries appearing toward the top of the minimenu, so insert older
-		// managed menu entries at higher indices and work backward for newer entries so newly-added entries appear at
-		// the bottom
-		int insertIdx = -1;
-		for (WidgetMenuOption currentMenu : options)
-		{
-			// Exit if we've inserted the managed menu entries already
-			if (menuContainsCustomMenu(menuEntries, currentMenu))
-			{
-				return;
-			}
-
-			client.createMenuEntry(insertIdx--)
-				.setOption(currentMenu.getMenuOption())
-				.setTarget(currentMenu.getMenuTarget())
-				.setType(MenuAction.RUNELITE)
-				.setParam1(widgetId)
-				.onClick(currentMenu.callback);
-		}
-	}
-
-	@Subscribe
-	public void onMenuOptionClicked(MenuOptionClicked event)
-	{
-		if (event.getMenuAction() != MenuAction.RUNELITE)
-		{
-			return;
-		}
-
-		int widgetId = event.getParam1();
-		Collection<WidgetMenuOption> options = managedMenuOptions.get(widgetId);
-
-		for (WidgetMenuOption curMenuOption : options)
-		{
-			if (curMenuOption.getMenuTarget().equals(event.getMenuTarget())
-				&& curMenuOption.getMenuOption().equals(event.getMenuOption()))
-			{
-				WidgetMenuOptionClicked widgetMenuOptionClicked = new WidgetMenuOptionClicked();
-				widgetMenuOptionClicked.setMenuOption(event.getMenuOption());
-				widgetMenuOptionClicked.setMenuTarget(event.getMenuTarget());
-				widgetMenuOptionClicked.setWidget(curMenuOption.getWidget());
-				widgetMenuOptionClicked.setWidgetId(curMenuOption.getWidgetId());
-
-				eventBus.post(widgetMenuOptionClicked);
-
-				return;
-			}
-		}
-	}
-
-	public void addPlayerMenuItem(String menuText)
-	{
-		Preconditions.checkNotNull(menuText);
-
-		int playerMenuIndex = findEmptyPlayerMenuIndex();
-		if (playerMenuIndex == IDX_UPPER)
-		{
-			return; // no more slots
-		}
-
-		addPlayerMenuItem(playerMenuIndex, menuText);
-	}
-
-	public void removePlayerMenuItem(String menuText)
-	{
-		Preconditions.checkNotNull(menuText);
-		for (Map.Entry<Integer, String> entry : playerMenuIndexMap.entrySet())
-		{
-			if (entry.getValue().equalsIgnoreCase(menuText))
-			{
-				removePlayerMenuItem(entry.getKey());
-				break;
-			}
-		}
-	}
-
-	@Subscribe
-	public void onPlayerMenuOptionsChanged(PlayerMenuOptionsChanged event)
-	{
-		int idx = event.getIndex();
-
-		String menuText = playerMenuIndexMap.get(idx);
-		if (menuText == null)
-		{
-			return; // not our menu
-		}
-
-		// find new index for this option
-		int newIdx = findEmptyPlayerMenuIndex();
-		if (newIdx == IDX_UPPER)
-		{
-			log.debug("Client has updated player menu index {} where option {} was, and there are no more free slots available", idx, menuText);
-			return;
-		}
-
-		log.debug("Client has updated player menu index {} where option {} was, moving to index {}", idx, menuText, newIdx);
-
-		playerMenuIndexMap.remove(idx);
-		addPlayerMenuItem(newIdx, menuText);
-	}
-
-	private void addPlayerMenuItem(int playerOptionIndex, String menuText)
-	{
-		client.getPlayerOptions()[playerOptionIndex] = menuText;
-		client.getPlayerOptionsPriorities()[playerOptionIndex] = true;
-		client.getPlayerMenuTypes()[playerOptionIndex] = MenuAction.RUNELITE_PLAYER.getId();
-
-		playerMenuIndexMap.put(playerOptionIndex, menuText);
-	}
-
-	private void removePlayerMenuItem(int playerOptionIndex)
-	{
-		client.getPlayerOptions()[playerOptionIndex] = null;
-		playerMenuIndexMap.remove(playerOptionIndex);
-	}
-
-	/**
-	 * Find the next empty player menu slot index
-	 */
-	private int findEmptyPlayerMenuIndex()
-	{
-		int index = IDX_LOWER;
-
-		String[] playerOptions = client.getPlayerOptions();
-		while (index < IDX_UPPER && playerOptions[index] != null)
-		{
-			index++;
-		}
-
-		return index;
-	}
+    private int findEmptyPlayerMenuIndex() {
+        int index;
+        String[] playerOptions = this.client.getPlayerOptions();
+        for (index = 4; index < 8 && playerOptions[index] != null; ++index) {
+        }
+        return index;
+    }
 }
+

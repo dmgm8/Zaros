@@ -1,37 +1,59 @@
 /*
- * Copyright (c) 2019, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.coords.WorldPoint
  */
 package net.runelite.client.plugins.party.messages;
 
-import lombok.EqualsAndHashCode;
-import lombok.Value;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.party.messages.PartyMemberMessage;
 
-@Value
-@EqualsAndHashCode(callSuper = true)
-public class TilePing extends PartyMemberMessage
-{
-	private final WorldPoint point;
+public final class TilePing
+extends PartyMemberMessage {
+    private final WorldPoint point;
+
+    public TilePing(WorldPoint point) {
+        this.point = point;
+    }
+
+    public WorldPoint getPoint() {
+        return this.point;
+    }
+
+    public String toString() {
+        return "TilePing(point=" + (Object)this.getPoint() + ")";
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof TilePing)) {
+            return false;
+        }
+        TilePing other = (TilePing)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        WorldPoint this$point = this.getPoint();
+        WorldPoint other$point = other.getPoint();
+        return !(this$point == null ? other$point != null : !this$point.equals((Object)other$point));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof TilePing;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = super.hashCode();
+        WorldPoint $point = this.getPoint();
+        result = result * 59 + ($point == null ? 43 : $point.hashCode());
+        return result;
+    }
 }
+

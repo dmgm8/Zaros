@@ -1,28 +1,41 @@
 /*
- * Copyright (c) 2017, Devin French <https://github.com/devinfrench>
- * Copyright (c) 2019, Adam <Adam@sigterm.info>
- * Copyright (c) 2018, trimbe <github.com/trimbe>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.annotations.VisibleForTesting
+ *  com.google.common.base.MoreObjects
+ *  com.google.common.base.Strings
+ *  com.google.common.collect.Lists
+ *  com.google.common.util.concurrent.Runnables
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.ChatLineBuffer
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.ChatPlayer
+ *  net.runelite.api.Client
+ *  net.runelite.api.FriendsChatManager
+ *  net.runelite.api.FriendsChatMember
+ *  net.runelite.api.FriendsChatRank
+ *  net.runelite.api.GameState
+ *  net.runelite.api.MessageNode
+ *  net.runelite.api.NameableContainer
+ *  net.runelite.api.clan.ClanChannel
+ *  net.runelite.api.clan.ClanChannelMember
+ *  net.runelite.api.clan.ClanRank
+ *  net.runelite.api.clan.ClanSettings
+ *  net.runelite.api.clan.ClanTitle
+ *  net.runelite.api.events.ClanMemberJoined
+ *  net.runelite.api.events.ClanMemberLeft
+ *  net.runelite.api.events.FriendsChatChanged
+ *  net.runelite.api.events.FriendsChatMemberJoined
+ *  net.runelite.api.events.FriendsChatMemberLeft
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.ScriptCallbackEvent
+ *  net.runelite.api.events.ScriptPostFired
+ *  net.runelite.api.events.VarClientStrChanged
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.plugins.chatchannel;
 
@@ -49,18 +62,13 @@ import net.runelite.api.FriendsChatManager;
 import net.runelite.api.FriendsChatMember;
 import net.runelite.api.FriendsChatRank;
 import net.runelite.api.GameState;
-import net.runelite.api.Ignore;
 import net.runelite.api.MessageNode;
 import net.runelite.api.NameableContainer;
-import net.runelite.api.ScriptID;
-import net.runelite.api.VarClientStr;
-import net.runelite.api.Varbits;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanChannelMember;
 import net.runelite.api.clan.ClanRank;
 import net.runelite.api.clan.ClanSettings;
 import net.runelite.api.clan.ClanTitle;
-import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.ClanMemberJoined;
 import net.runelite.api.events.ClanMemberLeft;
 import net.runelite.api.events.FriendsChatChanged;
@@ -73,7 +81,6 @@ import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.VarClientStrChanged;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
-import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.config.ChatColorConfig;
@@ -84,711 +91,462 @@ import net.runelite.client.game.ChatIconManager;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import static net.runelite.client.ui.JagexColors.CHAT_FC_NAME_OPAQUE_BACKGROUND;
-import static net.runelite.client.ui.JagexColors.CHAT_FC_NAME_TRANSPARENT_BACKGROUND;
-import static net.runelite.client.ui.JagexColors.CHAT_FC_TEXT_OPAQUE_BACKGROUND;
-import static net.runelite.client.ui.JagexColors.CHAT_FC_TEXT_TRANSPARENT_BACKGROUND;
+import net.runelite.client.plugins.chatchannel.ActivityType;
+import net.runelite.client.plugins.chatchannel.ChatChannelConfig;
+import net.runelite.client.plugins.chatchannel.MemberActivity;
+import net.runelite.client.plugins.chatchannel.MemberJoinMessage;
+import net.runelite.client.ui.JagexColors;
 import net.runelite.client.util.Text;
 
-@PluginDescriptor(
-	name = "Chat Channels",
-	description = "Improvements for friends chat and clan chat.",
-	tags = {"icons", "rank", "recent", "clan", "friend", "channel"}
-)
-public class ChatChannelPlugin extends Plugin
-{
-	private static final int MAX_CHATS = 10;
-	private static final String RECENT_TITLE = "Recent FCs";
-	@VisibleForTesting
-	static final int MESSAGE_DELAY = 10;
-
-	@Inject
-	private Client client;
-
-	@Inject
-	private ChatIconManager chatIconManager;
-
-	@Inject
-	private ChatChannelConfig config;
-
-	@Inject
-	private ClientThread clientThread;
-
-	@Inject
-	private ChatboxPanelManager chatboxPanelManager;
-
-	@Inject
-	private ChatColorConfig chatColorConfig;
-
-	private List<String> chats;
-	/**
-	 * queue of temporary messages added to the client
-	 */
-	private final Deque<MemberJoinMessage> joinMessages = new ArrayDeque<>();
-	private final List<MemberActivity> activityBuffer = new LinkedList<>();
-	private int joinedTick;
-
-	private boolean kickConfirmed = false;
-
-	@Provides
-	ChatChannelConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(ChatChannelConfig.class);
-	}
-
-	@Override
-	public void startUp()
-	{
-		chats = new ArrayList<>(Text.fromCSV(config.chatsData()));
-
-		if (config.showIgnores())
-		{
-			clientThread.invoke(() -> colorIgnoredPlayers(config.showIgnoresColor()));
-		}
-
-		rebuildClanTitle();
-	}
-
-	@Override
-	public void shutDown()
-	{
-		chats = null;
-		clientThread.invoke(() -> colorIgnoredPlayers(Color.WHITE));
-		rebuildFriendsChat();
-		rebuildClanTitle();
-	}
-
-	@Subscribe
-	public void onConfigChanged(ConfigChanged configChanged)
-	{
-		if (configChanged.getGroup().equals(ChatChannelConfig.GROUP))
-		{
-			if (!config.recentChats())
-			{
-				rebuildFriendsChat();
-			}
-
-			Color ignoreColor = config.showIgnores() ? config.showIgnoresColor() : Color.WHITE;
-			clientThread.invoke(() -> colorIgnoredPlayers(ignoreColor));
-
-			rebuildClanTitle();
-		}
-	}
-
-	@Subscribe
-	public void onFriendsChatMemberJoined(FriendsChatMemberJoined event)
-	{
-		final FriendsChatMember member = event.getMember();
-
-		// members getting initialized isn't relevant
-		if (joinedTick == client.getTickCount())
-		{
-			return;
-		}
-
-		if (!config.showFriendsChatJoinLeave() ||
-			member.getRank().getValue() < config.joinLeaveRank().getValue())
-		{
-			return;
-		}
-
-		// attempt to filter out world hopping joins
-		queueJoin(member, MemberActivity.ChatType.FRIENDS_CHAT);
-	}
-
-	@Subscribe
-	public void onFriendsChatMemberLeft(FriendsChatMemberLeft event)
-	{
-		final FriendsChatMember member = event.getMember();
-
-		if (!config.showFriendsChatJoinLeave() ||
-			member.getRank().getValue() < config.joinLeaveRank().getValue())
-		{
-			return;
-		}
-
-		queueLeave(member, MemberActivity.ChatType.FRIENDS_CHAT);
-	}
-
-	@Subscribe
-	public void onClanMemberJoined(ClanMemberJoined clanMemberJoined)
-	{
-		MemberActivity.ChatType chatType = clanChannelToChatType(clanMemberJoined.getClanChannel());
-		if (chatType != null && clanChannelJoinLeaveEnabled(chatType))
-		{
-			queueJoin(clanMemberJoined.getClanMember(), chatType);
-		}
-	}
-
-	@Subscribe
-	public void onClanMemberLeft(ClanMemberLeft clanMemberLeft)
-	{
-		MemberActivity.ChatType chatType = clanChannelToChatType(clanMemberLeft.getClanChannel());
-		if (chatType != null && clanChannelJoinLeaveEnabled(chatType))
-		{
-			queueLeave(clanMemberLeft.getClanMember(), chatType);
-		}
-	}
-
-	private MemberActivity.ChatType clanChannelToChatType(ClanChannel clanChannel)
-	{
-		return clanChannel == client.getClanChannel() ? MemberActivity.ChatType.CLAN_CHAT :
-			clanChannel == client.getGuestClanChannel() ? MemberActivity.ChatType.GUEST_CHAT :
-			null;
-	}
-
-	private boolean clanChannelJoinLeaveEnabled(MemberActivity.ChatType chatType)
-	{
-		switch (chatType)
-		{
-			case CLAN_CHAT:
-				return config.clanChatShowJoinLeave();
-			case GUEST_CHAT:
-				return config.guestClanChatShowJoinLeave();
-			default:
-				return false;
-		}
-	}
-
-	private void queueJoin(ChatPlayer member, MemberActivity.ChatType chatType)
-	{
-		for (ListIterator<MemberActivity> iter = activityBuffer.listIterator(); iter.hasNext(); )
-		{
-			MemberActivity activity = iter.next();
-
-			if (activity.getChatType() == chatType && activity.getMember().compareTo(member) == 0)
-			{
-				iter.remove();
-				return;
-			}
-		}
-
-		MemberActivity activity = new MemberActivity(ActivityType.JOINED, chatType,
-			member, client.getTickCount());
-		activityBuffer.add(activity);
-	}
-
-	private void queueLeave(ChatPlayer member, MemberActivity.ChatType chatType)
-	{
-		for (ListIterator<MemberActivity> iter = activityBuffer.listIterator(); iter.hasNext(); )
-		{
-			MemberActivity activity = iter.next();
-
-			if (activity.getChatType() == chatType && activity.getMember().compareTo(member) == 0)
-			{
-				iter.remove();
-				return;
-			}
-		}
-
-		MemberActivity activity = new MemberActivity(ActivityType.LEFT, chatType,
-			member, client.getTickCount());
-		activityBuffer.add(activity);
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick gameTick)
-	{
-		if (client.getGameState() != GameState.LOGGED_IN)
-		{
-			return;
-		}
-
-		Widget chatList = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
-		if (chatList != null)
-		{
-			Widget owner = client.getWidget(WidgetInfo.FRIENDS_CHAT_OWNER);
-			FriendsChatManager friendsChatManager = client.getFriendsChatManager();
-			if ((friendsChatManager == null || friendsChatManager.getCount() <= 0)
-				&& chatList.getChildren() == null && !Strings.isNullOrEmpty(owner.getText())
-				&& config.recentChats())
-			{
-				loadFriendsChats();
-			}
-		}
-
-		timeoutMessages();
-
-		addActivityMessages();
-	}
-
-	private void timeoutMessages()
-	{
-		if (joinMessages.isEmpty())
-		{
-			return;
-		}
-
-		final int joinLeaveTimeout = config.joinLeaveTimeout();
-		if (joinLeaveTimeout == 0)
-		{
-			return;
-		}
-
-		boolean removed = false;
-
-		for (Iterator<MemberJoinMessage> it = joinMessages.iterator(); it.hasNext(); )
-		{
-			MemberJoinMessage joinMessage = it.next();
-			MessageNode messageNode = joinMessage.getMessageNode();
-			final int createdTick = joinMessage.getTick();
-
-			if (client.getTickCount() > createdTick + joinLeaveTimeout)
-			{
-				it.remove();
-
-				// If this message has been reused since, it will get a different id
-				if (joinMessage.getGetMessageId() == messageNode.getId())
-				{
-					ChatLineBuffer ccInfoBuffer = client.getChatLineMap().get(messageNode.getType().getType());
-					if (ccInfoBuffer != null)
-					{
-						ccInfoBuffer.removeMessageNode(messageNode);
-						removed = true;
-					}
-				}
-			}
-			else
-			{
-				// Everything else in the deque is newer
-				break;
-			}
-		}
-
-		if (removed)
-		{
-			clientThread.invoke(() -> client.runScript(ScriptID.BUILD_CHATBOX));
-		}
-	}
-
-	@VisibleForTesting
-	void addActivityMessages()
-	{
-		if (activityBuffer.isEmpty())
-		{
-			return;
-		}
-
-		for (ListIterator<MemberActivity> iter = activityBuffer.listIterator(); iter.hasNext(); )
-		{
-			MemberActivity activity = iter.next();
-			if (activity.getTick() >= client.getTickCount() - MESSAGE_DELAY)
-			{
-				// everything after this is older
-				return;
-			}
-
-			iter.remove();
-			switch (activity.getChatType())
-			{
-				case FRIENDS_CHAT:
-					addActivityMessage((FriendsChatMember) activity.getMember(), activity.getActivityType());
-					break;
-				case CLAN_CHAT:
-				case GUEST_CHAT:
-					addClanActivityMessage((ClanChannelMember) activity.getMember(), activity.getActivityType(), activity.getChatType());
-					break;
-			}
-		}
-	}
-
-	private void addActivityMessage(FriendsChatMember member, ActivityType activityType)
-	{
-		final FriendsChatManager friendsChatManager = client.getFriendsChatManager();
-		if (friendsChatManager == null)
-		{
-			return;
-		}
-
-		final String activityMessage = activityType == ActivityType.JOINED ? " has joined." : " has left.";
-		final FriendsChatRank rank = member.getRank();
-		final Color textColor, channelColor;
-		int rankIcon = -1;
-
-		// Use configured friends chat info colors if set, otherwise default to the jagex text and fc name colors
-		if (client.isResized() && client.getVarbitValue(Varbits.TRANSPARENT_CHATBOX) == 1)
-		{
-			textColor = MoreObjects.firstNonNull(chatColorConfig.transparentFriendsChatInfo(), CHAT_FC_TEXT_TRANSPARENT_BACKGROUND);
-			channelColor = MoreObjects.firstNonNull(chatColorConfig.transparentFriendsChatChannelName(), CHAT_FC_NAME_TRANSPARENT_BACKGROUND);
-		}
-		else
-		{
-			textColor = MoreObjects.firstNonNull(chatColorConfig.opaqueFriendsChatInfo(), CHAT_FC_TEXT_OPAQUE_BACKGROUND);
-			channelColor = MoreObjects.firstNonNull(chatColorConfig.opaqueFriendsChatChannelName(), CHAT_FC_NAME_OPAQUE_BACKGROUND);
-		}
-
-		if (config.chatIcons() && rank != null && rank != FriendsChatRank.UNRANKED)
-		{
-			rankIcon = chatIconManager.getIconNumber(rank);
-		}
-
-		ChatMessageBuilder message = new ChatMessageBuilder()
-			.append("[")
-			.append(channelColor, friendsChatManager.getName());
-		if (rankIcon > -1)
-		{
-			message
-				.append(" ")
-				.img(rankIcon);
-		}
-		message
-			.append("] ")
-			.append(textColor, member.getName() + activityMessage);
-
-		final String messageString = message.build();
-		final MessageNode line = client.addChatMessage(ChatMessageType.FRIENDSCHATNOTIFICATION, "", messageString, "");
-
-		MemberJoinMessage joinMessage = new MemberJoinMessage(line, line.getId(), client.getTickCount());
-		joinMessages.addLast(joinMessage);
-	}
-
-	private void addClanActivityMessage(ClanChannelMember member, ActivityType activityType, MemberActivity.ChatType chatType)
-	{
-		ClanSettings clanSettings = chatType == MemberActivity.ChatType.CLAN_CHAT ? client.getClanSettings() : client.getGuestClanSettings();
-		ClanRank rank = member.getRank();
-
-		if (rank == null || clanSettings == null)
-		{
-			return;
-		}
-
-		ClanTitle clanTitle = clanSettings.titleForRank(rank);
-		int rankIcon = -1;
-		if (clanTitle != null)
-		{
-			// Clan ranks are always included in chat messages, so we'll just always include it in join messages.
-			rankIcon = chatIconManager.getIconNumber(clanTitle);
-		}
-
-		final Color textColor;
-		// Use configured clan chat info colors if set, otherwise default to the jagex text and fc name colors
-		if (client.isResized() && client.getVarbitValue(Varbits.TRANSPARENT_CHATBOX) == 1)
-		{
-			textColor = MoreObjects.firstNonNull(
-				chatType == MemberActivity.ChatType.CLAN_CHAT ? chatColorConfig.transparentClanChatInfo() : chatColorConfig.transparentClanChatGuestInfo(),
-				CHAT_FC_TEXT_TRANSPARENT_BACKGROUND);
-		}
-		else
-		{
-			textColor = MoreObjects.firstNonNull(
-				chatType == MemberActivity.ChatType.CLAN_CHAT ? chatColorConfig.opaqueClanChatInfo() : chatColorConfig.opaqueClanChatGuestInfo(),
-				CHAT_FC_TEXT_OPAQUE_BACKGROUND);
-		}
-
-		ChatMessageBuilder message = new ChatMessageBuilder();
-		if (rankIcon > -1)
-		{
-			message.img(rankIcon);
-		}
-		message.append(textColor, member.getName() + (activityType == ActivityType.JOINED ? " has joined." : " has left."));
-
-		final String messageString = message.build();
-		final MessageNode line = client.addChatMessage(
-			chatType == MemberActivity.ChatType.CLAN_CHAT ? ChatMessageType.CLAN_MESSAGE : ChatMessageType.CLAN_GUEST_MESSAGE,
-			"", messageString, "");
-
-		MemberJoinMessage joinMessage = new MemberJoinMessage(line, line.getId(), client.getTickCount());
-		joinMessages.addLast(joinMessage);
-	}
-
-	@Subscribe
-	public void onVarClientStrChanged(VarClientStrChanged strChanged)
-	{
-		if (strChanged.getIndex() == VarClientStr.RECENT_FRIENDS_CHAT.getIndex() && config.recentChats())
-		{
-			updateRecentChat(client.getVar(VarClientStr.RECENT_FRIENDS_CHAT));
-		}
-	}
-
-	@Subscribe
-	public void onChatMessage(ChatMessage chatMessage)
-	{
-		if (client.getGameState() != GameState.LOADING && client.getGameState() != GameState.LOGGED_IN)
-		{
-			return;
-		}
-
-		FriendsChatManager friendsChatManager = client.getFriendsChatManager();
-		if (friendsChatManager == null || friendsChatManager.getCount() == 0)
-		{
-			return;
-		}
-
-		switch (chatMessage.getType())
-		{
-			case PRIVATECHAT:
-			case MODPRIVATECHAT:
-				if (!config.privateMessageIcons())
-				{
-					return;
-				}
-				break;
-			case PUBLICCHAT:
-			case MODCHAT:
-				if (!config.publicChatIcons())
-				{
-					return;
-				}
-				break;
-			case FRIENDSCHAT:
-				if (!config.chatIcons())
-				{
-					return;
-				}
-				break;
-			default:
-				return;
-		}
-
-		insertRankIcon(chatMessage);
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged state)
-	{
-		GameState gameState = state.getGameState();
-
-		if (gameState == GameState.LOGIN_SCREEN || gameState == GameState.CONNECTION_LOST || gameState == GameState.HOPPING)
-		{
-			joinMessages.clear();
-		}
-	}
-
-	@Subscribe
-	public void onFriendsChatChanged(FriendsChatChanged event)
-	{
-		if (event.isJoined())
-		{
-			joinedTick = client.getTickCount();
-		}
-
-		activityBuffer.clear();
-	}
-
-	@Subscribe
-	public void onScriptCallbackEvent(ScriptCallbackEvent scriptCallbackEvent)
-	{
-		switch (scriptCallbackEvent.getEventName())
-		{
-			case "confirmFriendsChatKick":
-			{
-				if (!config.confirmKicks() || kickConfirmed)
-				{
-					break;
-				}
-
-				// Set a flag so the script doesn't instantly kick them
-				final int[] intStack = client.getIntStack();
-				final int size = client.getIntStackSize();
-				intStack[size - 1] = 1;
-
-				// Get name of player we are trying to kick
-				final String[] stringStack = client.getStringStack();
-				final int stringSize = client.getStringStackSize();
-				final String kickPlayerName = stringStack[stringSize - 1];
-
-				// Show a chatbox panel confirming the kick
-				clientThread.invokeLater(() -> confirmKickPlayer(kickPlayerName));
-				break;
-			}
-		}
-	}
-
-	@Subscribe
-	public void onScriptPostFired(ScriptPostFired event)
-	{
-		if (event.getScriptId() == ScriptID.FRIENDS_CHAT_CHANNEL_REBUILD)
-		{
-			if (config.showIgnores())
-			{
-				colorIgnoredPlayers(config.showIgnoresColor());
-			}
-
-			FriendsChatManager friendsChatManager = client.getFriendsChatManager();
-			Widget chatTitle = client.getWidget(WidgetInfo.FRIENDS_CHAT_TITLE);
-			if (friendsChatManager != null && friendsChatManager.getCount() > 0 && chatTitle != null)
-			{
-				chatTitle.setText(chatTitle.getText() + " (" + friendsChatManager.getCount() + "/" + friendsChatManager.getSize() + ")");
-			}
-		}
-		else if (event.getScriptId() == ScriptID.CLAN_SIDEPANEL_DRAW)
-		{
-			if (config.clanChatShowOnlineMemberCount())
-			{
-				updateClanTitle(WidgetInfo.CLAN_HEADER, client.getClanChannel());
-			}
-
-			if (config.guestClanChatShowOnlineMemberCount())
-			{
-				updateClanTitle(WidgetInfo.CLAN_GUEST_HEADER, client.getGuestClanChannel());
-			}
-		}
-	}
-
-	private void insertRankIcon(final ChatMessage message)
-	{
-		final FriendsChatRank rank = getRank(Text.removeTags(message.getName()));
-
-		if (rank != null && rank != FriendsChatRank.UNRANKED)
-		{
-			int iconNumber = chatIconManager.getIconNumber(rank);
-			if (iconNumber > -1)
-			{
-				final String img = "<img=" + iconNumber + ">";
-				if (message.getType() == ChatMessageType.FRIENDSCHAT)
-				{
-					message.getMessageNode()
-						.setSender(message.getMessageNode().getSender() + " " + img);
-				}
-				else
-				{
-					message.getMessageNode()
-						.setName(img + message.getMessageNode().getName());
-				}
-				client.refreshChat();
-			}
-		}
-	}
-
-	private FriendsChatRank getRank(String playerName)
-	{
-		final FriendsChatManager friendsChatManager = client.getFriendsChatManager();
-		if (friendsChatManager == null)
-		{
-			return FriendsChatRank.UNRANKED;
-		}
-
-		FriendsChatMember friendsChatMember = friendsChatManager.findByName(playerName);
-		return friendsChatMember != null ? friendsChatMember.getRank() : FriendsChatRank.UNRANKED;
-	}
-
-	private void rebuildFriendsChat()
-	{
-		Widget chat = client.getWidget(WidgetInfo.FRIENDS_CHAT_ROOT);
-		if (chat == null)
-		{
-			return;
-		}
-
-		Object[] args = chat.getOnVarTransmitListener();
-		clientThread.invokeLater(() -> client.runScript(args));
-	}
-
-	private void loadFriendsChats()
-	{
-		Widget chatOwner = client.getWidget(WidgetInfo.FRIENDS_CHAT_OWNER);
-		Widget chatList = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
-		if (chatList == null || chatOwner == null)
-		{
-			return;
-		}
-
-		chatOwner.setText(RECENT_TITLE);
-
-		int y = 2;
-		chatList.setChildren(null);
-		for (String chat : Lists.reverse(chats))
-		{
-			Widget widget = chatList.createChild(-1, WidgetType.TEXT);
-			widget.setFontId(494);
-			widget.setTextColor(0xffffff);
-			widget.setText(chat);
-			widget.setOriginalHeight(14);
-			widget.setOriginalWidth(142);
-			widget.setOriginalY(y);
-			widget.setOriginalX(20);
-			widget.revalidate();
-
-			y += 14;
-		}
-	}
-
-	private void updateRecentChat(String s)
-	{
-		if (Strings.isNullOrEmpty(s))
-		{
-			return;
-		}
-
-		s = Text.toJagexName(s);
-
-		chats.removeIf(s::equalsIgnoreCase);
-		chats.add(s);
-
-		while (chats.size() > MAX_CHATS)
-		{
-			chats.remove(0);
-		}
-
-		config.chatsData(Text.toCSV(chats));
-	}
-
-	private void confirmKickPlayer(final String kickPlayerName)
-	{
-		chatboxPanelManager.openTextMenuInput("Attempting to kick: " + kickPlayerName)
-			.option("1. Confirm kick", () ->
-				clientThread.invoke(() ->
-				{
-					kickConfirmed = true;
-					client.runScript(ScriptID.FRIENDS_CHAT_SEND_KICK, kickPlayerName);
-					kickConfirmed = false;
-				})
-			)
-			.option("2. Cancel", Runnables.doNothing())
-			.build();
-	}
-
-	private void colorIgnoredPlayers(Color ignoreColor)
-	{
-		Widget chatList = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
-		if (chatList == null || chatList.getChildren() == null)
-		{
-			return;
-		}
-
-		NameableContainer<Ignore> ignoreContainer = client.getIgnoreContainer();
-		// Iterate every 3 widgets, since the order of widgets is name, world, icon
-		for (int i = 0; i < chatList.getChildren().length; i += 3)
-		{
-			Widget listWidget = chatList.getChild(i);
-			String memberName = listWidget.getText();
-			if (memberName.isEmpty() || ignoreContainer.findByName(memberName) == null)
-			{
-				continue;
-			}
-
-			listWidget.setTextColor(ignoreColor.getRGB());
-		}
-	}
-
-	private void rebuildClanTitle()
-	{
-		clientThread.invokeLater(() ->
-		{
-			Widget w = client.getWidget(WidgetInfo.CLAN_LAYER);
-			if (w != null)
-			{
-				client.runScript(w.getOnVarTransmitListener());
-			}
-		});
-
-		clientThread.invokeLater(() ->
-		{
-			Widget w = client.getWidget(WidgetInfo.CLAN_GUEST_LAYER);
-			if (w != null)
-			{
-				client.runScript(w.getOnVarTransmitListener());
-			}
-		});
-	}
-
-	private void updateClanTitle(WidgetInfo widget, ClanChannel channel)
-	{
-		Widget header = client.getWidget(widget);
-		if (header != null && channel != null)
-		{
-			Widget title = header.getChild(0);
-			title.setText(title.getText() + " (" + channel.getMembers().size() + ")");
-		}
-	}
+@PluginDescriptor(name="Chat Channels", description="Improvements for friends chat and clan chat.", tags={"icons", "rank", "recent", "clan", "friend", "channel"})
+public class ChatChannelPlugin
+extends Plugin {
+    private static final int MAX_CHATS = 10;
+    private static final String RECENT_TITLE = "Recent FCs";
+    @VisibleForTesting
+    static final int MESSAGE_DELAY = 10;
+    @Inject
+    private Client client;
+    @Inject
+    private ChatIconManager chatIconManager;
+    @Inject
+    private ChatChannelConfig config;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private ChatboxPanelManager chatboxPanelManager;
+    @Inject
+    private ChatColorConfig chatColorConfig;
+    private List<String> chats;
+    private final Deque<MemberJoinMessage> joinMessages = new ArrayDeque<MemberJoinMessage>();
+    private final List<MemberActivity> activityBuffer = new LinkedList<MemberActivity>();
+    private int joinedTick;
+    private boolean kickConfirmed = false;
+
+    @Provides
+    ChatChannelConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(ChatChannelConfig.class);
+    }
+
+    @Override
+    public void startUp() {
+        this.chats = new ArrayList<String>(Text.fromCSV(this.config.chatsData()));
+        if (this.config.showIgnores()) {
+            this.clientThread.invoke(() -> this.colorIgnoredPlayers(this.config.showIgnoresColor()));
+        }
+        this.rebuildClanTitle();
+    }
+
+    @Override
+    public void shutDown() {
+        this.chats = null;
+        this.clientThread.invoke(() -> this.colorIgnoredPlayers(Color.WHITE));
+        this.rebuildFriendsChat();
+        this.rebuildClanTitle();
+    }
+
+    @Subscribe
+    public void onConfigChanged(ConfigChanged configChanged) {
+        if (configChanged.getGroup().equals("clanchat")) {
+            if (!this.config.recentChats()) {
+                this.rebuildFriendsChat();
+            }
+            Color ignoreColor = this.config.showIgnores() ? this.config.showIgnoresColor() : Color.WHITE;
+            this.clientThread.invoke(() -> this.colorIgnoredPlayers(ignoreColor));
+            this.rebuildClanTitle();
+        }
+    }
+
+    @Subscribe
+    public void onFriendsChatMemberJoined(FriendsChatMemberJoined event) {
+        FriendsChatMember member = event.getMember();
+        if (this.joinedTick == this.client.getTickCount()) {
+            return;
+        }
+        if (!this.config.showFriendsChatJoinLeave() || member.getRank().getValue() < this.config.joinLeaveRank().getValue()) {
+            return;
+        }
+        this.queueJoin((ChatPlayer)member, MemberActivity.ChatType.FRIENDS_CHAT);
+    }
+
+    @Subscribe
+    public void onFriendsChatMemberLeft(FriendsChatMemberLeft event) {
+        FriendsChatMember member = event.getMember();
+        if (!this.config.showFriendsChatJoinLeave() || member.getRank().getValue() < this.config.joinLeaveRank().getValue()) {
+            return;
+        }
+        this.queueLeave((ChatPlayer)member, MemberActivity.ChatType.FRIENDS_CHAT);
+    }
+
+    @Subscribe
+    public void onClanMemberJoined(ClanMemberJoined clanMemberJoined) {
+        MemberActivity.ChatType chatType = this.clanChannelToChatType(clanMemberJoined.getClanChannel());
+        if (chatType != null && this.clanChannelJoinLeaveEnabled(chatType)) {
+            this.queueJoin((ChatPlayer)clanMemberJoined.getClanMember(), chatType);
+        }
+    }
+
+    @Subscribe
+    public void onClanMemberLeft(ClanMemberLeft clanMemberLeft) {
+        MemberActivity.ChatType chatType = this.clanChannelToChatType(clanMemberLeft.getClanChannel());
+        if (chatType != null && this.clanChannelJoinLeaveEnabled(chatType)) {
+            this.queueLeave((ChatPlayer)clanMemberLeft.getClanMember(), chatType);
+        }
+    }
+
+    private MemberActivity.ChatType clanChannelToChatType(ClanChannel clanChannel) {
+        return clanChannel == this.client.getClanChannel() ? MemberActivity.ChatType.CLAN_CHAT : (clanChannel == this.client.getGuestClanChannel() ? MemberActivity.ChatType.GUEST_CHAT : null);
+    }
+
+    private boolean clanChannelJoinLeaveEnabled(MemberActivity.ChatType chatType) {
+        switch (chatType) {
+            case CLAN_CHAT: {
+                return this.config.clanChatShowJoinLeave();
+            }
+            case GUEST_CHAT: {
+                return this.config.guestClanChatShowJoinLeave();
+            }
+        }
+        return false;
+    }
+
+    private void queueJoin(ChatPlayer member, MemberActivity.ChatType chatType) {
+        ListIterator<MemberActivity> iter = this.activityBuffer.listIterator();
+        while (iter.hasNext()) {
+            MemberActivity activity = iter.next();
+            if (activity.getChatType() != chatType || activity.getMember().compareTo((Object)member) != 0) continue;
+            iter.remove();
+            return;
+        }
+        MemberActivity activity = new MemberActivity(ActivityType.JOINED, chatType, member, this.client.getTickCount());
+        this.activityBuffer.add(activity);
+    }
+
+    private void queueLeave(ChatPlayer member, MemberActivity.ChatType chatType) {
+        ListIterator<MemberActivity> iter = this.activityBuffer.listIterator();
+        while (iter.hasNext()) {
+            MemberActivity activity = iter.next();
+            if (activity.getChatType() != chatType || activity.getMember().compareTo((Object)member) != 0) continue;
+            iter.remove();
+            return;
+        }
+        MemberActivity activity = new MemberActivity(ActivityType.LEFT, chatType, member, this.client.getTickCount());
+        this.activityBuffer.add(activity);
+    }
+
+    @Subscribe
+    public void onGameTick(GameTick gameTick) {
+        if (this.client.getGameState() != GameState.LOGGED_IN) {
+            return;
+        }
+        Widget chatList = this.client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
+        if (chatList != null) {
+            Widget owner = this.client.getWidget(WidgetInfo.FRIENDS_CHAT_OWNER);
+            FriendsChatManager friendsChatManager = this.client.getFriendsChatManager();
+            if ((friendsChatManager == null || friendsChatManager.getCount() <= 0) && chatList.getChildren() == null && !Strings.isNullOrEmpty((String)owner.getText()) && this.config.recentChats()) {
+                this.loadFriendsChats();
+            }
+        }
+        this.timeoutMessages();
+        this.addActivityMessages();
+    }
+
+    private void timeoutMessages() {
+        if (this.joinMessages.isEmpty()) {
+            return;
+        }
+        int joinLeaveTimeout = this.config.joinLeaveTimeout();
+        if (joinLeaveTimeout == 0) {
+            return;
+        }
+        boolean removed = false;
+        Iterator<MemberJoinMessage> it = this.joinMessages.iterator();
+        while (it.hasNext()) {
+            ChatLineBuffer ccInfoBuffer;
+            MemberJoinMessage joinMessage = it.next();
+            MessageNode messageNode = joinMessage.getMessageNode();
+            int createdTick = joinMessage.getTick();
+            if (this.client.getTickCount() <= createdTick + joinLeaveTimeout) break;
+            it.remove();
+            if (joinMessage.getGetMessageId() != messageNode.getId() || (ccInfoBuffer = (ChatLineBuffer)this.client.getChatLineMap().get(messageNode.getType().getType())) == null) continue;
+            ccInfoBuffer.removeMessageNode(messageNode);
+            removed = true;
+        }
+        if (removed) {
+            this.clientThread.invoke(() -> this.client.runScript(new Object[]{216}));
+        }
+    }
+
+    @VisibleForTesting
+    void addActivityMessages() {
+        if (this.activityBuffer.isEmpty()) {
+            return;
+        }
+        ListIterator<MemberActivity> iter = this.activityBuffer.listIterator();
+        while (iter.hasNext()) {
+            MemberActivity activity = iter.next();
+            if (activity.getTick() >= this.client.getTickCount() - 10) {
+                return;
+            }
+            iter.remove();
+            switch (activity.getChatType()) {
+                case FRIENDS_CHAT: {
+                    this.addActivityMessage((FriendsChatMember)activity.getMember(), activity.getActivityType());
+                    break;
+                }
+                case CLAN_CHAT: 
+                case GUEST_CHAT: {
+                    this.addClanActivityMessage((ClanChannelMember)activity.getMember(), activity.getActivityType(), activity.getChatType());
+                }
+            }
+        }
+    }
+
+    private void addActivityMessage(FriendsChatMember member, ActivityType activityType) {
+        Color channelColor;
+        Color textColor;
+        FriendsChatManager friendsChatManager = this.client.getFriendsChatManager();
+        if (friendsChatManager == null) {
+            return;
+        }
+        String activityMessage = activityType == ActivityType.JOINED ? " has joined." : " has left.";
+        FriendsChatRank rank = member.getRank();
+        int rankIcon = -1;
+        if (this.client.isResized() && this.client.getVarbitValue(4608) == 1) {
+            textColor = (Color)MoreObjects.firstNonNull((Object)this.chatColorConfig.transparentFriendsChatInfo(), (Object)JagexColors.CHAT_FC_TEXT_TRANSPARENT_BACKGROUND);
+            channelColor = (Color)MoreObjects.firstNonNull((Object)this.chatColorConfig.transparentFriendsChatChannelName(), (Object)JagexColors.CHAT_FC_NAME_TRANSPARENT_BACKGROUND);
+        } else {
+            textColor = (Color)MoreObjects.firstNonNull((Object)this.chatColorConfig.opaqueFriendsChatInfo(), (Object)JagexColors.CHAT_FC_TEXT_OPAQUE_BACKGROUND);
+            channelColor = (Color)MoreObjects.firstNonNull((Object)this.chatColorConfig.opaqueFriendsChatChannelName(), (Object)JagexColors.CHAT_FC_NAME_OPAQUE_BACKGROUND);
+        }
+        if (this.config.chatIcons() && rank != null && rank != FriendsChatRank.UNRANKED) {
+            rankIcon = this.chatIconManager.getIconNumber(rank);
+        }
+        ChatMessageBuilder message = new ChatMessageBuilder().append("[").append(channelColor, friendsChatManager.getName());
+        if (rankIcon > -1) {
+            message.append(" ").img(rankIcon);
+        }
+        message.append("] ").append(textColor, member.getName() + activityMessage);
+        String messageString = message.build();
+        MessageNode line = this.client.addChatMessage(ChatMessageType.FRIENDSCHATNOTIFICATION, "", messageString, "");
+        MemberJoinMessage joinMessage = new MemberJoinMessage(line, line.getId(), this.client.getTickCount());
+        this.joinMessages.addLast(joinMessage);
+    }
+
+    private void addClanActivityMessage(ClanChannelMember member, ActivityType activityType, MemberActivity.ChatType chatType) {
+        ClanSettings clanSettings = chatType == MemberActivity.ChatType.CLAN_CHAT ? this.client.getClanSettings() : this.client.getGuestClanSettings();
+        ClanRank rank = member.getRank();
+        if (rank == null || clanSettings == null) {
+            return;
+        }
+        ClanTitle clanTitle = clanSettings.titleForRank(rank);
+        int rankIcon = -1;
+        if (clanTitle != null) {
+            rankIcon = this.chatIconManager.getIconNumber(clanTitle);
+        }
+        Color textColor = this.client.isResized() && this.client.getVarbitValue(4608) == 1 ? (Color)MoreObjects.firstNonNull((Object)(chatType == MemberActivity.ChatType.CLAN_CHAT ? this.chatColorConfig.transparentClanChatInfo() : this.chatColorConfig.transparentClanChatGuestInfo()), (Object)JagexColors.CHAT_FC_TEXT_TRANSPARENT_BACKGROUND) : (Color)MoreObjects.firstNonNull((Object)(chatType == MemberActivity.ChatType.CLAN_CHAT ? this.chatColorConfig.opaqueClanChatInfo() : this.chatColorConfig.opaqueClanChatGuestInfo()), (Object)JagexColors.CHAT_FC_TEXT_OPAQUE_BACKGROUND);
+        ChatMessageBuilder message = new ChatMessageBuilder();
+        if (rankIcon > -1) {
+            message.img(rankIcon);
+        }
+        message.append(textColor, member.getName() + (activityType == ActivityType.JOINED ? " has joined." : " has left."));
+        String messageString = message.build();
+        MessageNode line = this.client.addChatMessage(chatType == MemberActivity.ChatType.CLAN_CHAT ? ChatMessageType.CLAN_MESSAGE : ChatMessageType.CLAN_GUEST_MESSAGE, "", messageString, "");
+        MemberJoinMessage joinMessage = new MemberJoinMessage(line, line.getId(), this.client.getTickCount());
+        this.joinMessages.addLast(joinMessage);
+    }
+
+    @Subscribe
+    public void onVarClientStrChanged(VarClientStrChanged strChanged) {
+        if (strChanged.getIndex() == 362 && this.config.recentChats()) {
+            this.updateRecentChat(this.client.getVarcStrValue(362));
+        }
+    }
+
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged state) {
+        GameState gameState = state.getGameState();
+        if (gameState == GameState.LOGIN_SCREEN || gameState == GameState.CONNECTION_LOST || gameState == GameState.HOPPING) {
+            this.joinMessages.clear();
+        }
+    }
+
+    @Subscribe
+    public void onFriendsChatChanged(FriendsChatChanged event) {
+        if (event.isJoined()) {
+            this.joinedTick = this.client.getTickCount();
+        }
+        this.activityBuffer.clear();
+    }
+
+    @Subscribe
+    public void onScriptCallbackEvent(ScriptCallbackEvent scriptCallbackEvent) {
+        switch (scriptCallbackEvent.getEventName()) {
+            case "confirmFriendsChatKick": {
+                if (!this.config.confirmKicks() || this.kickConfirmed) break;
+                int[] intStack = this.client.getIntStack();
+                int size = this.client.getIntStackSize();
+                intStack[size - 1] = 1;
+                String[] stringStack = this.client.getStringStack();
+                int stringSize = this.client.getStringStackSize();
+                String kickPlayerName = stringStack[stringSize - 1];
+                this.clientThread.invokeLater(() -> this.confirmKickPlayer(kickPlayerName));
+                break;
+            }
+            case "chatMessageBuilding": {
+                int iconNumber;
+                int stringSize;
+                String[] stringStack;
+                String name;
+                FriendsChatRank rank;
+                int uid = this.client.getIntStack()[this.client.getIntStackSize() - 1];
+                MessageNode messageNode = (MessageNode)this.client.getMessages().get((long)uid);
+                assert (messageNode != null) : "chat message build for unknown message";
+                ChatMessageType messageType = messageNode.getType();
+                switch (messageType) {
+                    case PRIVATECHAT: 
+                    case MODPRIVATECHAT: {
+                        if (this.config.privateMessageIcons()) break;
+                        return;
+                    }
+                    case PUBLICCHAT: 
+                    case MODCHAT: {
+                        if (this.config.publicChatIcons()) break;
+                        return;
+                    }
+                    case FRIENDSCHAT: {
+                        if (this.config.chatIcons()) break;
+                        return;
+                    }
+                    default: {
+                        return;
+                    }
+                }
+                if ((rank = this.getRank(Text.removeTags(name = (stringStack = this.client.getStringStack())[(stringSize = this.client.getStringStackSize()) - 3]))) == null || rank == FriendsChatRank.UNRANKED || (iconNumber = this.chatIconManager.getIconNumber(rank)) <= -1) break;
+                String img = "<img=" + iconNumber + ">";
+                stringStack[stringSize - 3] = img + name;
+            }
+        }
+    }
+
+    @Subscribe
+    public void onScriptPostFired(ScriptPostFired event) {
+        if (event.getScriptId() == 1658) {
+            if (this.config.showIgnores()) {
+                this.colorIgnoredPlayers(this.config.showIgnoresColor());
+            }
+            FriendsChatManager friendsChatManager = this.client.getFriendsChatManager();
+            Widget chatTitle = this.client.getWidget(WidgetInfo.FRIENDS_CHAT_TITLE);
+            if (friendsChatManager != null && friendsChatManager.getCount() > 0 && chatTitle != null) {
+                chatTitle.setText(chatTitle.getText() + " (" + friendsChatManager.getCount() + "/" + friendsChatManager.getSize() + ")");
+            }
+        } else if (event.getScriptId() == 4396) {
+            if (this.config.clanChatShowOnlineMemberCount()) {
+                this.updateClanTitle(WidgetInfo.CLAN_HEADER, this.client.getClanChannel());
+            }
+            if (this.config.guestClanChatShowOnlineMemberCount()) {
+                this.updateClanTitle(WidgetInfo.CLAN_GUEST_HEADER, this.client.getGuestClanChannel());
+            }
+        }
+    }
+
+    private FriendsChatRank getRank(String playerName) {
+        FriendsChatManager friendsChatManager = this.client.getFriendsChatManager();
+        if (friendsChatManager == null) {
+            return FriendsChatRank.UNRANKED;
+        }
+        FriendsChatMember friendsChatMember = (FriendsChatMember)friendsChatManager.findByName(playerName);
+        return friendsChatMember != null ? friendsChatMember.getRank() : FriendsChatRank.UNRANKED;
+    }
+
+    private void rebuildFriendsChat() {
+        Widget chat = this.client.getWidget(WidgetInfo.FRIENDS_CHAT_ROOT);
+        if (chat == null) {
+            return;
+        }
+        Object[] args = chat.getOnVarTransmitListener();
+        this.clientThread.invokeLater(() -> this.client.runScript(args));
+    }
+
+    private void loadFriendsChats() {
+        Widget chatOwner = this.client.getWidget(WidgetInfo.FRIENDS_CHAT_OWNER);
+        Widget chatList = this.client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
+        if (chatList == null || chatOwner == null) {
+            return;
+        }
+        chatOwner.setText(RECENT_TITLE);
+        int y = 2;
+        chatList.setChildren(null);
+        for (String chat : Lists.reverse(this.chats)) {
+            Widget widget = chatList.createChild(-1, 4);
+            widget.setFontId(494);
+            widget.setTextColor(0xFFFFFF);
+            widget.setText(chat);
+            widget.setOriginalHeight(14);
+            widget.setOriginalWidth(142);
+            widget.setOriginalY(y);
+            widget.setOriginalX(20);
+            widget.revalidate();
+            y += 14;
+        }
+    }
+
+    private void updateRecentChat(String s) {
+        if (Strings.isNullOrEmpty((String)s)) {
+            return;
+        }
+        s = Text.toJagexName(s);
+        this.chats.removeIf(s::equalsIgnoreCase);
+        this.chats.add(s);
+        while (this.chats.size() > 10) {
+            this.chats.remove(0);
+        }
+        this.config.chatsData(Text.toCSV(this.chats));
+    }
+
+    private void confirmKickPlayer(String kickPlayerName) {
+        this.chatboxPanelManager.openTextMenuInput("Attempting to kick: " + kickPlayerName).option("1. Confirm kick", () -> this.clientThread.invoke(() -> {
+            this.kickConfirmed = true;
+            this.client.runScript(new Object[]{3764, kickPlayerName});
+            this.kickConfirmed = false;
+        })).option("2. Cancel", Runnables.doNothing()).build();
+    }
+
+    private void colorIgnoredPlayers(Color ignoreColor) {
+        Widget chatList = this.client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
+        if (chatList == null || chatList.getChildren() == null) {
+            return;
+        }
+        NameableContainer ignoreContainer = this.client.getIgnoreContainer();
+        for (int i = 0; i < chatList.getChildren().length; i += 3) {
+            Widget listWidget = chatList.getChild(i);
+            String memberName = listWidget.getText();
+            if (memberName.isEmpty() || ignoreContainer.findByName(memberName) == null) continue;
+            listWidget.setTextColor(ignoreColor.getRGB());
+        }
+    }
+
+    private void rebuildClanTitle() {
+        this.clientThread.invokeLater(() -> {
+            Widget w = this.client.getWidget(WidgetInfo.CLAN_LAYER);
+            if (w != null) {
+                this.client.runScript(w.getOnVarTransmitListener());
+            }
+        });
+        this.clientThread.invokeLater(() -> {
+            Widget w = this.client.getWidget(WidgetInfo.CLAN_GUEST_LAYER);
+            if (w != null) {
+                this.client.runScript(w.getOnVarTransmitListener());
+            }
+        });
+    }
+
+    private void updateClanTitle(WidgetInfo widget, ClanChannel channel) {
+        Widget header = this.client.getWidget(widget);
+        if (header != null && channel != null) {
+            Widget title = header.getChild(0);
+            title.setText(title.getText() + " (" + channel.getMembers().size() + ")");
+        }
+    }
 }
+

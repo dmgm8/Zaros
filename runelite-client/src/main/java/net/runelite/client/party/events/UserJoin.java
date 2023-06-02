@@ -1,34 +1,51 @@
 /*
- * Copyright (c) 2018, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.party.events;
 
-import lombok.Value;
+public final class UserJoin {
+    private final long partyId;
+    private final long memberId;
 
-@Value
-public class UserJoin
-{
-	long partyId;
-	long memberId;
+    public UserJoin(long partyId, long memberId) {
+        this.partyId = partyId;
+        this.memberId = memberId;
+    }
+
+    public long getPartyId() {
+        return this.partyId;
+    }
+
+    public long getMemberId() {
+        return this.memberId;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof UserJoin)) {
+            return false;
+        }
+        UserJoin other = (UserJoin)o;
+        if (this.getPartyId() != other.getPartyId()) {
+            return false;
+        }
+        return this.getMemberId() == other.getMemberId();
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        long $partyId = this.getPartyId();
+        result = result * 59 + (int)($partyId >>> 32 ^ $partyId);
+        long $memberId = this.getMemberId();
+        result = result * 59 + (int)($memberId >>> 32 ^ $memberId);
+        return result;
+    }
+
+    public String toString() {
+        return "UserJoin(partyId=" + this.getPartyId() + ", memberId=" + this.getMemberId() + ")";
+    }
 }
+

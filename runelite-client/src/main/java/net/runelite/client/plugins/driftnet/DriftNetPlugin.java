@@ -1,27 +1,32 @@
 /*
- * Copyright (c) 2020, dekvall <https://github.com/dekvall>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *   list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ImmutableList
+ *  com.google.common.collect.ImmutableSet
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Actor
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameObject
+ *  net.runelite.api.GameState
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.ItemContainer
+ *  net.runelite.api.NPC
+ *  net.runelite.api.Player
+ *  net.runelite.api.coords.LocalPoint
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.ChatMessage
+ *  net.runelite.api.events.GameObjectDespawned
+ *  net.runelite.api.events.GameObjectSpawned
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.InteractingChanged
+ *  net.runelite.api.events.ItemContainerChanged
+ *  net.runelite.api.events.NpcDespawned
+ *  net.runelite.api.events.NpcSpawned
+ *  net.runelite.api.events.VarbitChanged
  */
 package net.runelite.client.plugins.driftnet;
 
@@ -36,7 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
-import lombok.Getter;
 import net.runelite.api.Actor;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
@@ -44,13 +48,9 @@ import net.runelite.api.GameObject;
 import net.runelite.api.GameState;
 import net.runelite.api.InventoryID;
 import net.runelite.api.ItemContainer;
-import net.runelite.api.ItemID;
 import net.runelite.api.NPC;
-import net.runelite.api.NpcID;
-import net.runelite.api.NullObjectID;
-import net.runelite.api.ObjectID;
 import net.runelite.api.Player;
-import net.runelite.api.Varbits;
+import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameObjectDespawned;
@@ -67,297 +67,228 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.driftnet.DriftNet;
+import net.runelite.client.plugins.driftnet.DriftNetConfig;
+import net.runelite.client.plugins.driftnet.DriftNetOverlay;
+import net.runelite.client.plugins.driftnet.DriftNetStatus;
 import net.runelite.client.ui.overlay.OverlayManager;
 
-@PluginDescriptor(
-	name = "Drift Net",
-	description = "Display information about drift nets",
-	tags = {"hunter", "fishing", "drift", "net"},
-	enabledByDefault = false
-)
-public class DriftNetPlugin extends Plugin
-{
-	static final String CONFIG_GROUP = "driftnet";
-	private static final int UNDERWATER_REGION = 15008;
-	private static final String CHAT_PRODDING_FISH  = "You prod at the shoal of fish to scare it.";
+@PluginDescriptor(name="Drift Net", description="Display information about drift nets", tags={"hunter", "fishing", "drift", "net"}, enabledByDefault=false)
+public class DriftNetPlugin
+extends Plugin {
+    static final String CONFIG_GROUP = "driftnet";
+    private static final int UNDERWATER_REGION = 15008;
+    private static final String CHAT_PRODDING_FISH = "You prod at the shoal of fish to scare it.";
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
+    @Inject
+    private DriftNetConfig config;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private DriftNetOverlay overlay;
+    private Set<NPC> fish = new HashSet<NPC>();
+    private Map<NPC, Integer> taggedFish = new HashMap<NPC, Integer>();
+    private final List<DriftNet> NETS = ImmutableList.of((Object)new DriftNet(31433, 5812, 5813, (Set<WorldPoint>)ImmutableSet.of((Object)new WorldPoint(3746, 10297, 1), (Object)new WorldPoint(3747, 10297, 1), (Object)new WorldPoint(3748, 10297, 1), (Object)new WorldPoint(3749, 10297, 1))), (Object)new DriftNet(31434, 5814, 5815, (Set<WorldPoint>)ImmutableSet.of((Object)new WorldPoint(3742, 10288, 1), (Object)new WorldPoint(3742, 10289, 1), (Object)new WorldPoint(3742, 10290, 1), (Object)new WorldPoint(3742, 10291, 1), (Object)new WorldPoint(3742, 10292, 1))));
+    private boolean inDriftNetArea;
+    private boolean armInteraction;
+    private boolean driftNetsInInventory;
+    private GameObject annette;
 
-	@Inject
-	private Client client;
+    @Provides
+    DriftNetConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(DriftNetConfig.class);
+    }
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    protected void startUp() {
+        this.overlayManager.add(this.overlay);
+        if (this.client.getGameState() == GameState.LOGGED_IN) {
+            this.clientThread.invokeLater(() -> {
+                this.inDriftNetArea = this.checkArea();
+                this.updateDriftNetVarbits();
+            });
+        }
+    }
 
-	@Inject
-	private DriftNetConfig config;
+    @Override
+    protected void shutDown() {
+        this.overlayManager.remove(this.overlay);
+        this.reset();
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        if (event.getGameState() != GameState.LOGGED_IN) {
+            this.annette = null;
+        }
+        switch (event.getGameState()) {
+            case LOGIN_SCREEN: 
+            case HOPPING: 
+            case LOADING: {
+                this.reset();
+                break;
+            }
+            case LOGGED_IN: {
+                this.inDriftNetArea = this.checkArea();
+                this.updateDriftNetVarbits();
+            }
+        }
+    }
 
-	@Inject
-	private DriftNetOverlay overlay;
+    private void reset() {
+        this.fish.clear();
+        this.taggedFish.clear();
+        this.armInteraction = false;
+        this.inDriftNetArea = false;
+    }
 
-	@Getter
-	private Set<NPC> fish = new HashSet<>();
-	@Getter
-	private Map<NPC, Integer> taggedFish = new HashMap<>();
-	@Getter
-	private final List<DriftNet> NETS = ImmutableList.of(
-		new DriftNet(NullObjectID.NULL_31433, Varbits.NORTH_NET_STATUS, Varbits.NORTH_NET_CATCH_COUNT, ImmutableSet.of(
-			new WorldPoint(3746, 10297, 1),
-			new WorldPoint(3747, 10297, 1),
-			new WorldPoint(3748, 10297, 1),
-			new WorldPoint(3749, 10297, 1)
-		)),
-		new DriftNet(NullObjectID.NULL_31434, Varbits.SOUTH_NET_STATUS, Varbits.SOUTH_NET_CATCH_COUNT, ImmutableSet.of(
-			new WorldPoint(3742, 10288, 1),
-			new WorldPoint(3742, 10289, 1),
-			new WorldPoint(3742, 10290, 1),
-			new WorldPoint(3742, 10291, 1),
-			new WorldPoint(3742, 10292, 1)
-		)));
+    @Subscribe
+    public void onVarbitChanged(VarbitChanged event) {
+        this.updateDriftNetVarbits();
+    }
 
-	@Getter
-	private boolean inDriftNetArea;
-	private boolean armInteraction;
+    private void updateDriftNetVarbits() {
+        if (!this.inDriftNetArea) {
+            return;
+        }
+        for (DriftNet net : this.NETS) {
+            DriftNetStatus status = DriftNetStatus.of(this.client.getVarbitValue(net.getStatusVarbit()));
+            int count = this.client.getVarbitValue(net.getCountVarbit());
+            net.setStatus(status);
+            net.setCount(count);
+        }
+    }
 
-	@Getter
-	private boolean driftNetsInInventory;
+    @Subscribe
+    public void onInteractingChanged(InteractingChanged event) {
+        if (this.armInteraction && event.getSource() == this.client.getLocalPlayer() && event.getTarget() instanceof NPC && ((NPC)event.getTarget()).getId() == 7782) {
+            this.tagFish(event.getTarget());
+            this.armInteraction = false;
+        }
+    }
 
-	@Getter
-	private GameObject annette;
+    private boolean isFishNextToNet(NPC fish, Collection<DriftNet> nets) {
+        WorldPoint fishTile = WorldPoint.fromLocalInstance((Client)this.client, (LocalPoint)fish.getLocalLocation());
+        return nets.stream().anyMatch(net -> net.getAdjacentTiles().contains((Object)fishTile));
+    }
 
-	@Provides
-	DriftNetConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(DriftNetConfig.class);
-	}
+    private boolean isTagExpired(Integer tick) {
+        return tick + this.config.timeoutDelay() < this.client.getTickCount();
+    }
 
-	@Override
-	protected void startUp()
-	{
-		overlayManager.add(overlay);
+    @Subscribe
+    public void onGameTick(GameTick tick) {
+        if (!this.inDriftNetArea) {
+            return;
+        }
+        List closedNets = this.NETS.stream().filter(DriftNet::isNotAcceptingFish).collect(Collectors.toList());
+        this.taggedFish.entrySet().removeIf(entry -> this.isTagExpired((Integer)entry.getValue()) || this.isFishNextToNet((NPC)entry.getKey(), closedNets));
+        this.NETS.forEach(net -> net.setPrevTickStatus(net.getStatus()));
+        this.armInteraction = false;
+    }
 
-		if (client.getGameState() == GameState.LOGGED_IN)
-		{
-			clientThread.invokeLater(() ->
-			{
-				inDriftNetArea = checkArea();
-				updateDriftNetVarbits();
-			});
-		}
-	}
+    @Subscribe
+    public void onChatMessage(ChatMessage event) {
+        if (!this.inDriftNetArea) {
+            return;
+        }
+        if (event.getType() == ChatMessageType.SPAM && event.getMessage().equals(CHAT_PRODDING_FISH)) {
+            Actor target = this.client.getLocalPlayer().getInteracting();
+            if (target instanceof NPC && ((NPC)target).getId() == 7782) {
+                this.tagFish(target);
+            } else {
+                this.armInteraction = true;
+            }
+        }
+    }
 
-	@Override
-	protected void shutDown()
-	{
-		overlayManager.remove(overlay);
-		reset();
-	}
+    private void tagFish(Actor fish) {
+        NPC fishTarget = (NPC)fish;
+        this.taggedFish.put(fishTarget, this.client.getTickCount());
+    }
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		if (event.getGameState() != GameState.LOGGED_IN)
-		{
-			annette = null;
-		}
-		switch (event.getGameState())
-		{
-			case LOGIN_SCREEN:
-			case HOPPING:
-			case LOADING:
-				reset();
-				break;
-			case LOGGED_IN:
-				inDriftNetArea = checkArea();
-				updateDriftNetVarbits();
-				break;
-		}
-	}
+    @Subscribe
+    public void onNpcSpawned(NpcSpawned event) {
+        NPC npc = event.getNpc();
+        if (npc.getId() == 7782) {
+            this.fish.add(npc);
+        }
+    }
 
-	private void reset()
-	{
-		fish.clear();
-		taggedFish.clear();
-		armInteraction = false;
-		inDriftNetArea = false;
-	}
+    @Subscribe
+    public void onNpcDespawned(NpcDespawned event) {
+        NPC npc = event.getNpc();
+        this.fish.remove((Object)npc);
+        this.taggedFish.remove((Object)npc);
+    }
 
-	@Subscribe
-	public void onVarbitChanged(VarbitChanged event)
-	{
-		updateDriftNetVarbits();
-	}
+    @Subscribe
+    public void onGameObjectSpawned(GameObjectSpawned event) {
+        GameObject object = event.getGameObject();
+        if (object.getId() == 31843) {
+            this.annette = object;
+        }
+        for (DriftNet net : this.NETS) {
+            if (net.getObjectId() != object.getId()) continue;
+            net.setNet(object);
+        }
+    }
 
-	private void updateDriftNetVarbits()
-	{
-		if (!inDriftNetArea)
-		{
-			return;
-		}
+    @Subscribe
+    public void onGameObjectDespawned(GameObjectDespawned event) {
+        GameObject object = event.getGameObject();
+        if (object == this.annette) {
+            this.annette = null;
+        }
+        for (DriftNet net : this.NETS) {
+            if (net.getObjectId() != object.getId()) continue;
+            net.setNet(null);
+        }
+    }
 
-		for (DriftNet net : NETS)
-		{
-			DriftNetStatus status = DriftNetStatus.of(client.getVarbitValue(net.getStatusVarbit()));
-			int count = client.getVarbitValue(net.getCountVarbit());
+    @Subscribe
+    public void onItemContainerChanged(ItemContainerChanged event) {
+        ItemContainer itemContainer = event.getItemContainer();
+        if (itemContainer != this.client.getItemContainer(InventoryID.INVENTORY)) {
+            return;
+        }
+        this.driftNetsInInventory = itemContainer.contains(21652);
+    }
 
-			net.setStatus(status);
-			net.setCount(count);
-		}
-	}
+    private boolean checkArea() {
+        Player localPlayer = this.client.getLocalPlayer();
+        if (localPlayer == null || !this.client.isInInstancedRegion()) {
+            return false;
+        }
+        WorldPoint point = WorldPoint.fromLocalInstance((Client)this.client, (LocalPoint)localPlayer.getLocalLocation());
+        return point.getRegionID() == 15008;
+    }
 
-	@Subscribe
-	public void onInteractingChanged(InteractingChanged event)
-	{
-		if (armInteraction
-			&& event.getSource() == client.getLocalPlayer()
-			&& event.getTarget() instanceof NPC
-			&& ((NPC) event.getTarget()).getId() == NpcID.FISH_SHOAL)
-		{
-			tagFish(event.getTarget());
-			armInteraction = false;
-		}
-	}
+    public Set<NPC> getFish() {
+        return this.fish;
+    }
 
-	private boolean isFishNextToNet(NPC fish, Collection<DriftNet> nets)
-	{
-		final WorldPoint fishTile = WorldPoint.fromLocalInstance(client, fish.getLocalLocation());
-		return nets.stream().anyMatch(net -> net.getAdjacentTiles().contains(fishTile));
-	}
+    public Map<NPC, Integer> getTaggedFish() {
+        return this.taggedFish;
+    }
 
-	private boolean isTagExpired(Integer tick)
-	{
-		return tick + config.timeoutDelay() < client.getTickCount();
-	}
+    public List<DriftNet> getNETS() {
+        return this.NETS;
+    }
 
-	@Subscribe
-	public void onGameTick(GameTick tick)
-	{
-		if (!inDriftNetArea)
-		{
-			return;
-		}
+    public boolean isInDriftNetArea() {
+        return this.inDriftNetArea;
+    }
 
-		List<DriftNet> closedNets = NETS.stream()
-			.filter(DriftNet::isNotAcceptingFish)
-			.collect(Collectors.toList());
+    public boolean isDriftNetsInInventory() {
+        return this.driftNetsInInventory;
+    }
 
-		taggedFish.entrySet().removeIf(entry ->
-			isTagExpired(entry.getValue()) ||
-			isFishNextToNet(entry.getKey(), closedNets)
-		);
-
-		NETS.forEach(net -> net.setPrevTickStatus(net.getStatus()));
-
-		armInteraction = false;
-	}
-
-	@Subscribe
-	public void onChatMessage(ChatMessage event)
-	{
-		if (!inDriftNetArea)
-		{
-			return;
-		}
-
-		if (event.getType() == ChatMessageType.SPAM && event.getMessage().equals(CHAT_PRODDING_FISH))
-		{
-			Actor target = client.getLocalPlayer().getInteracting();
-
-			if (target instanceof NPC && ((NPC) target).getId() == NpcID.FISH_SHOAL)
-			{
-				tagFish(target);
-			}
-			else
-			{
-				// If the fish is on an adjacent tile, the interaction change happens after
-				// the chat message is sent, so we arm it
-				armInteraction = true;
-			}
-		}
-	}
-
-	private void tagFish(Actor fish)
-	{
-		NPC fishTarget = (NPC) fish;
-		taggedFish.put(fishTarget, client.getTickCount());
-	}
-
-	@Subscribe
-	public void onNpcSpawned(NpcSpawned event)
-	{
-		final NPC npc = event.getNpc();
-		if (npc.getId() == NpcID.FISH_SHOAL)
-		{
-			fish.add(npc);
-		}
-	}
-
-	@Subscribe
-	public void onNpcDespawned(NpcDespawned event)
-	{
-		final NPC npc = event.getNpc();
-		fish.remove(npc);
-		taggedFish.remove(npc);
-	}
-
-	@Subscribe
-	public void onGameObjectSpawned(GameObjectSpawned event)
-	{
-		GameObject object = event.getGameObject();
-		if (object.getId() == ObjectID.ANNETTE)
-		{
-			annette = object;
-		}
-
-		for (DriftNet net : NETS)
-		{
-			if (net.getObjectId() == object.getId())
-			{
-				net.setNet(object);
-			}
-		}
-	}
-
-	@Subscribe
-	public void onGameObjectDespawned(GameObjectDespawned event)
-	{
-		GameObject object = event.getGameObject();
-		if (object == annette)
-		{
-			annette = null;
-		}
-
-		for (DriftNet net : NETS)
-		{
-			if (net.getObjectId() == object.getId())
-			{
-				net.setNet(null);
-			}
-		}
-	}
-
-	@Subscribe
-	public void onItemContainerChanged(final ItemContainerChanged event)
-	{
-		final ItemContainer itemContainer = event.getItemContainer();
-		if (itemContainer != client.getItemContainer(InventoryID.INVENTORY))
-		{
-			return;
-		}
-
-		driftNetsInInventory = itemContainer.contains(ItemID.DRIFT_NET);
-	}
-
-	private boolean checkArea()
-	{
-		final Player localPlayer = client.getLocalPlayer();
-		if (localPlayer == null || !client.isInInstancedRegion())
-		{
-			return false;
-		}
-
-		final WorldPoint point = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
-		return point.getRegionID() == UNDERWATER_REGION;
-	}
+    public GameObject getAnnette() {
+        return this.annette;
+    }
 }
+

@@ -1,26 +1,8 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Preconditions
  */
 package net.runelite.client.ui.overlay.infobox;
 
@@ -30,74 +12,93 @@ import java.awt.image.BufferedImage;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import lombok.Getter;
-import lombok.ToString;
 import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.timers.TimersPlugin;
+import net.runelite.client.ui.overlay.infobox.InfoBox;
 
-@Getter
-@ToString
-public class Timer extends InfoBox
-{
-	private final Instant startTime;
-	private Instant endTime;
-	private Duration duration;
+public class Timer
+extends InfoBox {
+    private Instant startTime;
+    private Instant endTime;
+    private Duration duration;
 
-	public Timer(long period, ChronoUnit unit, BufferedImage image, Plugin plugin)
-	{
-		super(image, plugin);
+    public Timer(long period, ChronoUnit unit, BufferedImage image, Plugin plugin) {
+        super(image, plugin);
+        Preconditions.checkArgument((period > 0L ? 1 : 0) != 0, (Object)"negative period!");
+        this.startTime = Instant.now();
+        this.duration = Duration.of(period, unit);
+        this.endTime = this.startTime.plus(this.duration);
+    }
 
-		Preconditions.checkArgument(period > 0, "negative period!");
+    @Override
+    public String getText() {
+        if (this.duration == TimersPlugin.UNLIMITED_DURATION) {
+            return "";
+        }
+        Duration timeLeft = Duration.between(Instant.now(), this.endTime);
+        int seconds = (int)(timeLeft.toMillis() / 1000L);
+        int minutes = seconds % 3600 / 60;
+        if (seconds / 60 >= 60) {
+            int hours = seconds / 3600;
+            return String.format("%d:%02d", hours, minutes);
+        }
+        int secs = seconds % 60;
+        return String.format("%d:%02d", minutes, secs);
+    }
 
-		startTime = Instant.now();
-		duration = Duration.of(period, unit);
-		endTime = startTime.plus(duration);
-	}
+    @Override
+    public Color getTextColor() {
+        Duration timeLeft = Duration.between(Instant.now(), this.endTime);
+        if ((double)timeLeft.getSeconds() < (double)this.duration.getSeconds() * 0.1) {
+            return Color.RED.brighter();
+        }
+        return Color.WHITE;
+    }
 
-	@Override
-	public String getText()
-	{
-		Duration timeLeft = Duration.between(Instant.now(), endTime);
+    @Override
+    public boolean render() {
+        Duration timeLeft = Duration.between(Instant.now(), this.endTime);
+        return !timeLeft.isNegative();
+    }
 
-		int seconds = (int) (timeLeft.toMillis() / 1000L);
+    @Override
+    public boolean cull() {
+        Duration timeLeft = Duration.between(Instant.now(), this.endTime);
+        return timeLeft.isZero() || timeLeft.isNegative();
+    }
 
-		int minutes = (seconds % 3600) / 60;
-		int secs = seconds % 60;
+    public void setDuration(Duration duration) {
+        Preconditions.checkArgument((!duration.isNegative() ? 1 : 0) != 0, (Object)"negative duration");
+        this.duration = duration;
+        this.endTime = this.startTime.plus(duration);
+    }
 
-		return String.format("%d:%02d", minutes, secs);
-	}
+    public void updateDuration(Duration duration) {
+        Preconditions.checkArgument((!duration.isNegative() ? 1 : 0) != 0, (Object)"negative duration");
+        this.endTime = Instant.now().plus(duration);
+        this.duration = Duration.between(this.startTime, this.endTime);
+    }
 
-	@Override
-	public Color getTextColor()
-	{
-		Duration timeLeft = Duration.between(Instant.now(), endTime);
+    public void syncDuration(Duration duration) {
+        this.duration = duration;
+        this.startTime = Instant.now();
+        this.endTime = this.startTime.plus(duration);
+    }
 
-		//check if timer has 10% of time left
-		if (timeLeft.getSeconds() < (duration.getSeconds() * .10))
-		{
-			return Color.RED.brighter();
-		}
+    public Instant getStartTime() {
+        return this.startTime;
+    }
 
-		return Color.WHITE;
-	}
+    public Instant getEndTime() {
+        return this.endTime;
+    }
 
-	@Override
-	public boolean render()
-	{
-		Duration timeLeft = Duration.between(Instant.now(), endTime);
-		return !timeLeft.isNegative();
-	}
+    public Duration getDuration() {
+        return this.duration;
+    }
 
-	@Override
-	public boolean cull()
-	{
-		Duration timeLeft = Duration.between(Instant.now(), endTime);
-		return timeLeft.isZero() || timeLeft.isNegative();
-	}
-
-	public void setDuration(Duration duration)
-	{
-		Preconditions.checkArgument(!duration.isNegative(), "negative duration");
-		this.duration = duration;
-		endTime = startTime.plus(duration);
-	}
+    public String toString() {
+        return "Timer(startTime=" + this.getStartTime() + ", endTime=" + this.getEndTime() + ", duration=" + this.getDuration() + ")";
+    }
 }
+

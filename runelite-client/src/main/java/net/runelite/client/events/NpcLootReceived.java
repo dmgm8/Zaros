@@ -1,37 +1,62 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.NPC
  */
 package net.runelite.client.events;
 
 import java.util.Collection;
-import lombok.Value;
 import net.runelite.api.NPC;
 import net.runelite.client.game.ItemStack;
 
-@Value
-public class NpcLootReceived
-{
-	private final NPC npc;
-	private final Collection<ItemStack> items;
+public final class NpcLootReceived {
+    private final NPC npc;
+    private final Collection<ItemStack> items;
+
+    public NpcLootReceived(NPC npc, Collection<ItemStack> items) {
+        this.npc = npc;
+        this.items = items;
+    }
+
+    public NPC getNpc() {
+        return this.npc;
+    }
+
+    public Collection<ItemStack> getItems() {
+        return this.items;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof NpcLootReceived)) {
+            return false;
+        }
+        NpcLootReceived other = (NpcLootReceived)o;
+        NPC this$npc = this.getNpc();
+        NPC other$npc = other.getNpc();
+        if (this$npc == null ? other$npc != null : !this$npc.equals((Object)other$npc)) {
+            return false;
+        }
+        Collection<ItemStack> this$items = this.getItems();
+        Collection<ItemStack> other$items = other.getItems();
+        return !(this$items == null ? other$items != null : !((Object)this$items).equals(other$items));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        NPC $npc = this.getNpc();
+        result = result * 59 + ($npc == null ? 43 : $npc.hashCode());
+        Collection<ItemStack> $items = this.getItems();
+        result = result * 59 + ($items == null ? 43 : ((Object)$items).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "NpcLootReceived(npc=" + (Object)this.getNpc() + ", items=" + this.getItems() + ")";
+    }
 }
+

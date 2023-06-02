@@ -1,26 +1,16 @@
 /*
- * Copyright (c) 2018, Dreyri <https://github.com/Dreyri>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.SpritePixels
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.ScriptPostFired
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.plugins.minimap;
 
@@ -30,7 +20,6 @@ import java.util.Arrays;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
-import net.runelite.api.ScriptID;
 import net.runelite.api.SpritePixels;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ScriptPostFired;
@@ -41,158 +30,123 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.minimap.MinimapConfig;
+import net.runelite.client.plugins.minimap.MinimapDot;
 
-@PluginDescriptor(
-	name = "Minimap",
-	description = "Customize the color of minimap dots, and hide the minimap",
-	tags = {"items", "npcs", "players"}
-)
-public class MinimapPlugin extends Plugin
-{
-	private static final int DOT_ITEM = 0;
-	private static final int DOT_NPC = 1;
-	private static final int DOT_PLAYER = 2;
-	private static final int DOT_FRIEND = 3;
-	private static final int DOT_TEAM = 4;
-	private static final int DOT_FRIENDSCHAT = 5;
-	private static final int DOT_CLAN = 6;
+@PluginDescriptor(name="Minimap", description="Customize the color of minimap dots, and hide the minimap", tags={"items", "npcs", "players"})
+public class MinimapPlugin
+extends Plugin {
+    private static final int DOT_ITEM = 0;
+    private static final int DOT_NPC = 1;
+    private static final int DOT_PLAYER = 2;
+    private static final int DOT_FRIEND = 3;
+    private static final int DOT_TEAM = 4;
+    private static final int DOT_FRIENDSCHAT = 5;
+    private static final int DOT_CLAN = 6;
+    @Inject
+    private Client client;
+    @Inject
+    private MinimapConfig config;
+    private SpritePixels[] originalDotSprites;
 
-	@Inject
-	private Client client;
+    @Provides
+    private MinimapConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(MinimapConfig.class);
+    }
 
-	@Inject
-	private MinimapConfig config;
+    @Override
+    protected void startUp() {
+        this.updateMinimapWidgetVisibility(this.config.hideMinimap());
+        this.storeOriginalDots();
+        this.replaceMapDots();
+        this.client.setPrioritizeTeamAndClan(this.config.prioritizeTeamAndClan());
+    }
 
-	private SpritePixels[] originalDotSprites;
+    @Override
+    protected void shutDown() {
+        this.updateMinimapWidgetVisibility(false);
+        this.restoreOriginalDots();
+    }
 
-	@Provides
-	private MinimapConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(MinimapConfig.class);
-	}
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        if (event.getGameState() == GameState.LOGIN_SCREEN && this.originalDotSprites == null) {
+            this.storeOriginalDots();
+            this.replaceMapDots();
+        }
+    }
 
-	@Override
-	protected void startUp()
-	{
-		updateMinimapWidgetVisibility(config.hideMinimap());
-		storeOriginalDots();
-		replaceMapDots();
-	}
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (!event.getGroup().equals("minimap")) {
+            return;
+        }
+        if (event.getKey().equals("hideMinimap")) {
+            this.updateMinimapWidgetVisibility(this.config.hideMinimap());
+            return;
+        }
+        if (event.getKey().equals("prioritizeTeamAndClan")) {
+            this.client.setPrioritizeTeamAndClan(this.config.prioritizeTeamAndClan());
+            return;
+        }
+        this.replaceMapDots();
+    }
 
-	@Override
-	protected void shutDown()
-	{
-		updateMinimapWidgetVisibility(false);
-		restoreOriginalDots();
-	}
+    @Subscribe
+    public void onScriptPostFired(ScriptPostFired scriptPostFired) {
+        if (scriptPostFired.getScriptId() == 907) {
+            this.updateMinimapWidgetVisibility(this.config.hideMinimap());
+        }
+    }
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		if (event.getGameState() == GameState.LOGIN_SCREEN && originalDotSprites == null)
-		{
-			storeOriginalDots();
-			replaceMapDots();
-		}
-	}
+    private void updateMinimapWidgetVisibility(boolean enable) {
+        Widget resizableNormalWidget;
+        Widget resizableStonesWidget = this.client.getWidget(WidgetInfo.RESIZABLE_MINIMAP_STONES_WIDGET);
+        if (resizableStonesWidget != null) {
+            resizableStonesWidget.setHidden(enable);
+        }
+        if ((resizableNormalWidget = this.client.getWidget(WidgetInfo.RESIZABLE_MINIMAP_WIDGET)) != null && !resizableNormalWidget.isSelfHidden()) {
+            for (Widget widget : resizableNormalWidget.getStaticChildren()) {
+                if (widget.getId() == WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_LOGOUT_BUTTON.getId() || widget.getId() == WidgetInfo.RESIZABLE_MINIMAP_LOGOUT_BUTTON.getId()) continue;
+                widget.setHidden(enable);
+            }
+        }
+    }
 
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		if (!event.getGroup().equals(MinimapConfig.GROUP))
-		{
-			return;
-		}
+    private void replaceMapDots() {
+        SpritePixels[] mapDots = this.client.getMapDots();
+        if (mapDots == null) {
+            return;
+        }
+        this.applyDot(mapDots, 0, this.config.itemColor());
+        this.applyDot(mapDots, 1, this.config.npcColor());
+        this.applyDot(mapDots, 2, this.config.playerColor());
+        this.applyDot(mapDots, 3, this.config.friendColor());
+        this.applyDot(mapDots, 4, this.config.teamColor());
+        this.applyDot(mapDots, 5, this.config.friendsChatColor());
+        this.applyDot(mapDots, 6, this.config.clanChatColor());
+    }
 
-		if (event.getKey().equals("hideMinimap"))
-		{
-			updateMinimapWidgetVisibility(config.hideMinimap());
-			return;
-		}
+    private void applyDot(SpritePixels[] mapDots, int id, Color color) {
+        if (id < mapDots.length && color != null) {
+            mapDots[id] = MinimapDot.create(this.client, color);
+        }
+    }
 
-		replaceMapDots();
-	}
+    private void storeOriginalDots() {
+        SpritePixels[] originalDots = this.client.getMapDots();
+        if (originalDots == null) {
+            return;
+        }
+        this.originalDotSprites = Arrays.copyOf(originalDots, originalDots.length);
+    }
 
-	@Subscribe
-	public void onScriptPostFired(ScriptPostFired scriptPostFired)
-	{
-		if (scriptPostFired.getScriptId() == ScriptID.TOPLEVEL_REDRAW)
-		{
-			updateMinimapWidgetVisibility(config.hideMinimap());
-		}
-	}
-
-	private void updateMinimapWidgetVisibility(boolean enable)
-	{
-		final Widget resizableStonesWidget = client.getWidget(WidgetInfo.RESIZABLE_MINIMAP_STONES_WIDGET);
-
-		if (resizableStonesWidget != null)
-		{
-			resizableStonesWidget.setHidden(enable);
-		}
-
-		final Widget resizableNormalWidget = client.getWidget(WidgetInfo.RESIZABLE_MINIMAP_WIDGET);
-
-		if (resizableNormalWidget != null && !resizableNormalWidget.isSelfHidden())
-		{
-			for (Widget widget : resizableNormalWidget.getStaticChildren())
-			{
-				if (widget.getId() != WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_LOGOUT_BUTTON.getId() &&
-					widget.getId() != WidgetInfo.RESIZABLE_MINIMAP_LOGOUT_BUTTON.getId())
-				{
-					widget.setHidden(enable);
-				}
-			}
-		}
-	}
-
-	private void replaceMapDots()
-	{
-		SpritePixels[] mapDots = client.getMapDots();
-
-		if (mapDots == null)
-		{
-			return;
-		}
-
-		applyDot(mapDots, DOT_ITEM, config.itemColor());
-		applyDot(mapDots, DOT_NPC, config.npcColor());
-		applyDot(mapDots, DOT_PLAYER, config.playerColor());
-		applyDot(mapDots, DOT_FRIEND, config.friendColor());
-		applyDot(mapDots, DOT_TEAM, config.teamColor());
-		applyDot(mapDots, DOT_FRIENDSCHAT, config.friendsChatColor());
-		applyDot(mapDots, DOT_CLAN, config.clanChatColor());
-	}
-
-	private void applyDot(SpritePixels[] mapDots, int id, Color color)
-	{
-		if (id < mapDots.length && color != null)
-		{
-			mapDots[id] = MinimapDot.create(client, color);
-		}
-	}
-
-	private void storeOriginalDots()
-	{
-		SpritePixels[] originalDots = client.getMapDots();
-
-		if (originalDots == null)
-		{
-			return;
-		}
-
-		originalDotSprites = Arrays.copyOf(originalDots, originalDots.length);
-	}
-
-	private void restoreOriginalDots()
-	{
-		SpritePixels[] mapDots = client.getMapDots();
-
-		if (originalDotSprites == null || mapDots == null)
-		{
-			return;
-		}
-
-		System.arraycopy(originalDotSprites, 0, mapDots, 0, mapDots.length);
-	}
+    private void restoreOriginalDots() {
+        SpritePixels[] mapDots = this.client.getMapDots();
+        if (this.originalDotSprites == null || mapDots == null) {
+            return;
+        }
+        System.arraycopy(this.originalDotSprites, 0, mapDots, 0, mapDots.length);
+    }
 }
+

@@ -1,26 +1,14 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.input;
 
@@ -30,131 +18,88 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.client.input.KeyListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
-@Slf4j
-public class KeyManager
-{
-	private final Client client;
+public class KeyManager {
+    private static final Logger log = LoggerFactory.getLogger(KeyManager.class);
+    private final Client client;
+    private final List<KeyListener> keyListeners = new CopyOnWriteArrayList<KeyListener>();
 
-	@Inject
-	private KeyManager(@Nullable final Client client)
-	{
-		this.client = client;
-	}
+    @Inject
+    private KeyManager(@Nullable Client client) {
+        this.client = client;
+    }
 
-	private final List<KeyListener> keyListeners = new CopyOnWriteArrayList<>();
+    public void registerKeyListener(KeyListener keyListener) {
+        if (!this.keyListeners.contains(keyListener)) {
+            log.debug("Registering key listener: {}", (Object)keyListener);
+            this.keyListeners.add(keyListener);
+        }
+    }
 
-	public void registerKeyListener(KeyListener keyListener)
-	{
-		if (!keyListeners.contains(keyListener))
-		{
-			log.debug("Registering key listener: {}", keyListener);
-			keyListeners.add(keyListener);
-		}
-	}
+    public void unregisterKeyListener(KeyListener keyListener) {
+        boolean unregistered = this.keyListeners.remove(keyListener);
+        if (unregistered) {
+            log.debug("Unregistered key listener: {}", (Object)keyListener);
+        }
+    }
 
-	public void unregisterKeyListener(KeyListener keyListener)
-	{
-		final boolean unregistered = keyListeners.remove(keyListener);
-		if (unregistered)
-		{
-			log.debug("Unregistered key listener: {}", keyListener);
-		}
-	}
+    public void processKeyPressed(KeyEvent keyEvent) {
+        if (keyEvent.isConsumed()) {
+            return;
+        }
+        for (KeyListener keyListener : this.keyListeners) {
+            if (!this.shouldProcess(keyListener)) continue;
+            log.trace("Processing key pressed {} for key listener {}", (Object)keyEvent.paramString(), (Object)keyListener);
+            keyListener.keyPressed(keyEvent);
+            if (!keyEvent.isConsumed()) continue;
+            log.debug("Consuming key pressed {} for key listener {}", (Object)keyEvent.paramString(), (Object)keyListener);
+            break;
+        }
+    }
 
-	public void processKeyPressed(KeyEvent keyEvent)
-	{
-		if (keyEvent.isConsumed())
-		{
-			return;
-		}
+    public void processKeyReleased(KeyEvent keyEvent) {
+        if (keyEvent.isConsumed()) {
+            return;
+        }
+        for (KeyListener keyListener : this.keyListeners) {
+            if (!this.shouldProcess(keyListener)) continue;
+            log.trace("Processing key released {} for key listener {}", (Object)keyEvent.paramString(), (Object)keyListener);
+            keyListener.keyReleased(keyEvent);
+            if (!keyEvent.isConsumed()) continue;
+            log.debug("Consuming key released {} for listener {}", (Object)keyEvent.paramString(), (Object)keyListener);
+            break;
+        }
+    }
 
-		for (KeyListener keyListener : keyListeners)
-		{
-			if (!shouldProcess(keyListener))
-			{
-				continue;
-			}
+    public void processKeyTyped(KeyEvent keyEvent) {
+        if (keyEvent.isConsumed()) {
+            return;
+        }
+        for (KeyListener keyListener : this.keyListeners) {
+            if (!this.shouldProcess(keyListener)) continue;
+            log.trace("Processing key typed {} for key listener {}", (Object)keyEvent.paramString(), (Object)keyListener);
+            keyListener.keyTyped(keyEvent);
+            if (!keyEvent.isConsumed()) continue;
+            log.debug("Consuming key typed {} for key listener {}", (Object)keyEvent.paramString(), (Object)keyListener);
+            break;
+        }
+    }
 
-			log.trace("Processing key pressed {} for key listener {}", keyEvent.paramString(), keyListener);
-
-			keyListener.keyPressed(keyEvent);
-			if (keyEvent.isConsumed())
-			{
-				log.debug("Consuming key pressed {} for key listener {}", keyEvent.paramString(), keyListener);
-				break;
-			}
-		}
-	}
-
-	public void processKeyReleased(KeyEvent keyEvent)
-	{
-		if (keyEvent.isConsumed())
-		{
-			return;
-		}
-
-		for (KeyListener keyListener : keyListeners)
-		{
-			if (!shouldProcess(keyListener))
-			{
-				continue;
-			}
-
-			log.trace("Processing key released {} for key listener {}", keyEvent.paramString(), keyListener);
-
-			keyListener.keyReleased(keyEvent);
-			if (keyEvent.isConsumed())
-			{
-				log.debug("Consuming key released {} for listener {}", keyEvent.paramString(), keyListener);
-				break;
-			}
-		}
-	}
-
-	public void processKeyTyped(KeyEvent keyEvent)
-	{
-		if (keyEvent.isConsumed())
-		{
-			return;
-		}
-
-		for (KeyListener keyListener : keyListeners)
-		{
-			if (!shouldProcess(keyListener))
-			{
-				continue;
-			}
-
-			log.trace("Processing key typed {} for key listener {}", keyEvent.paramString(), keyListener);
-
-			keyListener.keyTyped(keyEvent);
-			if (keyEvent.isConsumed())
-			{
-				log.debug("Consuming key typed {} for key listener {}", keyEvent.paramString(), keyListener);
-				break;
-			}
-		}
-	}
-
-	private boolean shouldProcess(final KeyListener keyListener)
-	{
-		if (client == null)
-		{
-			return true;
-		}
-
-		final GameState gameState = client.getGameState();
-
-		if (gameState == GameState.LOGIN_SCREEN || gameState == GameState.LOGIN_SCREEN_AUTHENTICATOR)
-		{
-			return keyListener.isEnabledOnLoginScreen();
-		}
-
-		return true;
-	}
+    private boolean shouldProcess(KeyListener keyListener) {
+        if (this.client == null) {
+            return true;
+        }
+        GameState gameState = this.client.getGameState();
+        if (gameState == GameState.LOGIN_SCREEN || gameState == GameState.LOGIN_SCREEN_AUTHENTICATOR) {
+            return keyListener.isEnabledOnLoginScreen();
+        }
+        return true;
+    }
 }
+

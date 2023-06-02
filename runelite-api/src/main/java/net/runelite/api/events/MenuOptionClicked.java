@@ -1,243 +1,143 @@
 /*
- * Copyright (c) 2017, Robin <robin.weymans@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
  */
 package net.runelite.api.events;
 
 import javax.annotation.Nullable;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.widgets.Widget;
 
-/**
- * An event where a menu option has been clicked.
- * <p>
- * This event does not only trigger when clicking an option in a
- * right-clicked menu. The event will trigger for any left click
- * action performed (ie. clicking an item, walking to a tile, etc) as
- * well as any right-click menu option.
- * <p>
- * By default, when there is no action performed when left-clicking,
- * it seems that this event still triggers with the "Cancel" action.
- */
-@RequiredArgsConstructor
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@ToString(onlyExplicitlyIncluded = true)
-public class MenuOptionClicked
-{
-	/**
-	 * The clicked menu entry
-	 */
-	@Getter
-	private final MenuEntry menuEntry;
+public class MenuOptionClicked {
+    private final MenuEntry menuEntry;
+    private boolean consumed;
 
-	/**
-	 * Whether or not the event has been consumed by a subscriber.
-	 */
-	@Getter
-	@Setter
-	private boolean consumed;
+    public int getParam0() {
+        return this.menuEntry.getParam0();
+    }
 
-	/**
-	 * Action parameter 0. Its value depends on the menuAction.
-	 */
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	public int getParam0()
-	{
-		return menuEntry.getParam0();
-	}
+    public int getParam1() {
+        return this.menuEntry.getParam1();
+    }
 
-	public void setParam0(int param0)
-	{
-		menuEntry.setParam0(param0);
-	}
+    public String getMenuOption() {
+        return this.menuEntry.getOption();
+    }
 
-	/**
-	 * Action parameter 1. Its value depends on the menuAction.
-	 */
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	public int getParam1()
-	{
-		return menuEntry.getParam1();
-	}
+    public String getMenuTarget() {
+        return this.menuEntry.getTarget();
+    }
 
-	public void setParam1(int param1)
-	{
-		menuEntry.setParam1(param1);
-	}
+    public MenuAction getMenuAction() {
+        return this.menuEntry.getType();
+    }
 
-	/**
-	 * The option text added to the menu.
-	 */
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	public String getMenuOption()
-	{
-		return menuEntry.getOption();
-	}
+    public int getId() {
+        return this.menuEntry.getIdentifier();
+    }
 
-	public void setMenuOption(String menuOption)
-	{
-		menuEntry.setOption(menuOption);
-	}
+    public boolean isItemOp() {
+        return this.menuEntry.isItemOp();
+    }
 
-	/**
-	 * The target of the action.
-	 */
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	public String getMenuTarget()
-	{
-		return menuEntry.getTarget();
-	}
+    public int getItemOp() {
+        return this.menuEntry.getItemOp();
+    }
 
-	public void setMenuTarget(String menuTarget)
-	{
-		menuEntry.setTarget(menuTarget);
-	}
+    public int getItemId() {
+        return this.menuEntry.getItemId();
+    }
 
-	/**
-	 * The action performed.
-	 */
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	public MenuAction getMenuAction()
-	{
-		return menuEntry.getType();
-	}
+    @Nullable
+    public Widget getWidget() {
+        return this.menuEntry.getWidget();
+    }
 
-	public void setMenuAction(MenuAction menuAction)
-	{
-		menuEntry.setType(menuAction);
-	}
+    public void consume() {
+        this.consumed = true;
+    }
 
-	/**
-	 * The ID of the object, actor, or item that the interaction targets.
-	 */
-	@EqualsAndHashCode.Include
-	@ToString.Include
-	public int getId()
-	{
-		return menuEntry.getIdentifier();
-	}
+    @Deprecated
+    public int getActionParam() {
+        return this.menuEntry.getParam0();
+    }
 
-	public void setId(int id)
-	{
-		menuEntry.setIdentifier(id);
-	}
+    @Deprecated
+    public int getWidgetId() {
+        return this.menuEntry.getParam1();
+    }
 
-	/**
-	 * Test if this menu entry is an item op. "Use" and "Examine" are not considered item ops.
-	 * @return
-	 */
-	public boolean isItemOp()
-	{
-		return menuEntry.isItemOp();
-	}
+    public MenuOptionClicked(MenuEntry menuEntry) {
+        this.menuEntry = menuEntry;
+    }
 
-	/**
-	 * If this menu entry is an item op, get the item op id
-	 * @return 1-5
-	 */
-	public int getItemOp()
-	{
-		return menuEntry.getItemOp();
-	}
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof MenuOptionClicked)) {
+            return false;
+        }
+        MenuOptionClicked other = (MenuOptionClicked)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getParam0() != other.getParam0()) {
+            return false;
+        }
+        if (this.getParam1() != other.getParam1()) {
+            return false;
+        }
+        if (this.getId() != other.getId()) {
+            return false;
+        }
+        String this$$getMenuOption = this.getMenuOption();
+        String other$$getMenuOption = other.getMenuOption();
+        if (this$$getMenuOption == null ? other$$getMenuOption != null : !this$$getMenuOption.equals(other$$getMenuOption)) {
+            return false;
+        }
+        String this$$getMenuTarget = this.getMenuTarget();
+        String other$$getMenuTarget = other.getMenuTarget();
+        if (this$$getMenuTarget == null ? other$$getMenuTarget != null : !this$$getMenuTarget.equals(other$$getMenuTarget)) {
+            return false;
+        }
+        MenuAction this$$getMenuAction = this.getMenuAction();
+        MenuAction other$$getMenuAction = other.getMenuAction();
+        return !(this$$getMenuAction == null ? other$$getMenuAction != null : !((Object)((Object)this$$getMenuAction)).equals((Object)other$$getMenuAction));
+    }
 
-	/**
-	 * If this menu entry is an item op, get the item id
-	 * @return
-	 * @see net.runelite.api.ItemID
-	 * @see net.runelite.api.NullItemID
-	 */
-	public int getItemId()
-	{
-		return menuEntry.getItemId();
-	}
+    protected boolean canEqual(Object other) {
+        return other instanceof MenuOptionClicked;
+    }
 
-	/**
-	 * Get the widget this menu entry is on, if this is a menu entry
-	 * with an associated widget. Such as eg, CC_OP.
-	 * @return
-	 */
-	@Nullable
-	public Widget getWidget()
-	{
-		return menuEntry.getWidget();
-	}
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getParam0();
+        result = result * 59 + this.getParam1();
+        result = result * 59 + this.getId();
+        String $$getMenuOption = this.getMenuOption();
+        result = result * 59 + ($$getMenuOption == null ? 43 : $$getMenuOption.hashCode());
+        String $$getMenuTarget = this.getMenuTarget();
+        result = result * 59 + ($$getMenuTarget == null ? 43 : $$getMenuTarget.hashCode());
+        MenuAction $$getMenuAction = this.getMenuAction();
+        result = result * 59 + ($$getMenuAction == null ? 43 : ((Object)((Object)$$getMenuAction)).hashCode());
+        return result;
+    }
 
-	/**
-	 * Marks the event as having been consumed.
-	 * <p>
-	 * Setting this state indicates that a plugin has processed the menu
-	 * option being clicked and that the event will not be passed on
-	 * for handling by vanilla client code.
-	 */
-	public void consume()
-	{
-		this.consumed = true;
-	}
+    public String toString() {
+        return "MenuOptionClicked(getParam0=" + this.getParam0() + ", getParam1=" + this.getParam1() + ", getMenuOption=" + this.getMenuOption() + ", getMenuTarget=" + this.getMenuTarget() + ", getMenuAction=" + (Object)((Object)this.getMenuAction()) + ", getId=" + this.getId() + ")";
+    }
 
-	@Deprecated
-	public int getActionParam()
-	{
-		return menuEntry.getParam0();
-	}
+    public MenuEntry getMenuEntry() {
+        return this.menuEntry;
+    }
 
-	@Deprecated
-	public void setActionParam(int actionParam)
-	{
-		menuEntry.setParam0(actionParam);
-	}
-
-	@Deprecated
-	public int getWidgetId()
-	{
-		return menuEntry.getParam1();
-	}
-
-	@Deprecated
-	public void setWidgetId(int widgetId)
-	{
-		menuEntry.setParam1(widgetId);
-	}
-
-
-	@Deprecated
-	public void setMenuEntry(MenuEntry entry)
-	{
-		this.setMenuOption(entry.getOption());
-		this.setMenuTarget(entry.getTarget());
-		this.setId(entry.getIdentifier());
-		this.setMenuAction(entry.getType());
-		this.setParam0(entry.getParam0());
-		this.setParam1(entry.getParam1());
-	}
+    public boolean isConsumed() {
+        return this.consumed;
+    }
 }
+

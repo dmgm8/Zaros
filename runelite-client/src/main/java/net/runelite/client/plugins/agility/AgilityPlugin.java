@@ -1,26 +1,36 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ImmutableSet
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.MenuAction
+ *  net.runelite.api.NPC
+ *  net.runelite.api.Player
+ *  net.runelite.api.Skill
+ *  net.runelite.api.Tile
+ *  net.runelite.api.TileItem
+ *  net.runelite.api.TileObject
+ *  net.runelite.api.coords.WorldPoint
+ *  net.runelite.api.events.DecorativeObjectDespawned
+ *  net.runelite.api.events.DecorativeObjectSpawned
+ *  net.runelite.api.events.GameObjectDespawned
+ *  net.runelite.api.events.GameObjectSpawned
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.GameTick
+ *  net.runelite.api.events.GroundObjectDespawned
+ *  net.runelite.api.events.GroundObjectSpawned
+ *  net.runelite.api.events.ItemDespawned
+ *  net.runelite.api.events.ItemSpawned
+ *  net.runelite.api.events.NpcDespawned
+ *  net.runelite.api.events.NpcSpawned
+ *  net.runelite.api.events.StatChanged
+ *  net.runelite.api.events.WallObjectDespawned
+ *  net.runelite.api.events.WallObjectSpawned
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
  */
 package net.runelite.client.plugins.agility;
 
@@ -34,30 +44,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.ItemID;
-import static net.runelite.api.ItemID.AGILITY_ARENA_TICKET;
 import net.runelite.api.MenuAction;
 import net.runelite.api.NPC;
-import net.runelite.api.NullNpcID;
 import net.runelite.api.Player;
-import static net.runelite.api.Skill.AGILITY;
+import net.runelite.api.Skill;
 import net.runelite.api.Tile;
 import net.runelite.api.TileItem;
 import net.runelite.api.TileObject;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.DecorativeObjectChanged;
 import net.runelite.api.events.DecorativeObjectDespawned;
 import net.runelite.api.events.DecorativeObjectSpawned;
-import net.runelite.api.events.GameObjectChanged;
 import net.runelite.api.events.GameObjectDespawned;
 import net.runelite.api.events.GameObjectSpawned;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
-import net.runelite.api.events.GroundObjectChanged;
 import net.runelite.api.events.GroundObjectDespawned;
 import net.runelite.api.events.GroundObjectSpawned;
 import net.runelite.api.events.ItemDespawned;
@@ -65,7 +66,6 @@ import net.runelite.api.events.ItemSpawned;
 import net.runelite.api.events.NpcDespawned;
 import net.runelite.api.events.NpcSpawned;
 import net.runelite.api.events.StatChanged;
-import net.runelite.api.events.WallObjectChanged;
 import net.runelite.api.events.WallObjectDespawned;
 import net.runelite.api.events.WallObjectSpawned;
 import net.runelite.client.Notifier;
@@ -78,423 +78,310 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.agility.AgilityArenaTimer;
+import net.runelite.client.plugins.agility.AgilityConfig;
+import net.runelite.client.plugins.agility.AgilityOverlay;
+import net.runelite.client.plugins.agility.AgilitySession;
+import net.runelite.client.plugins.agility.Courses;
+import net.runelite.client.plugins.agility.LapCounterOverlay;
+import net.runelite.client.plugins.agility.Obstacle;
+import net.runelite.client.plugins.agility.Obstacles;
 import net.runelite.client.plugins.xptracker.XpTrackerPlugin;
 import net.runelite.client.plugins.xptracker.XpTrackerService;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.OverlayMenuEntry;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
-
-@PluginDescriptor(
-	name = "Agility",
-	description = "Show helpful information about agility courses and obstacles",
-	tags = {"grace", "marks", "overlay", "shortcuts", "skilling", "traps", "sepulchre"}
-)
-@PluginDependency(XpTrackerPlugin.class)
-@Slf4j
-public class AgilityPlugin extends Plugin
-{
-	private static final int AGILITY_ARENA_REGION_ID = 11157;
-	private static final Set<Integer> SEPULCHRE_NPCS = ImmutableSet.of(
-		NullNpcID.NULL_9672, NullNpcID.NULL_9673, NullNpcID.NULL_9674,  // arrows
-		NullNpcID.NULL_9669, NullNpcID.NULL_9670, NullNpcID.NULL_9671   // swords
-	);
-
-	@Getter
-	private final Map<TileObject, Obstacle> obstacles = new HashMap<>();
-
-	@Getter
-	private final List<Tile> marksOfGrace = new ArrayList<>();
-
-	@Getter
-	private final Set<NPC> npcs = new HashSet<>();
-
-	@Inject
-	private OverlayManager overlayManager;
-
-	@Inject
-	private AgilityOverlay agilityOverlay;
-
-	@Inject
-	private LapCounterOverlay lapCounterOverlay;
-
-	@Inject
-	private Notifier notifier;
-
-	@Inject
-	private Client client;
-
-	@Inject
-	private InfoBoxManager infoBoxManager;
-
-	@Inject
-	private AgilityConfig config;
-
-	@Inject
-	private ItemManager itemManager;
-
-	@Inject
-	private XpTrackerService xpTrackerService;
-
-	@Getter
-	private AgilitySession session;
-
-	private int lastAgilityXp;
-	private WorldPoint lastArenaTicketPosition;
-
-	@Getter
-	private int agilityLevel;
-
-	@Getter(AccessLevel.PACKAGE)
-	private Tile stickTile;
-
-	@Provides
-	AgilityConfig getConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(AgilityConfig.class);
-	}
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		overlayManager.add(agilityOverlay);
-		overlayManager.add(lapCounterOverlay);
-		agilityLevel = client.getBoostedSkillLevel(AGILITY);
-	}
-
-	@Override
-	protected void shutDown() throws Exception
-	{
-		overlayManager.remove(agilityOverlay);
-		overlayManager.remove(lapCounterOverlay);
-		marksOfGrace.clear();
-		obstacles.clear();
-		session = null;
-		agilityLevel = 0;
-		stickTile = null;
-		npcs.clear();
-	}
-
-	@Subscribe
-	public void onOverlayMenuClicked(OverlayMenuClicked overlayMenuClicked)
-	{
-		OverlayMenuEntry overlayMenuEntry = overlayMenuClicked.getEntry();
-		if (overlayMenuEntry.getMenuAction() == MenuAction.RUNELITE_OVERLAY
-			&& overlayMenuClicked.getOverlay() == lapCounterOverlay
-			&& overlayMenuClicked.getEntry().getOption().equals(LapCounterOverlay.AGILITY_RESET))
-		{
-			session = null;
-		}
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		switch (event.getGameState())
-		{
-			case HOPPING:
-			case LOGIN_SCREEN:
-				session = null;
-				lastArenaTicketPosition = null;
-				removeAgilityArenaTimer();
-				npcs.clear();
-				break;
-			case LOADING:
-				marksOfGrace.clear();
-				obstacles.clear();
-				stickTile = null;
-				break;
-			case LOGGED_IN:
-				if (!isInAgilityArena())
-				{
-					lastArenaTicketPosition = null;
-					removeAgilityArenaTimer();
-				}
-				break;
-		}
-	}
-
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		if (!config.showAgilityArenaTimer())
-		{
-			removeAgilityArenaTimer();
-		}
-	}
-
-	@Subscribe
-	public void onStatChanged(StatChanged statChanged)
-	{
-		if (statChanged.getSkill() != AGILITY)
-		{
-			return;
-		}
-
-		agilityLevel = statChanged.getBoostedLevel();
-
-		if (!config.showLapCount())
-		{
-			return;
-		}
-
-		// Determine how much EXP was actually gained
-		int agilityXp = client.getSkillExperience(AGILITY);
-		int skillGained = agilityXp - lastAgilityXp;
-		lastAgilityXp = agilityXp;
-
-		// Get course
-		Courses course = Courses.getCourse(client.getLocalPlayer().getWorldLocation().getRegionID());
-		if (course == null
-			|| (course.getCourseEndWorldPoints().length == 0
-			? Math.abs(course.getLastObstacleXp() - skillGained) > 1
-			: Arrays.stream(course.getCourseEndWorldPoints()).noneMatch(wp -> wp.equals(client.getLocalPlayer().getWorldLocation()))))
-		{
-			return;
-		}
-
-		if (session != null && session.getCourse() == course)
-		{
-			session.incrementLapCount(client, xpTrackerService);
-		}
-		else
-		{
-			session = new AgilitySession(course);
-			// New course found, reset lap count and set new course
-			session.resetLapCount();
-			session.incrementLapCount(client, xpTrackerService);
-		}
-	}
-
-	@Subscribe
-	public void onItemSpawned(ItemSpawned itemSpawned)
-	{
-		if (obstacles.isEmpty())
-		{
-			return;
-		}
-
-		final TileItem item = itemSpawned.getItem();
-		final Tile tile = itemSpawned.getTile();
-
-		if (item.getId() == ItemID.MARK_OF_GRACE)
-		{
-			marksOfGrace.add(tile);
-		}
-
-		if (item.getId() == ItemID.STICK)
-		{
-			stickTile = tile;
-		}
-	}
-
-	@Subscribe
-	public void onItemDespawned(ItemDespawned itemDespawned)
-	{
-		final TileItem item = itemDespawned.getItem();
-		final Tile tile = itemDespawned.getTile();
-
-		marksOfGrace.remove(tile);
-
-		if (item.getId() == ItemID.STICK && stickTile == tile)
-		{
-			stickTile = null;
-		}
-	}
-
-	@Subscribe
-	public void onGameTick(GameTick tick)
-	{
-		if (isInAgilityArena())
-		{
-			// Hint arrow has no plane, and always returns the current plane
-			WorldPoint newTicketPosition = client.getHintArrowPoint();
-			WorldPoint oldTickPosition = lastArenaTicketPosition;
-
-			lastArenaTicketPosition = newTicketPosition;
-
-			if (oldTickPosition != null && newTicketPosition != null
-				&& (oldTickPosition.getX() != newTicketPosition.getX() || oldTickPosition.getY() != newTicketPosition.getY()))
-			{
-				log.debug("Ticked position moved from {} to {}", oldTickPosition, newTicketPosition);
-
-				if (config.notifyAgilityArena())
-				{
-					notifier.notify("Ticket location changed");
-				}
-
-				if (config.showAgilityArenaTimer())
-				{
-					showNewAgilityArenaTimer();
-				}
-			}
-		}
-	}
-
-	private boolean isInAgilityArena()
-	{
-		Player local = client.getLocalPlayer();
-		if (local == null)
-		{
-			return false;
-		}
-
-		WorldPoint location = local.getWorldLocation();
-		return location.getRegionID() == AGILITY_ARENA_REGION_ID;
-	}
-
-	private void removeAgilityArenaTimer()
-	{
-		infoBoxManager.removeIf(infoBox -> infoBox instanceof AgilityArenaTimer);
-	}
-
-	private void showNewAgilityArenaTimer()
-	{
-		removeAgilityArenaTimer();
-		infoBoxManager.addInfoBox(new AgilityArenaTimer(this, itemManager.getImage(AGILITY_ARENA_TICKET)));
-	}
-
-	@Subscribe
-	public void onGameObjectSpawned(GameObjectSpawned event)
-	{
-		onTileObject(event.getTile(), null, event.getGameObject());
-	}
-
-	@Subscribe
-	public void onGameObjectChanged(GameObjectChanged event)
-	{
-		onTileObject(event.getTile(), event.getPrevious(), event.getGameObject());
-	}
-
-	@Subscribe
-	public void onGameObjectDespawned(GameObjectDespawned event)
-	{
-		onTileObject(event.getTile(), event.getGameObject(), null);
-	}
-
-	@Subscribe
-	public void onGroundObjectSpawned(GroundObjectSpawned event)
-	{
-		onTileObject(event.getTile(), null, event.getGroundObject());
-	}
-
-	@Subscribe
-	public void onGroundObjectChanged(GroundObjectChanged event)
-	{
-		onTileObject(event.getTile(), event.getPrevious(), event.getGroundObject());
-	}
-
-	@Subscribe
-	public void onGroundObjectDespawned(GroundObjectDespawned event)
-	{
-		onTileObject(event.getTile(), event.getGroundObject(), null);
-	}
-
-	@Subscribe
-	public void onWallObjectSpawned(WallObjectSpawned event)
-	{
-		onTileObject(event.getTile(), null, event.getWallObject());
-	}
-
-	@Subscribe
-	public void onWallObjectChanged(WallObjectChanged event)
-	{
-		onTileObject(event.getTile(), event.getPrevious(), event.getWallObject());
-	}
-
-	@Subscribe
-	public void onWallObjectDespawned(WallObjectDespawned event)
-	{
-		onTileObject(event.getTile(), event.getWallObject(), null);
-	}
-
-	@Subscribe
-	public void onDecorativeObjectSpawned(DecorativeObjectSpawned event)
-	{
-		onTileObject(event.getTile(), null, event.getDecorativeObject());
-	}
-
-	@Subscribe
-	public void onDecorativeObjectChanged(DecorativeObjectChanged event)
-	{
-		onTileObject(event.getTile(), event.getPrevious(), event.getDecorativeObject());
-	}
-
-	@Subscribe
-	public void onDecorativeObjectDespawned(DecorativeObjectDespawned event)
-	{
-		onTileObject(event.getTile(), event.getDecorativeObject(), null);
-	}
-
-	private void onTileObject(Tile tile, TileObject oldObject, TileObject newObject)
-	{
-		obstacles.remove(oldObject);
-
-		if (newObject == null)
-		{
-			return;
-		}
-
-		if (Obstacles.OBSTACLE_IDS.contains(newObject.getId()) ||
-			Obstacles.PORTAL_OBSTACLE_IDS.contains(newObject.getId()) ||
-			(Obstacles.TRAP_OBSTACLE_IDS.contains(newObject.getId())
-				&& Obstacles.TRAP_OBSTACLE_REGIONS.contains(newObject.getWorldLocation().getRegionID())) ||
-			Obstacles.SEPULCHRE_OBSTACLE_IDS.contains(newObject.getId()) ||
-			Obstacles.SEPULCHRE_SKILL_OBSTACLE_IDS.contains(newObject.getId()))
-		{
-			obstacles.put(newObject, new Obstacle(tile, null));
-		}
-
-		if (Obstacles.SHORTCUT_OBSTACLE_IDS.containsKey(newObject.getId()))
-		{
-			AgilityShortcut closestShortcut = null;
-			int distance = -1;
-
-			// Find the closest shortcut to this object
-			for (AgilityShortcut shortcut : Obstacles.SHORTCUT_OBSTACLE_IDS.get(newObject.getId()))
-			{
-				if (!shortcut.matches(newObject))
-				{
-					continue;
-				}
-
-				if (shortcut.getWorldLocation() == null)
-				{
-					closestShortcut = shortcut;
-					break;
-				}
-				else
-				{
-					int newDistance = shortcut.getWorldLocation().distanceTo2D(newObject.getWorldLocation());
-					if (closestShortcut == null || newDistance < distance)
-					{
-						closestShortcut = shortcut;
-						distance = newDistance;
-					}
-				}
-			}
-
-			if (closestShortcut != null)
-			{
-				obstacles.put(newObject, new Obstacle(tile, closestShortcut));
-			}
-		}
-	}
-
-	@Subscribe
-	public void onNpcSpawned(NpcSpawned npcSpawned)
-	{
-		NPC npc = npcSpawned.getNpc();
-
-		if (SEPULCHRE_NPCS.contains(npc.getId()))
-		{
-			npcs.add(npc);
-		}
-	}
-
-	@Subscribe
-	public void onNpcDespawned(NpcDespawned npcDespawned)
-	{
-		NPC npc = npcDespawned.getNpc();
-		npcs.remove(npc);
-	}
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@PluginDescriptor(name="Agility", description="Show helpful information about agility courses and obstacles", tags={"grace", "marks", "overlay", "shortcuts", "skilling", "traps", "sepulchre"})
+@PluginDependency(value=XpTrackerPlugin.class)
+public class AgilityPlugin
+extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(AgilityPlugin.class);
+    private static final int AGILITY_ARENA_REGION_ID = 11157;
+    private static final Set<Integer> SEPULCHRE_NPCS = ImmutableSet.of((Object)9672, (Object)9673, (Object)9674, (Object)9669, (Object)9670, (Object)9671, (Object[])new Integer[0]);
+    private final Map<TileObject, Obstacle> obstacles = new HashMap<TileObject, Obstacle>();
+    private final List<Tile> marksOfGrace = new ArrayList<Tile>();
+    private final Set<NPC> npcs = new HashSet<NPC>();
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private AgilityOverlay agilityOverlay;
+    @Inject
+    private LapCounterOverlay lapCounterOverlay;
+    @Inject
+    private Notifier notifier;
+    @Inject
+    private Client client;
+    @Inject
+    private InfoBoxManager infoBoxManager;
+    @Inject
+    private AgilityConfig config;
+    @Inject
+    private ItemManager itemManager;
+    @Inject
+    private XpTrackerService xpTrackerService;
+    private AgilitySession session;
+    private int lastAgilityXp;
+    private WorldPoint lastArenaTicketPosition;
+    private int agilityLevel;
+    private Tile stickTile;
+
+    @Provides
+    AgilityConfig getConfig(ConfigManager configManager) {
+        return configManager.getConfig(AgilityConfig.class);
+    }
+
+    @Override
+    protected void startUp() throws Exception {
+        this.overlayManager.add(this.agilityOverlay);
+        this.overlayManager.add(this.lapCounterOverlay);
+        this.agilityLevel = this.client.getBoostedSkillLevel(Skill.AGILITY);
+    }
+
+    @Override
+    protected void shutDown() throws Exception {
+        this.overlayManager.remove(this.agilityOverlay);
+        this.overlayManager.remove(this.lapCounterOverlay);
+        this.marksOfGrace.clear();
+        this.obstacles.clear();
+        this.session = null;
+        this.agilityLevel = 0;
+        this.stickTile = null;
+        this.npcs.clear();
+    }
+
+    @Subscribe
+    public void onOverlayMenuClicked(OverlayMenuClicked overlayMenuClicked) {
+        OverlayMenuEntry overlayMenuEntry = overlayMenuClicked.getEntry();
+        if (overlayMenuEntry.getMenuAction() == MenuAction.RUNELITE_OVERLAY && overlayMenuClicked.getOverlay() == this.lapCounterOverlay && overlayMenuClicked.getEntry().getOption().equals("Reset")) {
+            this.session = null;
+        }
+    }
+
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        switch (event.getGameState()) {
+            case HOPPING: 
+            case LOGIN_SCREEN: {
+                this.session = null;
+                this.lastArenaTicketPosition = null;
+                this.removeAgilityArenaTimer();
+                this.npcs.clear();
+                break;
+            }
+            case LOADING: {
+                this.marksOfGrace.clear();
+                this.obstacles.clear();
+                this.stickTile = null;
+                break;
+            }
+            case LOGGED_IN: {
+                if (this.isInAgilityArena()) break;
+                this.lastArenaTicketPosition = null;
+                this.removeAgilityArenaTimer();
+            }
+        }
+    }
+
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (!this.config.showAgilityArenaTimer()) {
+            this.removeAgilityArenaTimer();
+        }
+    }
+
+    @Subscribe
+    public void onStatChanged(StatChanged statChanged) {
+        if (statChanged.getSkill() != Skill.AGILITY) {
+            return;
+        }
+        this.agilityLevel = statChanged.getBoostedLevel();
+        if (!this.config.showLapCount()) {
+            return;
+        }
+        int agilityXp = this.client.getSkillExperience(Skill.AGILITY);
+        int skillGained = agilityXp - this.lastAgilityXp;
+        this.lastAgilityXp = agilityXp;
+        Courses course = Courses.getCourse(this.client.getLocalPlayer().getWorldLocation().getRegionID());
+        if (course == null || (course.getCourseEndWorldPoints().length == 0 ? Math.abs(course.getLastObstacleXp() - skillGained) > 1 : Arrays.stream(course.getCourseEndWorldPoints()).noneMatch(wp -> wp.equals((Object)this.client.getLocalPlayer().getWorldLocation())))) {
+            return;
+        }
+        if (this.session != null && this.session.getCourse() == course) {
+            this.session.incrementLapCount(this.client, this.xpTrackerService);
+        } else {
+            this.session = new AgilitySession(course);
+            this.session.resetLapCount();
+            this.session.incrementLapCount(this.client, this.xpTrackerService);
+        }
+    }
+
+    @Subscribe
+    public void onItemSpawned(ItemSpawned itemSpawned) {
+        if (this.obstacles.isEmpty()) {
+            return;
+        }
+        TileItem item = itemSpawned.getItem();
+        Tile tile = itemSpawned.getTile();
+        if (item.getId() == 11849) {
+            this.marksOfGrace.add(tile);
+        }
+        if (item.getId() == 4179) {
+            this.stickTile = tile;
+        }
+    }
+
+    @Subscribe
+    public void onItemDespawned(ItemDespawned itemDespawned) {
+        TileItem item = itemDespawned.getItem();
+        Tile tile = itemDespawned.getTile();
+        this.marksOfGrace.remove((Object)tile);
+        if (item.getId() == 4179 && this.stickTile == tile) {
+            this.stickTile = null;
+        }
+    }
+
+    @Subscribe
+    public void onGameTick(GameTick tick) {
+        if (this.isInAgilityArena()) {
+            WorldPoint newTicketPosition = this.client.getHintArrowPoint();
+            WorldPoint oldTickPosition = this.lastArenaTicketPosition;
+            this.lastArenaTicketPosition = newTicketPosition;
+            if (oldTickPosition != null && newTicketPosition != null && (oldTickPosition.getX() != newTicketPosition.getX() || oldTickPosition.getY() != newTicketPosition.getY())) {
+                log.debug("Ticked position moved from {} to {}", (Object)oldTickPosition, (Object)newTicketPosition);
+                if (this.config.notifyAgilityArena()) {
+                    this.notifier.notify("Ticket location changed");
+                }
+                if (this.config.showAgilityArenaTimer()) {
+                    this.showNewAgilityArenaTimer();
+                }
+            }
+        }
+    }
+
+    private boolean isInAgilityArena() {
+        Player local = this.client.getLocalPlayer();
+        if (local == null) {
+            return false;
+        }
+        WorldPoint location = local.getWorldLocation();
+        return location.getRegionID() == 11157;
+    }
+
+    private void removeAgilityArenaTimer() {
+        this.infoBoxManager.removeIf(infoBox -> infoBox instanceof AgilityArenaTimer);
+    }
+
+    private void showNewAgilityArenaTimer() {
+        this.removeAgilityArenaTimer();
+        this.infoBoxManager.addInfoBox(new AgilityArenaTimer(this, this.itemManager.getImage(2996)));
+    }
+
+    @Subscribe
+    public void onGameObjectSpawned(GameObjectSpawned event) {
+        this.onTileObject(event.getTile(), null, (TileObject)event.getGameObject());
+    }
+
+    @Subscribe
+    public void onGameObjectDespawned(GameObjectDespawned event) {
+        this.onTileObject(event.getTile(), (TileObject)event.getGameObject(), null);
+    }
+
+    @Subscribe
+    public void onGroundObjectSpawned(GroundObjectSpawned event) {
+        this.onTileObject(event.getTile(), null, (TileObject)event.getGroundObject());
+    }
+
+    @Subscribe
+    public void onGroundObjectDespawned(GroundObjectDespawned event) {
+        this.onTileObject(event.getTile(), (TileObject)event.getGroundObject(), null);
+    }
+
+    @Subscribe
+    public void onWallObjectSpawned(WallObjectSpawned event) {
+        this.onTileObject(event.getTile(), null, (TileObject)event.getWallObject());
+    }
+
+    @Subscribe
+    public void onWallObjectDespawned(WallObjectDespawned event) {
+        this.onTileObject(event.getTile(), (TileObject)event.getWallObject(), null);
+    }
+
+    @Subscribe
+    public void onDecorativeObjectSpawned(DecorativeObjectSpawned event) {
+        this.onTileObject(event.getTile(), null, (TileObject)event.getDecorativeObject());
+    }
+
+    @Subscribe
+    public void onDecorativeObjectDespawned(DecorativeObjectDespawned event) {
+        this.onTileObject(event.getTile(), (TileObject)event.getDecorativeObject(), null);
+    }
+
+    private void onTileObject(Tile tile, TileObject oldObject, TileObject newObject) {
+        this.obstacles.remove((Object)oldObject);
+        if (newObject == null) {
+            return;
+        }
+        if (Obstacles.OBSTACLE_IDS.contains(newObject.getId()) || Obstacles.PORTAL_OBSTACLE_IDS.contains(newObject.getId()) || Obstacles.TRAP_OBSTACLE_IDS.contains(newObject.getId()) && Obstacles.TRAP_OBSTACLE_REGIONS.contains(newObject.getWorldLocation().getRegionID()) || Obstacles.SEPULCHRE_OBSTACLE_IDS.contains(newObject.getId()) || Obstacles.SEPULCHRE_SKILL_OBSTACLE_IDS.contains(newObject.getId())) {
+            this.obstacles.put(newObject, new Obstacle(tile, null));
+        }
+        if (Obstacles.SHORTCUT_OBSTACLE_IDS.containsKey((Object)newObject.getId())) {
+            AgilityShortcut closestShortcut = null;
+            int distance = -1;
+            for (AgilityShortcut shortcut : Obstacles.SHORTCUT_OBSTACLE_IDS.get((Object)newObject.getId())) {
+                if (!shortcut.matches(newObject)) continue;
+                if (shortcut.getWorldLocation() == null) {
+                    closestShortcut = shortcut;
+                    break;
+                }
+                int newDistance = shortcut.getWorldLocation().distanceTo2D(newObject.getWorldLocation());
+                if (closestShortcut != null && newDistance >= distance) continue;
+                closestShortcut = shortcut;
+                distance = newDistance;
+            }
+            if (closestShortcut != null) {
+                this.obstacles.put(newObject, new Obstacle(tile, closestShortcut));
+            }
+        }
+    }
+
+    @Subscribe
+    public void onNpcSpawned(NpcSpawned npcSpawned) {
+        NPC npc = npcSpawned.getNpc();
+        if (SEPULCHRE_NPCS.contains(npc.getId())) {
+            this.npcs.add(npc);
+        }
+    }
+
+    @Subscribe
+    public void onNpcDespawned(NpcDespawned npcDespawned) {
+        NPC npc = npcDespawned.getNpc();
+        this.npcs.remove((Object)npc);
+    }
+
+    public Map<TileObject, Obstacle> getObstacles() {
+        return this.obstacles;
+    }
+
+    public List<Tile> getMarksOfGrace() {
+        return this.marksOfGrace;
+    }
+
+    public Set<NPC> getNpcs() {
+        return this.npcs;
+    }
+
+    public AgilitySession getSession() {
+        return this.session;
+    }
+
+    public int getAgilityLevel() {
+        return this.agilityLevel;
+    }
+
+    Tile getStickTile() {
+        return this.stickTile;
+    }
 }
+

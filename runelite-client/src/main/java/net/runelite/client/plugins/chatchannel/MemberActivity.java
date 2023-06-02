@@ -1,46 +1,94 @@
 /*
- * Copyright (c) 2018, trimbe <github.com/trimbe>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.ChatPlayer
  */
 package net.runelite.client.plugins.chatchannel;
 
-import lombok.AllArgsConstructor;
-import lombok.Value;
 import net.runelite.api.ChatPlayer;
+import net.runelite.client.plugins.chatchannel.ActivityType;
 
-@Value
-@AllArgsConstructor
-class MemberActivity
-{
-	enum ChatType
-	{
-		FRIENDS_CHAT,
-		CLAN_CHAT,
-		GUEST_CHAT
-	}
+final class MemberActivity {
+    private final ActivityType activityType;
+    private final ChatType chatType;
+    private final ChatPlayer member;
+    private final Integer tick;
 
-	private ActivityType activityType;
-	private ChatType chatType;
-	private ChatPlayer member;
-	private Integer tick;
+    public ActivityType getActivityType() {
+        return this.activityType;
+    }
+
+    public ChatType getChatType() {
+        return this.chatType;
+    }
+
+    public ChatPlayer getMember() {
+        return this.member;
+    }
+
+    public Integer getTick() {
+        return this.tick;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof MemberActivity)) {
+            return false;
+        }
+        MemberActivity other = (MemberActivity)o;
+        Integer this$tick = this.getTick();
+        Integer other$tick = other.getTick();
+        if (this$tick == null ? other$tick != null : !((Object)this$tick).equals(other$tick)) {
+            return false;
+        }
+        ActivityType this$activityType = this.getActivityType();
+        ActivityType other$activityType = other.getActivityType();
+        if (this$activityType == null ? other$activityType != null : !((Object)((Object)this$activityType)).equals((Object)other$activityType)) {
+            return false;
+        }
+        ChatType this$chatType = this.getChatType();
+        ChatType other$chatType = other.getChatType();
+        if (this$chatType == null ? other$chatType != null : !((Object)((Object)this$chatType)).equals((Object)other$chatType)) {
+            return false;
+        }
+        ChatPlayer this$member = this.getMember();
+        ChatPlayer other$member = other.getMember();
+        return !(this$member == null ? other$member != null : !this$member.equals((Object)other$member));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Integer $tick = this.getTick();
+        result = result * 59 + ($tick == null ? 43 : ((Object)$tick).hashCode());
+        ActivityType $activityType = this.getActivityType();
+        result = result * 59 + ($activityType == null ? 43 : ((Object)((Object)$activityType)).hashCode());
+        ChatType $chatType = this.getChatType();
+        result = result * 59 + ($chatType == null ? 43 : ((Object)((Object)$chatType)).hashCode());
+        ChatPlayer $member = this.getMember();
+        result = result * 59 + ($member == null ? 43 : $member.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "MemberActivity(activityType=" + (Object)((Object)this.getActivityType()) + ", chatType=" + (Object)((Object)this.getChatType()) + ", member=" + (Object)this.getMember() + ", tick=" + this.getTick() + ")";
+    }
+
+    public MemberActivity(ActivityType activityType, ChatType chatType, ChatPlayer member, Integer tick) {
+        this.activityType = activityType;
+        this.chatType = chatType;
+        this.member = member;
+        this.tick = tick;
+    }
+
+    static enum ChatType {
+        FRIENDS_CHAT,
+        CLAN_CHAT,
+        GUEST_CHAT;
+
+    }
 }
+

@@ -1,38 +1,62 @@
 /*
- * Copyright (c) 2020 Adam <Adam@sigterm.info>
- * Copyright (c) 2021, Jonathan Rousseau <https://github.com/JoRouss>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.dpscounter;
 
-import lombok.EqualsAndHashCode;
-import lombok.Value;
 import net.runelite.client.party.messages.PartyMemberMessage;
 
-@Value
-@EqualsAndHashCode(callSuper = true)
-public class DpsUpdate extends PartyMemberMessage
-{
-	private int hit;
-	private boolean isBoss;
+public final class DpsUpdate
+extends PartyMemberMessage {
+    private final int hit;
+    private final boolean isBoss;
+
+    public DpsUpdate(int hit, boolean isBoss) {
+        this.hit = hit;
+        this.isBoss = isBoss;
+    }
+
+    public int getHit() {
+        return this.hit;
+    }
+
+    public boolean isBoss() {
+        return this.isBoss;
+    }
+
+    public String toString() {
+        return "DpsUpdate(hit=" + this.getHit() + ", isBoss=" + this.isBoss() + ")";
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof DpsUpdate)) {
+            return false;
+        }
+        DpsUpdate other = (DpsUpdate)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        if (this.getHit() != other.getHit()) {
+            return false;
+        }
+        return this.isBoss() == other.isBoss();
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof DpsUpdate;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = super.hashCode();
+        result = result * 59 + this.getHit();
+        result = result * 59 + (this.isBoss() ? 79 : 97);
+        return result;
+    }
 }
+

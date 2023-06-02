@@ -1,26 +1,5 @@
 /*
- * Copyright (c) 2017, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.ui.overlay.components;
 
@@ -31,175 +10,149 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.Getter;
-import lombok.Setter;
+import net.runelite.client.ui.overlay.components.BackgroundComponent;
+import net.runelite.client.ui.overlay.components.ComponentConstants;
+import net.runelite.client.ui.overlay.components.ComponentOrientation;
+import net.runelite.client.ui.overlay.components.LayoutableRenderableEntity;
 
-public class PanelComponent implements LayoutableRenderableEntity
-{
-	@Getter
-	private final Rectangle bounds = new Rectangle();
+public class PanelComponent
+implements LayoutableRenderableEntity {
+    private final Rectangle bounds = new Rectangle();
+    private Point preferredLocation = new Point();
+    private Dimension preferredSize = new Dimension(129, 0);
+    private Color backgroundColor = ComponentConstants.STANDARD_BACKGROUND_COLOR;
+    private final List<LayoutableRenderableEntity> children = new ArrayList<LayoutableRenderableEntity>();
+    private ComponentOrientation orientation = ComponentOrientation.VERTICAL;
+    private boolean wrap = false;
+    private Rectangle border = new Rectangle(4, 4, 4, 4);
+    private Point gap = new Point(0, 0);
+    private final Dimension childDimensions = new Dimension();
 
-	@Setter
-	private Point preferredLocation = new Point();
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        if (this.children.isEmpty()) {
+            return null;
+        }
+        Dimension dimension = new Dimension(this.border.x + this.childDimensions.width + this.border.width, this.border.y + this.childDimensions.height + this.border.height);
+        if (this.backgroundColor != null) {
+            BackgroundComponent backgroundComponent = new BackgroundComponent();
+            backgroundComponent.setRectangle(new Rectangle(this.preferredLocation, dimension));
+            backgroundComponent.setBackgroundColor(this.backgroundColor);
+            backgroundComponent.render(graphics);
+        }
+        int baseX = this.preferredLocation.x + this.border.x;
+        int baseY = this.preferredLocation.y + this.border.y;
+        int width = 0;
+        int height = 0;
+        int x = baseX;
+        int y = baseY;
+        Dimension childPreferredSize = new Dimension(this.preferredSize.width - this.border.x - this.border.width, this.preferredSize.height - this.border.y - this.border.height);
+        int totalHeight = 0;
+        int totalWidth = 0;
+        for (LayoutableRenderableEntity child : this.children) {
+            if (!this.wrap) {
+                switch (this.orientation) {
+                    case VERTICAL: {
+                        child.setPreferredSize(new Dimension(childPreferredSize.width, 0));
+                        break;
+                    }
+                    case HORIZONTAL: {
+                        child.setPreferredSize(new Dimension(0, childPreferredSize.height));
+                    }
+                }
+            }
+            child.setPreferredLocation(new Point(x, y));
+            Dimension childDimension = child.render(graphics);
+            switch (this.orientation) {
+                case VERTICAL: {
+                    y = baseY + (height += childDimension.height + this.gap.y);
+                    width = Math.max(width, childDimension.width);
+                    break;
+                }
+                case HORIZONTAL: {
+                    x = baseX + (width += childDimension.width + this.gap.x);
+                    height = Math.max(height, childDimension.height);
+                }
+            }
+            totalWidth = Math.max(totalWidth, width);
+            totalHeight = Math.max(totalHeight, height);
+            if (!this.wrap) continue;
+            switch (this.orientation) {
+                case VERTICAL: {
+                    if (childPreferredSize.height <= 0 || height < childPreferredSize.height) break;
+                    height = 0;
+                    y = baseY;
+                    int diff = childDimension.width + this.gap.x;
+                    x += diff;
+                    width += diff;
+                    break;
+                }
+                case HORIZONTAL: {
+                    if (childPreferredSize.width <= 0 || width < childPreferredSize.width) break;
+                    width = 0;
+                    x = baseX;
+                    int diff = childDimension.height + this.gap.y;
+                    y += diff;
+                    height += diff;
+                }
+            }
+        }
+        if (this.orientation == ComponentOrientation.HORIZONTAL) {
+            totalWidth -= this.gap.x;
+        } else {
+            totalHeight -= this.gap.y;
+        }
+        this.childDimensions.setSize(totalWidth, totalHeight);
+        this.bounds.setLocation(this.preferredLocation);
+        this.bounds.setSize(dimension);
+        return dimension;
+    }
 
-	@Setter
-	@Getter
-	private Dimension preferredSize = new Dimension(ComponentConstants.STANDARD_WIDTH, 0);
+    @Override
+    public Rectangle getBounds() {
+        return this.bounds;
+    }
 
-	@Setter
-	@Getter
-	private Color backgroundColor = ComponentConstants.STANDARD_BACKGROUND_COLOR;
+    @Override
+    public void setPreferredLocation(Point preferredLocation) {
+        this.preferredLocation = preferredLocation;
+    }
 
-	@Getter
-	private final List<LayoutableRenderableEntity> children = new ArrayList<>();
+    @Override
+    public void setPreferredSize(Dimension preferredSize) {
+        this.preferredSize = preferredSize;
+    }
 
-	@Setter
-	private ComponentOrientation orientation = ComponentOrientation.VERTICAL;
+    public Dimension getPreferredSize() {
+        return this.preferredSize;
+    }
 
-	@Setter
-	private boolean wrap = false;
+    public void setBackgroundColor(Color backgroundColor) {
+        this.backgroundColor = backgroundColor;
+    }
 
-	@Setter
-	private Rectangle border = new Rectangle(
-		ComponentConstants.STANDARD_BORDER,
-		ComponentConstants.STANDARD_BORDER,
-		ComponentConstants.STANDARD_BORDER,
-		ComponentConstants.STANDARD_BORDER);
+    public Color getBackgroundColor() {
+        return this.backgroundColor;
+    }
 
-	@Setter
-	private Point gap = new Point(0, 0);
+    public List<LayoutableRenderableEntity> getChildren() {
+        return this.children;
+    }
 
-	private final Dimension childDimensions = new Dimension();
+    public void setOrientation(ComponentOrientation orientation) {
+        this.orientation = orientation;
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		if (children.isEmpty())
-		{
-			return null;
-		}
+    public void setWrap(boolean wrap) {
+        this.wrap = wrap;
+    }
 
-		// Calculate panel dimension
-		final Dimension dimension = new Dimension(
-			border.x + childDimensions.width + border.width,
-			border.y + childDimensions.height + border.height);
+    public void setBorder(Rectangle border) {
+        this.border = border;
+    }
 
-		// Render background
-		if (backgroundColor != null)
-		{
-			final BackgroundComponent backgroundComponent = new BackgroundComponent();
-			backgroundComponent.setRectangle(new Rectangle(preferredLocation, dimension));
-			backgroundComponent.setBackgroundColor(backgroundColor);
-			backgroundComponent.render(graphics);
-		}
-
-		// Offset children
-		final int baseX = preferredLocation.x + border.x;
-		final int baseY = preferredLocation.y + border.y;
-		int width = 0;
-		int height = 0;
-		int x = baseX;
-		int y = baseY;
-
-		// Create child preferred size
-		final Dimension childPreferredSize = new Dimension(
-			preferredSize.width - border.x - border.width,
-			preferredSize.height - border.y - border.height);
-
-		// Calculate max width/height for infoboxes
-		int totalHeight = 0;
-		int totalWidth = 0;
-
-		// Render all children
-		for (final LayoutableRenderableEntity child : children)
-		{
-			// Correctly propagate child dimensions based on orientation and wrapping
-			if (!wrap)
-			{
-				switch (orientation)
-				{
-					case VERTICAL:
-						child.setPreferredSize(new Dimension(childPreferredSize.width, 0));
-						break;
-					case HORIZONTAL:
-						child.setPreferredSize(new Dimension(0, childPreferredSize.height));
-						break;
-				}
-			}
-
-			child.setPreferredLocation(new Point(x, y));
-			final Dimension childDimension = child.render(graphics);
-
-			switch (orientation)
-			{
-				case VERTICAL:
-					height += childDimension.height + gap.y;
-					y = baseY + height;
-					width = Math.max(width, childDimension.width);
-					break;
-				case HORIZONTAL:
-					width += childDimension.width + gap.x;
-					x = baseX + width;
-					height = Math.max(height, childDimension.height);
-					break;
-			}
-
-			// Calculate total size
-			totalWidth = Math.max(totalWidth, width);
-			totalHeight = Math.max(totalHeight, height);
-
-			if (!wrap)
-			{
-				continue;
-			}
-
-			switch (orientation)
-			{
-				case VERTICAL:
-				{
-					if (childPreferredSize.height > 0 && height >= childPreferredSize.height)
-					{
-						height = 0;
-						y = baseY;
-						int diff = childDimension.width + gap.x;
-						x += diff;
-						width += diff;
-					}
-
-					break;
-				}
-				case HORIZONTAL:
-				{
-					if (childPreferredSize.width > 0 && width >= childPreferredSize.width)
-					{
-						width = 0;
-						x = baseX;
-						int diff = childDimension.height + gap.y;
-						y += diff;
-						height += diff;
-					}
-
-					break;
-				}
-			}
-		}
-
-		// Remove last child gap
-		if (orientation == ComponentOrientation.HORIZONTAL)
-		{
-			totalWidth -= gap.x;
-		}
-		else // VERTICAL
-		{
-			totalHeight -= gap.y;
-		}
-
-		// Cache children bounds
-		childDimensions.setSize(totalWidth, totalHeight);
-
-		// Cache bounds
-		bounds.setLocation(preferredLocation);
-		bounds.setSize(dimension);
-		return dimension;
-	}
+    public void setGap(Point gap) {
+        this.gap = gap;
+    }
 }
+

@@ -1,26 +1,10 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  net.runelite.api.NPC
+ *  net.runelite.api.Point
  */
 package net.runelite.client.plugins.fishing;
 
@@ -28,69 +12,49 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import javax.inject.Inject;
-import lombok.AccessLevel;
-import lombok.Setter;
-import net.runelite.api.GraphicID;
 import net.runelite.api.NPC;
-import net.runelite.api.NpcID;
+import net.runelite.api.Point;
 import net.runelite.client.game.FishingSpot;
+import net.runelite.client.plugins.fishing.FishingConfig;
+import net.runelite.client.plugins.fishing.FishingPlugin;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
 
-class FishingSpotMinimapOverlay extends Overlay
-{
-	private final FishingPlugin plugin;
-	private final FishingConfig config;
+class FishingSpotMinimapOverlay
+extends Overlay {
+    private final FishingPlugin plugin;
+    private final FishingConfig config;
+    private boolean hidden;
 
-	@Setter(AccessLevel.PACKAGE)
-	private boolean hidden;
+    @Inject
+    public FishingSpotMinimapOverlay(FishingPlugin plugin, FishingConfig config) {
+        this.setPosition(OverlayPosition.DYNAMIC);
+        this.setLayer(OverlayLayer.ABOVE_WIDGETS);
+        this.plugin = plugin;
+        this.config = config;
+    }
 
-	@Inject
-	public FishingSpotMinimapOverlay(FishingPlugin plugin, FishingConfig config)
-	{
-		setPosition(OverlayPosition.DYNAMIC);
-		setLayer(OverlayLayer.ABOVE_WIDGETS);
-		this.plugin = plugin;
-		this.config = config;
-	}
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        if (this.hidden) {
+            return null;
+        }
+        for (NPC npc : this.plugin.getFishingSpots()) {
+            Color color;
+            FishingSpot spot = FishingSpot.findSpot(npc.getId());
+            if (spot == null || this.config.onlyCurrentSpot() && this.plugin.getCurrentSpot() != null && this.plugin.getCurrentSpot() != spot) continue;
+            Color color2 = npc.getGraphic() == 1387 ? this.config.getMinnowsOverlayColor() : (color = npc.getId() == 10569 ? this.config.getHarpoonfishOverlayColor() : this.config.getOverlayColor());
+            Point minimapLocation = npc.getMinimapLocation();
+            if (minimapLocation == null) continue;
+            OverlayUtil.renderMinimapLocation(graphics, minimapLocation, color.darker());
+        }
+        return null;
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		if (hidden)
-		{
-			return null;
-		}
-
-		for (NPC npc : plugin.getFishingSpots())
-		{
-			FishingSpot spot = FishingSpot.findSpot(npc.getId());
-
-			if (spot == null)
-			{
-				continue;
-			}
-
-			if (config.onlyCurrentSpot() && plugin.getCurrentSpot() != null && plugin.getCurrentSpot() != spot)
-			{
-				continue;
-			}
-
-			Color color = npc.getGraphic() == GraphicID.FLYING_FISH
-				? config.getMinnowsOverlayColor()
-				: npc.getId() == NpcID.FISHING_SPOT_10569
-				? config.getHarpoonfishOverlayColor()
-				: config.getOverlayColor();
-
-			net.runelite.api.Point minimapLocation = npc.getMinimapLocation();
-			if (minimapLocation != null)
-			{
-				OverlayUtil.renderMinimapLocation(graphics, minimapLocation, color.darker());
-			}
-		}
-
-		return null;
-	}
+    void setHidden(boolean hidden) {
+        this.hidden = hidden;
+    }
 }
+

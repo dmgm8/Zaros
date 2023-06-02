@@ -1,26 +1,10 @@
 /*
- * Copyright (c) 2021, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.sun.jna.Native
+ *  com.sun.jna.Pointer
+ *  com.sun.jna.platform.unix.LibC
  */
 package net.runelite.client.plugins.worldhopper.ping;
 
@@ -29,21 +13,22 @@ import com.sun.jna.Pointer;
 import com.sun.jna.platform.unix.LibC;
 import net.runelite.client.util.OSType;
 
-interface RLLibC extends LibC
-{
-	RLLibC INSTANCE = Native.load(NAME, RLLibC.class);
+interface RLLibC
+extends LibC {
+    public static final RLLibC INSTANCE = (RLLibC)Native.loadLibrary((String)"c", RLLibC.class);
+    public static final int AF_INET = 2;
+    public static final int SOCK_DGRAM = 2;
+    public static final int SOL_SOCKET = OSType.getOSType() == OSType.MacOS ? 65535 : 1;
+    public static final int IPPROTO_ICMP = 1;
+    public static final int SO_SNDTIMEO = OSType.getOSType() == OSType.MacOS ? 4101 : 21;
+    public static final int SO_RCVTIMEO = OSType.getOSType() == OSType.MacOS ? 4102 : 20;
 
-	int AF_INET = 2;
-	int SOCK_DGRAM = 2;
-	int SOL_SOCKET = OSType.getOSType() == OSType.MacOS ? 0xffff : 1;
-	int IPPROTO_ICMP = 1;
-	int SO_RCVTIMEO = OSType.getOSType() == OSType.MacOS ? 0x1006 : 20;
+    public int socket(int var1, int var2, int var3);
 
-	int socket(int domain, int type, int protocol);
+    public int sendto(int var1, byte[] var2, int var3, int var4, byte[] var5, int var6);
 
-	int sendto(int sockfd, byte[] buf, int len, int flags, byte[] dest_addr, int addrlen);
+    public int recvfrom(int var1, Pointer var2, int var3, int var4, Pointer var5, Pointer var6);
 
-	int recvfrom(int sockfd, Pointer buf, int len, int flags, Pointer src_addr, Pointer addrlen);
-
-	int setsockopt(int sockfd, int level, int optname, Pointer optval, int optlen);
+    public int setsockopt(int var1, int var2, int var3, Pointer var4, int var5);
 }
+

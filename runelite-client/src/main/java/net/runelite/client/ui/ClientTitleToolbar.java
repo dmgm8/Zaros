@@ -1,26 +1,8 @@
 /*
- * Copyright (c) 2018 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ComparisonChain
  */
 package net.runelite.client.ui;
 
@@ -32,121 +14,91 @@ import java.awt.LayoutManager2;
 import java.util.Map;
 import java.util.TreeMap;
 import javax.swing.JPanel;
+import net.runelite.client.ui.NavigationButton;
 
-/**
- * Client title toolbar component.
- */
-class ClientTitleToolbar extends JPanel
-{
-	private static final int TITLEBAR_SIZE = 23;
-	private static final int ITEM_PADDING = 4;
-	private final Map<NavigationButton, Component> componentMap = new TreeMap<>((a, b) ->
-		ComparisonChain
-			.start()
-			.compare(a.getPriority(), b.getPriority())
-			.compare(a.getTooltip(), b.getTooltip())
-			.result());
+class ClientTitleToolbar
+extends JPanel {
+    private static final int TITLEBAR_SIZE = 23;
+    private static final int ITEM_PADDING = 4;
+    private final Map<NavigationButton, Component> componentMap = new TreeMap<NavigationButton, Component>((a, b) -> ComparisonChain.start().compare(a.getPriority(), b.getPriority()).compare((Comparable)((Object)a.getTooltip()), (Comparable)((Object)b.getTooltip())).result());
 
-	/**
-	 * Instantiates a new Client title toolbar.
-	 */
-	ClientTitleToolbar()
-	{
-		// The only other layout manager that would manage it's preferred size without padding
-		// was the GroupLayout manager, which doesn't work with dynamic layouts like this one.
-		// Primarily, it would not remove components unless it was immediately repainted.
-		setLayout(new LayoutManager2()
-		{
-			@Override
-			public void addLayoutComponent(String name, Component comp)
-			{
-			}
+    ClientTitleToolbar() {
+        this.setLayout(new LayoutManager2(){
 
-			@Override
-			public void addLayoutComponent(Component comp, Object constraints)
-			{
-			}
+            @Override
+            public void addLayoutComponent(String name, Component comp) {
+            }
 
-			@Override
-			public void removeLayoutComponent(Component comp)
-			{
-			}
+            @Override
+            public void addLayoutComponent(Component comp, Object constraints) {
+            }
 
-			@Override
-			public Dimension preferredLayoutSize(Container parent)
-			{
-				int width = parent.getComponentCount() * (TITLEBAR_SIZE + ITEM_PADDING);
-				return new Dimension(width, TITLEBAR_SIZE);
-			}
+            @Override
+            public void removeLayoutComponent(Component comp) {
+            }
 
-			@Override
-			public Dimension minimumLayoutSize(Container parent)
-			{
-				return preferredLayoutSize(parent);
-			}
+            @Override
+            public Dimension preferredLayoutSize(Container parent) {
+                int width = parent.getComponentCount() * 27;
+                return new Dimension(width, 23);
+            }
 
-			@Override
-			public Dimension maximumLayoutSize(Container parent)
-			{
-				return preferredLayoutSize(parent);
-			}
+            @Override
+            public Dimension minimumLayoutSize(Container parent) {
+                return this.preferredLayoutSize(parent);
+            }
 
-			@Override
-			public float getLayoutAlignmentX(Container target)
-			{
-				return 0;
-			}
+            @Override
+            public Dimension maximumLayoutSize(Container parent) {
+                return this.preferredLayoutSize(parent);
+            }
 
-			@Override
-			public float getLayoutAlignmentY(Container target)
-			{
-				return 0;
-			}
+            @Override
+            public float getLayoutAlignmentX(Container target) {
+                return 0.0f;
+            }
 
-			@Override
-			public void invalidateLayout(Container target)
-			{
-			}
+            @Override
+            public float getLayoutAlignmentY(Container target) {
+                return 0.0f;
+            }
 
-			@Override
-			public void layoutContainer(Container parent)
-			{
-				int x = 0;
-				for (Component c : parent.getComponents())
-				{
-					x += ITEM_PADDING;
-					int height = c.getPreferredSize().height;
-					if (height > TITLEBAR_SIZE)
-					{
-						height = TITLEBAR_SIZE;
-					}
-					c.setBounds(x, (TITLEBAR_SIZE - height) / 2, TITLEBAR_SIZE, height);
-					x += TITLEBAR_SIZE;
-				}
-			}
-		});
-	}
+            @Override
+            public void invalidateLayout(Container target) {
+            }
 
-	void addComponent(final NavigationButton button, final Component c)
-	{
-		if (componentMap.put(button, c) == null)
-		{
-			update();
-		}
-	}
+            @Override
+            public void layoutContainer(Container parent) {
+                int x = 0;
+                for (Component c : parent.getComponents()) {
+                    x += 4;
+                    int height = c.getPreferredSize().height;
+                    if (height > 23) {
+                        height = 23;
+                    }
+                    c.setBounds(x, (23 - height) / 2, 23, height);
+                    x += 23;
+                }
+            }
+        });
+    }
 
-	void removeComponent(final NavigationButton button)
-	{
-		if (componentMap.remove(button) != null)
-		{
-			update();
-		}
-	}
+    void addComponent(NavigationButton button, Component c) {
+        if (this.componentMap.put(button, c) == null) {
+            this.update();
+        }
+    }
 
-	private void update()
-	{
-		removeAll();
-		componentMap.values().forEach(this::add);
-		repaint();
-	}
+    void removeComponent(NavigationButton button) {
+        if (this.componentMap.remove(button) != null) {
+            this.update();
+        }
+    }
+
+    private void update() {
+        this.removeAll();
+        this.componentMap.values().forEach(this::add);
+        this.repaint();
+    }
 }
+

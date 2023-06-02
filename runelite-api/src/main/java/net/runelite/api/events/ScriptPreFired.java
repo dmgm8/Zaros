@@ -1,45 +1,64 @@
 /*
- * Copyright (c) 2020, Trevor <https://github.com/Trevor159>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.Data;
 import net.runelite.api.ScriptEvent;
 
-/**
- * An event that is fired before the designated script is ran
- */
-@Data
-public class ScriptPreFired
-{
-	/**
-	 * The script id of the invoked script
-	 */
-	private final int scriptId;
+public class ScriptPreFired {
+    private final int scriptId;
+    private ScriptEvent scriptEvent;
 
-	/**
-	 * The input of the script invoke, this will be null unless it is the root script
-	 */
-	private ScriptEvent scriptEvent;
+    public ScriptPreFired(int scriptId) {
+        this.scriptId = scriptId;
+    }
+
+    public int getScriptId() {
+        return this.scriptId;
+    }
+
+    public ScriptEvent getScriptEvent() {
+        return this.scriptEvent;
+    }
+
+    public void setScriptEvent(ScriptEvent scriptEvent) {
+        this.scriptEvent = scriptEvent;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ScriptPreFired)) {
+            return false;
+        }
+        ScriptPreFired other = (ScriptPreFired)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getScriptId() != other.getScriptId()) {
+            return false;
+        }
+        ScriptEvent this$scriptEvent = this.getScriptEvent();
+        ScriptEvent other$scriptEvent = other.getScriptEvent();
+        return !(this$scriptEvent == null ? other$scriptEvent != null : !this$scriptEvent.equals(other$scriptEvent));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof ScriptPreFired;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getScriptId();
+        ScriptEvent $scriptEvent = this.getScriptEvent();
+        result = result * 59 + ($scriptEvent == null ? 43 : $scriptEvent.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "ScriptPreFired(scriptId=" + this.getScriptId() + ", scriptEvent=" + this.getScriptEvent() + ")";
+    }
 }
+

@@ -1,26 +1,10 @@
 /*
- * Copyright (c) 2016-2017, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Preconditions
+ *  javax.annotation.Nullable
+ *  net.runelite.api.widgets.WidgetInfo
  */
 package net.runelite.client.ui.overlay;
 
@@ -31,176 +15,210 @@ import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.plugins.Plugin;
+import net.runelite.client.ui.overlay.OverlayLayer;
+import net.runelite.client.ui.overlay.OverlayMenuEntry;
+import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.components.LayoutableRenderableEntity;
 
-@Getter
-@Setter
-public abstract class Overlay implements LayoutableRenderableEntity
-{
-	@Nullable
-	private final Plugin plugin;
-	private Point preferredLocation;
-	private Dimension preferredSize;
-	private OverlayPosition preferredPosition;
-	private Rectangle bounds = new Rectangle();
-	private OverlayPosition position = OverlayPosition.TOP_LEFT;
-	private OverlayPriority priority = OverlayPriority.NONE;
-	private OverlayLayer layer = OverlayLayer.UNDER_WIDGETS;
-	private final List<Integer> drawHooks = new ArrayList<>();
-	private final List<OverlayMenuEntry> menuEntries = new ArrayList<>();
-	private boolean resizable;
-	private int minimumSize = 32;
-	private boolean resettable = true;
+public abstract class Overlay
+implements LayoutableRenderableEntity {
+    @Nullable
+    private final Plugin plugin;
+    private Point preferredLocation;
+    private Dimension preferredSize;
+    private OverlayPosition preferredPosition;
+    private Rectangle bounds = new Rectangle();
+    private OverlayPosition position = OverlayPosition.TOP_LEFT;
+    private OverlayPriority priority = OverlayPriority.NONE;
+    private OverlayLayer layer = OverlayLayer.UNDER_WIDGETS;
+    private final List<Integer> drawHooks = new ArrayList<Integer>();
+    private final List<OverlayMenuEntry> menuEntries = new ArrayList<OverlayMenuEntry>();
+    private boolean resizable;
+    private int minimumSize = 32;
+    private boolean resettable = true;
+    private boolean dragTargetable;
+    private boolean movable = true;
+    private boolean snappable = true;
 
-	/**
-	 * Whether this overlay can be dragged onto other overlays &amp; have
-	 * other overlays dragged onto it.
-	 */
-	@Setter(AccessLevel.PROTECTED)
-	private boolean dragTargetable;
+    protected Overlay() {
+        this.plugin = null;
+    }
 
-	/**
-	 * Whether this overlay can be moved with alt
-	 */
-	@Setter(AccessLevel.PROTECTED)
-	private boolean movable = true;
+    protected Overlay(@Nullable Plugin plugin) {
+        this.plugin = plugin;
+    }
 
-	/**
-	 * Whether this overlay can be moved to a snap corner
-	 * and have its preferredPosition changed
-	 */
-	@Setter(AccessLevel.PROTECTED)
-	private boolean snappable = true;
+    public String getName() {
+        return this.getClass().getSimpleName();
+    }
 
-	protected Overlay()
-	{
-		plugin = null;
-	}
+    protected void drawAfterInterface(int interfaceId) {
+        this.drawHooks.add(interfaceId << 16 | 0xFFFF);
+    }
 
-	protected Overlay(@Nullable Plugin plugin)
-	{
-		this.plugin = plugin;
-	}
+    protected void drawAfterLayer(int groupId, int childId) {
+        Preconditions.checkArgument((groupId >= 0 && groupId <= 65535 ? 1 : 0) != 0, (Object)"groupId outside of valid range");
+        Preconditions.checkArgument((childId >= 0 && childId <= 65535 ? 1 : 0) != 0, (Object)"childId outside of valid range");
+        this.drawHooks.add(groupId << 16 | childId);
+    }
 
-	/**
-	 * Overlay name, used for saving the overlay, needs to be unique
-	 *
-	 * @return overlay name
-	 */
-	public String getName()
-	{
-		return this.getClass().getSimpleName();
-	}
+    protected void drawAfterLayer(WidgetInfo layer) {
+        this.drawHooks.add(layer.getId());
+    }
 
-	/**
-	 * Configure to draw this overlay after the given interface is drawn. Except
-	 * in rare circumstances, you probably also want to {@link #setLayer(OverlayLayer)} to
-	 * {@link OverlayLayer#MANUAL} to avoid the overlay being drawn a 2nd time during the
-	 * default {@link OverlayLayer#UNDER_WIDGETS} pass.
-	 * @param interfaceId The interface id
-	 * @see net.runelite.api.widgets.WidgetID
-	 */
-	protected void drawAfterInterface(int interfaceId)
-	{
-		drawHooks.add(interfaceId << 16 | 0xffff);
-	}
+    public void onMouseOver() {
+    }
 
-	/**
-	 * Configure to draw this overlay after the given layer is drawn. Except
-	 * in rare circumstances, you probably also want to {@link #setLayer(OverlayLayer)} to
-	 * {@link OverlayLayer#MANUAL} to avoid the overlay being drawn a 2nd time during the
-	 * default {@link OverlayLayer#UNDER_WIDGETS} pass.
-	 *
-	 * The layer must be a widget of {@link net.runelite.api.widgets.WidgetType} {@link net.runelite.api.widgets.WidgetType#LAYER}
-	 * @param groupId The widget group id
-	 * @param childId The widget child id
-	 * @see net.runelite.api.widgets.WidgetID
-	 */
-	protected void drawAfterLayer(int groupId, int childId)
-	{
-		Preconditions.checkArgument(groupId >= 0 && groupId <= 0xffff, "groupId outside of valid range");
-		Preconditions.checkArgument(childId >= 0 && childId <= 0xffff, "childId outside of valid range");
-		drawHooks.add(groupId << 16 | childId);
-	}
+    public boolean onDrag(Overlay other) {
+        return false;
+    }
 
-	/**
-	 * Configure to draw this overlay after the given layer is drawn. Except
-	 * in rare circumstances, you probably also want to {@link #setLayer(OverlayLayer)} to
-	 * {@link OverlayLayer#MANUAL} to avoid the overlay being drawn a 2nd time during the
-	 * default {@link OverlayLayer#UNDER_WIDGETS} pass.
-	 *
-	 * The layer must be a widget of {@link net.runelite.api.widgets.WidgetType} {@link net.runelite.api.widgets.WidgetType#LAYER}
-	 * @param layer The layer
-	 * @see WidgetInfo
-	 */
-	protected void drawAfterLayer(WidgetInfo layer)
-	{
-		drawHooks.add(layer.getId());
-	}
+    @Nullable
+    public Rectangle getParentBounds() {
+        return null;
+    }
 
-	public void onMouseOver()
-	{
-	}
+    public void revalidate() {
+    }
 
-	public void onMouseEnter()
-	{
-	}
+    public void setPosition(OverlayPosition position) {
+        this.position = position;
+        switch (position) {
+            case TOOLTIP: 
+            case DYNAMIC: {
+                this.movable = false;
+                this.snappable = false;
+                break;
+            }
+            case DETACHED: {
+                this.movable = true;
+                this.snappable = false;
+                break;
+            }
+            default: {
+                this.movable = true;
+                this.snappable = true;
+            }
+        }
+    }
 
-	public void onMouseExit()
-	{
-	}
+    @Nullable
+    public Plugin getPlugin() {
+        return this.plugin;
+    }
 
-	/**
-	 * Called when an overlay is dragged onto this, if dragTargetable is true.
-	 * Return true to consume the mouse event and prevent the other
-	 * overlay from being moved
-	 *
-	 * @param other the overlay being dragged
-	 * @return
-	 */
-	public boolean onDrag(Overlay other)
-	{
-		return false;
-	}
+    public Point getPreferredLocation() {
+        return this.preferredLocation;
+    }
 
-	/**
-	 * Get the parent bounds for overlay dragging. The overlay will
-	 * not be allowed to be moved outside of the parent bounds.
-	 * @return
-	 */
-	@Nullable
-	public Rectangle getParentBounds()
-	{
-		return null;
-	}
+    public Dimension getPreferredSize() {
+        return this.preferredSize;
+    }
 
-	public void revalidate()
-	{
-	}
+    public OverlayPosition getPreferredPosition() {
+        return this.preferredPosition;
+    }
 
-	public void setPosition(OverlayPosition position)
-	{
-		this.position = position;
+    @Override
+    public Rectangle getBounds() {
+        return this.bounds;
+    }
 
-		switch (position)
-		{
-			case TOOLTIP:
-			case DYNAMIC:
-				movable = false;
-				snappable = false;
-				break;
-			case DETACHED:
-				movable = true;
-				snappable = false;
-				break;
-			default:
-				movable = true;
-				snappable = true;
-		}
-	}
+    public OverlayPosition getPosition() {
+        return this.position;
+    }
+
+    public OverlayPriority getPriority() {
+        return this.priority;
+    }
+
+    public OverlayLayer getLayer() {
+        return this.layer;
+    }
+
+    public List<Integer> getDrawHooks() {
+        return this.drawHooks;
+    }
+
+    public List<OverlayMenuEntry> getMenuEntries() {
+        return this.menuEntries;
+    }
+
+    public boolean isResizable() {
+        return this.resizable;
+    }
+
+    public int getMinimumSize() {
+        return this.minimumSize;
+    }
+
+    public boolean isResettable() {
+        return this.resettable;
+    }
+
+    public boolean isDragTargetable() {
+        return this.dragTargetable;
+    }
+
+    public boolean isMovable() {
+        return this.movable;
+    }
+
+    public boolean isSnappable() {
+        return this.snappable;
+    }
+
+    @Override
+    public void setPreferredLocation(Point preferredLocation) {
+        this.preferredLocation = preferredLocation;
+    }
+
+    @Override
+    public void setPreferredSize(Dimension preferredSize) {
+        this.preferredSize = preferredSize;
+    }
+
+    public void setPreferredPosition(OverlayPosition preferredPosition) {
+        this.preferredPosition = preferredPosition;
+    }
+
+    public void setBounds(Rectangle bounds) {
+        this.bounds = bounds;
+    }
+
+    public void setPriority(OverlayPriority priority) {
+        this.priority = priority;
+    }
+
+    public void setLayer(OverlayLayer layer) {
+        this.layer = layer;
+    }
+
+    public void setResizable(boolean resizable) {
+        this.resizable = resizable;
+    }
+
+    public void setMinimumSize(int minimumSize) {
+        this.minimumSize = minimumSize;
+    }
+
+    public void setResettable(boolean resettable) {
+        this.resettable = resettable;
+    }
+
+    protected void setDragTargetable(boolean dragTargetable) {
+        this.dragTargetable = dragTargetable;
+    }
+
+    protected void setMovable(boolean movable) {
+        this.movable = movable;
+    }
+
+    protected void setSnappable(boolean snappable) {
+        this.snappable = snappable;
+    }
 }
+

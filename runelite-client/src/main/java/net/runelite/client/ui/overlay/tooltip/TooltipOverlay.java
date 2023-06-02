@@ -1,37 +1,21 @@
 /*
- * Copyright (c) 2017, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.Point
  */
 package net.runelite.client.ui.overlay.tooltip;
 
 import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
-import net.runelite.api.widgets.WidgetID;
+import net.runelite.api.Point;
 import net.runelite.client.config.RuneLiteConfig;
 import net.runelite.client.config.TooltipPositionType;
 import net.runelite.client.ui.overlay.Overlay;
@@ -41,95 +25,79 @@ import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.components.LayoutableRenderableEntity;
 import net.runelite.client.ui.overlay.components.PanelComponent;
 import net.runelite.client.ui.overlay.components.TooltipComponent;
+import net.runelite.client.ui.overlay.tooltip.Tooltip;
+import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 
 @Singleton
-public class TooltipOverlay extends Overlay
-{
-	private static final int UNDER_OFFSET = 24;
-	private static final int PADDING = 2;
-	private final TooltipManager tooltipManager;
-	private final Client client;
-	private final RuneLiteConfig runeLiteConfig;
+public class TooltipOverlay
+extends Overlay {
+    private static final int UNDER_OFFSET = 24;
+    private static final int PADDING = 2;
+    private final TooltipManager tooltipManager;
+    private final Client client;
+    private final RuneLiteConfig runeLiteConfig;
+    private int prevWidth;
+    private int prevHeight;
 
-	private int prevWidth, prevHeight;
+    @Inject
+    private TooltipOverlay(Client client, TooltipManager tooltipManager, RuneLiteConfig runeLiteConfig) {
+        this.client = client;
+        this.tooltipManager = tooltipManager;
+        this.runeLiteConfig = runeLiteConfig;
+        this.setPosition(OverlayPosition.TOOLTIP);
+        this.setPriority(OverlayPriority.HIGHEST);
+        this.setLayer(OverlayLayer.ABOVE_WIDGETS);
+        this.drawAfterInterface(165);
+    }
 
-	@Inject
-	private TooltipOverlay(Client client, TooltipManager tooltipManager, final RuneLiteConfig runeLiteConfig)
-	{
-		this.client = client;
-		this.tooltipManager = tooltipManager;
-		this.runeLiteConfig = runeLiteConfig;
-		setPosition(OverlayPosition.TOOLTIP);
-		setPriority(OverlayPriority.HIGHEST);
-		setLayer(OverlayLayer.ABOVE_WIDGETS);
-		// additionally allow tooltips above the full screen world map and welcome screen
-		drawAfterInterface(WidgetID.FULLSCREEN_CONTAINER_TLI);
-	}
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        List<Tooltip> tooltips = this.tooltipManager.getTooltips();
+        if (tooltips.isEmpty()) {
+            return null;
+        }
+        try {
+            Dimension dimension = this.renderTooltips(graphics, tooltips);
+            return dimension;
+        }
+        finally {
+            this.tooltipManager.clear();
+        }
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		final List<Tooltip> tooltips = tooltipManager.getTooltips();
-
-		if (tooltips.isEmpty())
-		{
-			return null;
-		}
-
-		try
-		{
-			return renderTooltips(graphics, tooltips);
-		}
-		finally
-		{
-			// Tooltips must always be cleared each frame
-			tooltipManager.clear();
-		}
-	}
-
-	private Dimension renderTooltips(Graphics2D graphics, List<Tooltip> tooltips)
-	{
-		final int canvasWidth = client.getCanvasWidth();
-		final int canvasHeight = client.getCanvasHeight();
-		final net.runelite.api.Point mouseCanvasPosition = client.getMouseCanvasPosition();
-
-		final int tooltipX = Math.min(canvasWidth - prevWidth, mouseCanvasPosition.getX());
-		final int tooltipY = runeLiteConfig.tooltipPosition() == TooltipPositionType.ABOVE_CURSOR
-			? Math.max(0, mouseCanvasPosition.getY() - prevHeight)
-			: Math.min(canvasHeight - prevHeight, mouseCanvasPosition.getY() + UNDER_OFFSET);
-
-		int width = 0, height = 0;
-		for (Tooltip tooltip : tooltips)
-		{
-			final LayoutableRenderableEntity entity;
-
-			if (tooltip.getComponent() != null)
-			{
-				entity = tooltip.getComponent();
-				if (entity instanceof PanelComponent)
-				{
-					((PanelComponent) entity).setBackgroundColor(runeLiteConfig.overlayBackgroundColor());
-				}
-			}
-			else
-			{
-				final TooltipComponent tooltipComponent = new TooltipComponent();
-				tooltipComponent.setModIcons(client.getModIcons());
-				tooltipComponent.setText(tooltip.getText());
-				tooltipComponent.setBackgroundColor(runeLiteConfig.overlayBackgroundColor());
-				entity = tooltipComponent;
-			}
-
-			entity.setPreferredLocation(new Point(tooltipX, tooltipY + height));
-			final Dimension dimension = entity.render(graphics);
-
-			// Create incremental tooltip newBounds
-			height += dimension.height + PADDING;
-			width = Math.max(width, dimension.width);
-		}
-
-		prevWidth = width;
-		prevHeight = height;
-		return null;
-	}
+    private Dimension renderTooltips(Graphics2D graphics, List<Tooltip> tooltips) {
+        int canvasWidth = this.client.getCanvasWidth();
+        int canvasHeight = this.client.getCanvasHeight();
+        Point mouseCanvasPosition = this.client.getMouseCanvasPosition();
+        int tooltipX = Math.min(canvasWidth - this.prevWidth, mouseCanvasPosition.getX());
+        int tooltipY = this.runeLiteConfig.tooltipPosition() == TooltipPositionType.ABOVE_CURSOR ? Math.max(0, mouseCanvasPosition.getY() - this.prevHeight) : Math.min(canvasHeight - this.prevHeight, mouseCanvasPosition.getY() + 24);
+        int width = 0;
+        int height = 0;
+        for (Tooltip tooltip : tooltips) {
+            LayoutableRenderableEntity entity;
+            if (tooltip.getComponent() != null) {
+                entity = tooltip.getComponent();
+                if (entity instanceof PanelComponent) {
+                    ((PanelComponent)entity).setBackgroundColor(this.runeLiteConfig.overlayBackgroundColor());
+                }
+            } else {
+                TooltipComponent tooltipComponent = new TooltipComponent();
+                tooltipComponent.setModIcons(this.client.getModIcons());
+                tooltipComponent.setText(tooltip.getText());
+                tooltipComponent.setBackgroundColor(this.runeLiteConfig.overlayBackgroundColor());
+                entity = tooltipComponent;
+            }
+            entity.setPreferredLocation(new java.awt.Point(tooltipX, tooltipY + height));
+            Dimension dimension = entity.render(graphics);
+            height += dimension.height + 2;
+            width = Math.max(width, dimension.width);
+        }
+        this.prevWidth = width;
+        this.prevHeight = height;
+        return null;
+    }
 }
+

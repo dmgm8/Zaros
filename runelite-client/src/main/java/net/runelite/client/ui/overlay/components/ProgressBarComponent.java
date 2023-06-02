@@ -1,26 +1,8 @@
 /*
- * Copyright (c) 2018, Cameron <moberg@tuta.io>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.base.Strings
  */
 package net.runelite.client.ui.overlay.components;
 
@@ -32,129 +14,164 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.text.DecimalFormat;
-import lombok.Getter;
-import lombok.Setter;
+import net.runelite.client.ui.overlay.components.LayoutableRenderableEntity;
+import net.runelite.client.ui.overlay.components.TextComponent;
 
-@Setter
-public class ProgressBarComponent implements LayoutableRenderableEntity
-{
-	public enum LabelDisplayMode
-	{
-		PERCENTAGE,
-		FULL,
-		TEXT_ONLY,
-		BOTH
-	}
+public class ProgressBarComponent
+implements LayoutableRenderableEntity {
+    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("0.0");
+    private static final DecimalFormat DECIMAL_FORMAT_ABS = new DecimalFormat("#0");
+    private static final int SIDE_LABEL_OFFSET = 4;
+    private long minimum;
+    private long maximum = 100L;
+    private double value;
+    private LabelDisplayMode labelDisplayMode = LabelDisplayMode.PERCENTAGE;
+    private String centerLabel;
+    private String leftLabel;
+    private String rightLabel;
+    private Color foregroundColor = new Color(82, 161, 82);
+    private Color backgroundColor = new Color(255, 255, 255, 127);
+    private Color fontColor = Color.WHITE;
+    private Point preferredLocation = new Point();
+    private Dimension preferredSize = new Dimension(129, 16);
+    private final Rectangle bounds = new Rectangle();
 
-	private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("0.0");
-	private static final DecimalFormat DECIMAL_FORMAT_ABS = new DecimalFormat("#0");
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        TextComponent leftTextComponent;
+        String textToWrite;
+        FontMetrics metrics = graphics.getFontMetrics();
+        int barX = this.preferredLocation.x;
+        int barY = this.preferredLocation.y;
+        long span = this.maximum - this.minimum;
+        double currentValue = this.value - (double)this.minimum;
+        double pc = currentValue / (double)span;
+        switch (this.labelDisplayMode) {
+            case TEXT_ONLY: {
+                textToWrite = "";
+                break;
+            }
+            case PERCENTAGE: {
+                textToWrite = ProgressBarComponent.formatPercentageProgress(pc);
+                break;
+            }
+            case BOTH: {
+                textToWrite = ProgressBarComponent.formatFullProgress(currentValue, this.maximum) + " (" + ProgressBarComponent.formatPercentageProgress(pc) + ")";
+                break;
+            }
+            default: {
+                textToWrite = ProgressBarComponent.formatFullProgress(currentValue, this.maximum);
+            }
+        }
+        if (!Strings.isNullOrEmpty((String)this.centerLabel)) {
+            if (!textToWrite.isEmpty()) {
+                textToWrite = textToWrite + " ";
+            }
+            textToWrite = textToWrite + this.centerLabel;
+        }
+        int width = this.preferredSize.width;
+        int height = Math.max(this.preferredSize.height, 16);
+        int progressTextX = barX + (width - metrics.stringWidth(textToWrite)) / 2;
+        int progressTextY = barY + (height - metrics.getHeight()) / 2 + metrics.getHeight();
+        int progressFill = (int)((double)width * Math.min(1.0, pc));
+        graphics.setColor(this.backgroundColor);
+        graphics.fillRect(barX + progressFill, barY, width - progressFill, height);
+        graphics.setColor(this.foregroundColor);
+        graphics.fillRect(barX, barY, progressFill, height);
+        TextComponent textComponent = new TextComponent();
+        textComponent.setPosition(new Point(progressTextX, progressTextY));
+        textComponent.setColor(this.fontColor);
+        textComponent.setText(textToWrite);
+        textComponent.render(graphics);
+        if (this.leftLabel != null) {
+            leftTextComponent = new TextComponent();
+            leftTextComponent.setPosition(new Point(barX + 4, progressTextY));
+            leftTextComponent.setColor(this.fontColor);
+            leftTextComponent.setText(this.leftLabel);
+            leftTextComponent.render(graphics);
+        }
+        if (this.rightLabel != null) {
+            leftTextComponent = new TextComponent();
+            leftTextComponent.setPosition(new Point(barX + width - metrics.stringWidth(this.rightLabel) - 4, progressTextY));
+            leftTextComponent.setColor(this.fontColor);
+            leftTextComponent.setText(this.rightLabel);
+            leftTextComponent.render(graphics);
+        }
+        Dimension dimension = new Dimension(width, height);
+        this.bounds.setLocation(this.preferredLocation);
+        this.bounds.setSize(dimension);
+        return dimension;
+    }
 
-	private static final int SIDE_LABEL_OFFSET = 4;
+    private static String formatFullProgress(double current, long maximum) {
+        return DECIMAL_FORMAT_ABS.format(Math.floor(current)) + "/" + maximum;
+    }
 
-	private long minimum;
-	private long maximum = 100;
-	private double value;
-	private LabelDisplayMode labelDisplayMode = LabelDisplayMode.PERCENTAGE;
-	private String centerLabel;
-	private String leftLabel;
-	private String rightLabel;
-	private Color foregroundColor = new Color(82, 161, 82);
-	private Color backgroundColor = new Color(255, 255, 255, 127);
-	private Color fontColor = Color.WHITE;
-	private Point preferredLocation = new Point();
-	private Dimension preferredSize = new Dimension(ComponentConstants.STANDARD_WIDTH, 16);
+    private static String formatPercentageProgress(double ratio) {
+        return DECIMAL_FORMAT.format(ratio * 100.0) + "%";
+    }
 
-	@Getter
-	private final Rectangle bounds = new Rectangle();
+    public void setMinimum(long minimum) {
+        this.minimum = minimum;
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		final FontMetrics metrics = graphics.getFontMetrics();
+    public void setMaximum(long maximum) {
+        this.maximum = maximum;
+    }
 
-		final int barX = preferredLocation.x;
-		final int barY = preferredLocation.y;
+    public void setValue(double value) {
+        this.value = value;
+    }
 
-		final long span = maximum - minimum;
-		final double currentValue = value - minimum;
-		final double pc = currentValue / span;
-		String textToWrite;
+    public void setLabelDisplayMode(LabelDisplayMode labelDisplayMode) {
+        this.labelDisplayMode = labelDisplayMode;
+    }
 
-		switch (labelDisplayMode)
-		{
-			case TEXT_ONLY:
-				textToWrite = "";
-				break;
-			case PERCENTAGE:
-				textToWrite = formatPercentageProgress(pc);
-				break;
-			case BOTH:
-				textToWrite = formatFullProgress(currentValue, maximum) + " (" + formatPercentageProgress(pc) + ")";
-				break;
-			case FULL:
-			default:
-				textToWrite = formatFullProgress(currentValue, maximum);
-		}
+    public void setCenterLabel(String centerLabel) {
+        this.centerLabel = centerLabel;
+    }
 
-		if (!Strings.isNullOrEmpty(centerLabel))
-		{
-			if (!textToWrite.isEmpty())
-			{
-				textToWrite += " ";
-			}
+    public void setLeftLabel(String leftLabel) {
+        this.leftLabel = leftLabel;
+    }
 
-			textToWrite += centerLabel;
-		}
+    public void setRightLabel(String rightLabel) {
+        this.rightLabel = rightLabel;
+    }
 
-		final int width = preferredSize.width;
-		final int height = Math.max(preferredSize.height, 16);
-		final int progressTextX = barX + (width - metrics.stringWidth(textToWrite)) / 2;
-		final int progressTextY = barY + ((height - metrics.getHeight()) / 2) + metrics.getHeight();
-		final int progressFill = (int) (width * Math.min(1, pc));
+    public void setForegroundColor(Color foregroundColor) {
+        this.foregroundColor = foregroundColor;
+    }
 
-		// Draw bar
-		graphics.setColor(backgroundColor);
-		graphics.fillRect(barX + progressFill, barY, width - progressFill, height);
-		graphics.setColor(foregroundColor);
-		graphics.fillRect(barX, barY, progressFill, height);
+    public void setBackgroundColor(Color backgroundColor) {
+        this.backgroundColor = backgroundColor;
+    }
 
-		final TextComponent textComponent = new TextComponent();
-		textComponent.setPosition(new Point(progressTextX, progressTextY));
-		textComponent.setColor(fontColor);
-		textComponent.setText(textToWrite);
-		textComponent.render(graphics);
+    public void setFontColor(Color fontColor) {
+        this.fontColor = fontColor;
+    }
 
-		if (leftLabel != null)
-		{
-			final TextComponent leftTextComponent = new TextComponent();
-			leftTextComponent.setPosition(new Point(barX + SIDE_LABEL_OFFSET, progressTextY));
-			leftTextComponent.setColor(fontColor);
-			leftTextComponent.setText(leftLabel);
-			leftTextComponent.render(graphics);
-		}
+    @Override
+    public void setPreferredLocation(Point preferredLocation) {
+        this.preferredLocation = preferredLocation;
+    }
 
-		if (rightLabel != null)
-		{
-			final TextComponent leftTextComponent = new TextComponent();
-			leftTextComponent.setPosition(new Point(barX + width - metrics.stringWidth(rightLabel) - SIDE_LABEL_OFFSET, progressTextY));
-			leftTextComponent.setColor(fontColor);
-			leftTextComponent.setText(rightLabel);
-			leftTextComponent.render(graphics);
-		}
+    @Override
+    public void setPreferredSize(Dimension preferredSize) {
+        this.preferredSize = preferredSize;
+    }
 
-		final Dimension dimension = new Dimension(width, height);
-		bounds.setLocation(preferredLocation);
-		bounds.setSize(dimension);
-		return dimension;
-	}
+    @Override
+    public Rectangle getBounds() {
+        return this.bounds;
+    }
 
-	private static String formatFullProgress(double current, long maximum)
-	{
-		return DECIMAL_FORMAT_ABS.format(Math.floor(current)) + "/" + maximum;
-	}
+    public static enum LabelDisplayMode {
+        PERCENTAGE,
+        FULL,
+        TEXT_ONLY,
+        BOTH;
 
-	private static String formatPercentageProgress(double ratio)
-	{
-		return DECIMAL_FORMAT.format(ratio * 100d) + "%";
-	}
+    }
 }
+

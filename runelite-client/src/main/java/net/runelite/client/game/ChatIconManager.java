@@ -1,26 +1,16 @@
 /*
- * Copyright (c) 2021, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nullable
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.EnumComposition
+ *  net.runelite.api.FriendsChatRank
+ *  net.runelite.api.GameState
+ *  net.runelite.api.IndexedSprite
+ *  net.runelite.api.clan.ClanTitle
  */
 package net.runelite.client.game;
 
@@ -33,136 +23,103 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
 import net.runelite.api.EnumComposition;
-import net.runelite.api.EnumID;
 import net.runelite.api.FriendsChatRank;
 import net.runelite.api.GameState;
 import net.runelite.api.IndexedSprite;
 import net.runelite.api.clan.ClanTitle;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.game.SpriteManager;
 import net.runelite.client.util.ImageUtil;
 
 @Singleton
-public class ChatIconManager
-{
-	private static final Dimension IMAGE_DIMENSION = new Dimension(11, 11);
-	private static final Color IMAGE_OUTLINE_COLOR = new Color(33, 33, 33);
+public class ChatIconManager {
+    private static final Dimension IMAGE_DIMENSION = new Dimension(11, 11);
+    private static final Color IMAGE_OUTLINE_COLOR = new Color(33, 33, 33);
+    private final Client client;
+    private final SpriteManager spriteManager;
+    private BufferedImage[] friendsChatRankImages;
+    private BufferedImage[] clanRankImages;
+    private int friendsChatOffset = -1;
+    private int clanOffset = -1;
 
-	private final Client client;
-	private final SpriteManager spriteManager;
+    @Inject
+    private ChatIconManager(Client client, SpriteManager spriteManager, ClientThread clientThread) {
+        this.client = client;
+        this.spriteManager = spriteManager;
+        clientThread.invokeLater(() -> {
+            if (client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState()) {
+                this.loadRankIcons();
+                return true;
+            }
+            return false;
+        });
+    }
 
-	private BufferedImage[] friendsChatRankImages;
-	private BufferedImage[] clanRankImages;
+    @Nullable
+    public BufferedImage getRankImage(FriendsChatRank friendsChatRank) {
+        if (friendsChatRank == FriendsChatRank.UNRANKED) {
+            return null;
+        }
+        return this.friendsChatRankImages[friendsChatRank.ordinal() - 1];
+    }
 
-	private int friendsChatOffset = -1;
-	private int clanOffset = -1;
+    @Nullable
+    public BufferedImage getRankImage(ClanTitle clanTitle) {
+        int rank = clanTitle.getId();
+        int idx = ChatIconManager.clanRankToIdx(rank);
+        return this.clanRankImages[idx];
+    }
 
-	@Inject
-	private ChatIconManager(Client client, SpriteManager spriteManager, ClientThread clientThread)
-	{
-		this.client = client;
-		this.spriteManager = spriteManager;
-		clientThread.invokeLater(() ->
-		{
-			if (client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState())
-			{
-				loadRankIcons();
-				return true;
-			}
-			return false;
-		});
-	}
+    public int getIconNumber(FriendsChatRank friendsChatRank) {
+        return this.friendsChatOffset == -1 ? -1 : this.friendsChatOffset + friendsChatRank.ordinal() - 1;
+    }
 
-	@Nullable
-	public BufferedImage getRankImage(final FriendsChatRank friendsChatRank)
-	{
-		if (friendsChatRank == FriendsChatRank.UNRANKED)
-		{
-			return null;
-		}
+    public int getIconNumber(ClanTitle clanTitle) {
+        int rank = clanTitle.getId();
+        return this.clanOffset == -1 ? -1 : this.clanOffset + ChatIconManager.clanRankToIdx(rank);
+    }
 
-		return friendsChatRankImages[friendsChatRank.ordinal() - 1];
-	}
+    private void loadRankIcons() {
+        int i;
+        EnumComposition friendsChatIcons = this.client.getEnum(1543);
+        EnumComposition clanIcons = this.client.getEnum(3798);
+        Object[] modIcons = this.client.getModIcons();
+        this.friendsChatOffset = modIcons.length;
+        this.clanOffset = this.friendsChatOffset + friendsChatIcons.size();
+        IndexedSprite blank = ImageUtil.getImageIndexedSprite(new BufferedImage(modIcons[0].getWidth(), modIcons[0].getHeight(), 2), this.client);
+        modIcons = Arrays.copyOf(modIcons, this.friendsChatOffset + friendsChatIcons.size() + clanIcons.size());
+        Arrays.fill(modIcons, this.friendsChatOffset, modIcons.length, (Object)blank);
+        this.client.setModIcons((IndexedSprite[])modIcons);
+        this.friendsChatRankImages = new BufferedImage[friendsChatIcons.size()];
+        this.clanRankImages = new BufferedImage[clanIcons.size()];
+        for (i = 0; i < friendsChatIcons.size(); ++i) {
+            int fi = i;
+            this.spriteManager.getSpriteAsync(friendsChatIcons.getIntValue(friendsChatIcons.getKeys()[i]), 0, sprite -> {
+                IndexedSprite[] modIcons = this.client.getModIcons();
+                this.friendsChatRankImages[fi] = ChatIconManager.friendsChatImageFromSprite(sprite);
+                modIcons[this.friendsChatOffset + fi] = ImageUtil.getImageIndexedSprite(this.friendsChatRankImages[fi], this.client);
+            });
+        }
+        for (i = 0; i < clanIcons.size(); ++i) {
+            int key = clanIcons.getKeys()[i];
+            int idx = ChatIconManager.clanRankToIdx(key);
+            assert (idx >= 0 && idx < clanIcons.size());
+            this.spriteManager.getSpriteAsync(clanIcons.getIntValue(key), 0, sprite -> {
+                BufferedImage img;
+                IndexedSprite[] modIcons = this.client.getModIcons();
+                this.clanRankImages[idx] = img = ImageUtil.resizeCanvas(sprite, ChatIconManager.IMAGE_DIMENSION.width, ChatIconManager.IMAGE_DIMENSION.height);
+                modIcons[this.clanOffset + idx] = ImageUtil.getImageIndexedSprite(img, this.client);
+            });
+        }
+    }
 
-	@Nullable
-	public BufferedImage getRankImage(final ClanTitle clanTitle)
-	{
-		int rank = clanTitle.getId();
-		int idx = clanRankToIdx(rank);
-		return clanRankImages[idx];
-	}
+    private static BufferedImage friendsChatImageFromSprite(BufferedImage sprite) {
+        BufferedImage canvas = ImageUtil.resizeCanvas(sprite, ChatIconManager.IMAGE_DIMENSION.width, ChatIconManager.IMAGE_DIMENSION.height);
+        return ImageUtil.outlineImage(canvas, IMAGE_OUTLINE_COLOR);
+    }
 
-	public int getIconNumber(final FriendsChatRank friendsChatRank)
-	{
-		return friendsChatOffset == -1 ? -1 : friendsChatOffset + friendsChatRank.ordinal() - 1;
-	}
-
-	public int getIconNumber(final ClanTitle clanTitle)
-	{
-		int rank = clanTitle.getId();
-		return clanOffset == -1 ? -1 : clanOffset + clanRankToIdx(rank);
-	}
-
-	private void loadRankIcons()
-	{
-		final EnumComposition friendsChatIcons = client.getEnum(EnumID.FRIENDS_CHAT_RANK_ICONS);
-		final EnumComposition clanIcons = client.getEnum(EnumID.CLAN_RANK_GRAPHIC);
-
-		{
-			IndexedSprite[] modIcons = client.getModIcons();
-			friendsChatOffset = modIcons.length;
-			clanOffset = friendsChatOffset + friendsChatIcons.size();
-
-			IndexedSprite blank = ImageUtil.getImageIndexedSprite(
-				new BufferedImage(modIcons[0].getWidth(), modIcons[0].getHeight(), BufferedImage.TYPE_INT_ARGB),
-				client);
-
-			modIcons = Arrays.copyOf(modIcons, friendsChatOffset + friendsChatIcons.size() + clanIcons.size());
-			Arrays.fill(modIcons, friendsChatOffset, modIcons.length, blank);
-
-			client.setModIcons(modIcons);
-		}
-
-		friendsChatRankImages = new BufferedImage[friendsChatIcons.size()];
-		clanRankImages = new BufferedImage[clanIcons.size()];
-
-		for (int i = 0; i < friendsChatIcons.size(); i++)
-		{
-			final int fi = i;
-
-			spriteManager.getSpriteAsync(friendsChatIcons.getIntValue(friendsChatIcons.getKeys()[i]), 0, sprite ->
-			{
-				final IndexedSprite[] modIcons = client.getModIcons();
-				friendsChatRankImages[fi] = friendsChatImageFromSprite(sprite);
-				modIcons[friendsChatOffset + fi] = ImageUtil.getImageIndexedSprite(friendsChatRankImages[fi], client);
-			});
-		}
-
-		for (int i = 0; i < clanIcons.size(); i++)
-		{
-			final int key = clanIcons.getKeys()[i];
-			final int idx = clanRankToIdx(key);
-
-			assert idx >= 0 && idx < clanIcons.size();
-
-			spriteManager.getSpriteAsync(clanIcons.getIntValue(key), 0, sprite ->
-			{
-				final IndexedSprite[] modIcons = client.getModIcons();
-				final BufferedImage img = ImageUtil.resizeCanvas(sprite, IMAGE_DIMENSION.width, IMAGE_DIMENSION.height);
-				clanRankImages[idx] = img;
-				modIcons[clanOffset + idx] = ImageUtil.getImageIndexedSprite(img, client);
-			});
-		}
-	}
-
-	private static BufferedImage friendsChatImageFromSprite(final BufferedImage sprite)
-	{
-		final BufferedImage canvas = ImageUtil.resizeCanvas(sprite, IMAGE_DIMENSION.width, IMAGE_DIMENSION.height);
-		return ImageUtil.outlineImage(canvas, IMAGE_OUTLINE_COLOR);
-	}
-
-	private static int clanRankToIdx(int key)
-	{
-		// keys are -6 to 265, with no 0
-		return key < 0 ? ~key : (key + 5);
-	}
+    private static int clanRankToIdx(int key) {
+        return key < 0 ? ~key : key + 5;
+    }
 }
+

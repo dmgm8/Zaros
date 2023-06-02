@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2018, Seth <Sethtroll3@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.ImmutableList
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.Client
+ *  net.runelite.api.GameState
+ *  net.runelite.api.InventoryID
+ *  net.runelite.api.Item
+ *  net.runelite.api.ItemContainer
+ *  net.runelite.api.Player
+ *  net.runelite.api.events.BeforeRender
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.WidgetClosed
+ *  net.runelite.api.events.WidgetLoaded
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
+ *  org.apache.commons.lang3.ArrayUtils
  */
 package net.runelite.client.plugins.barrows;
 
@@ -28,7 +26,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Provides;
 import java.time.temporal.ChronoUnit;
 import javax.inject.Inject;
-import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -36,13 +33,11 @@ import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.Player;
-import net.runelite.api.SpriteID;
 import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.WidgetClosed;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
@@ -55,6 +50,9 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.barrows.BarrowsBrotherSlainOverlay;
+import net.runelite.client.plugins.barrows.BarrowsConfig;
+import net.runelite.client.plugins.barrows.BarrowsOverlay;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.ui.overlay.infobox.InfoBoxPriority;
@@ -62,231 +60,154 @@ import net.runelite.client.ui.overlay.infobox.LoopTimer;
 import net.runelite.client.util.QuantityFormatter;
 import org.apache.commons.lang3.ArrayUtils;
 
-@PluginDescriptor(
-	name = "Barrows Brothers",
-	description = "Show helpful information for the Barrows minigame",
-	tags = {"combat", "minigame", "bosses", "pve", "pvm"}
-)
-public class BarrowsPlugin extends Plugin
-{
-	private static final ImmutableList<WidgetInfo> POSSIBLE_SOLUTIONS = ImmutableList.of(
-		WidgetInfo.BARROWS_PUZZLE_ANSWER1,
-		WidgetInfo.BARROWS_PUZZLE_ANSWER2,
-		WidgetInfo.BARROWS_PUZZLE_ANSWER3
-	);
+@PluginDescriptor(name="Barrows Brothers", description="Show helpful information for the Barrows minigame", tags={"combat", "minigame", "bosses", "pve", "pvm"})
+public class BarrowsPlugin
+extends Plugin {
+    private static final ImmutableList<WidgetInfo> POSSIBLE_SOLUTIONS = ImmutableList.of((Object)WidgetInfo.BARROWS_PUZZLE_ANSWER1, (Object)WidgetInfo.BARROWS_PUZZLE_ANSWER2, (Object)WidgetInfo.BARROWS_PUZZLE_ANSWER3);
+    private static final long PRAYER_DRAIN_INTERVAL_MS = 18200L;
+    private static final int CRYPT_REGION_ID = 14231;
+    private static final int BARROWS_REGION_ID = 14131;
+    private LoopTimer barrowsPrayerDrainTimer;
+    private Widget puzzleAnswer;
+    @Inject
+    private OverlayManager overlayManager;
+    @Inject
+    private BarrowsOverlay barrowsOverlay;
+    @Inject
+    private BarrowsBrotherSlainOverlay brotherOverlay;
+    @Inject
+    private Client client;
+    @Inject
+    private ItemManager itemManager;
+    @Inject
+    private SpriteManager spriteManager;
+    @Inject
+    private InfoBoxManager infoBoxManager;
+    @Inject
+    private ChatMessageManager chatMessageManager;
+    @Inject
+    private BarrowsConfig config;
 
-	private static final long PRAYER_DRAIN_INTERVAL_MS = 18200;
-	private static final int CRYPT_REGION_ID = 14231;
-	private static final int BARROWS_REGION_ID = 14131;
+    @Provides
+    BarrowsConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(BarrowsConfig.class);
+    }
 
-	private LoopTimer barrowsPrayerDrainTimer;
+    @Override
+    protected void startUp() throws Exception {
+        this.overlayManager.add(this.barrowsOverlay);
+        this.overlayManager.add(this.brotherOverlay);
+    }
 
-	@Getter
-	private Widget puzzleAnswer;
+    @Override
+    protected void shutDown() {
+        Widget barrowsBrothers;
+        this.overlayManager.remove(this.barrowsOverlay);
+        this.overlayManager.remove(this.brotherOverlay);
+        this.puzzleAnswer = null;
+        this.stopPrayerDrainTimer();
+        Widget potential = this.client.getWidget(WidgetInfo.BARROWS_POTENTIAL);
+        if (potential != null) {
+            potential.setHidden(false);
+        }
+        if ((barrowsBrothers = this.client.getWidget(WidgetInfo.BARROWS_BROTHERS)) != null) {
+            barrowsBrothers.setHidden(false);
+        }
+    }
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (event.getGroup().equals("barrows") && !this.config.showPrayerDrainTimer()) {
+            this.stopPrayerDrainTimer();
+        }
+    }
 
-	@Inject
-	private BarrowsOverlay barrowsOverlay;
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        if (event.getGameState() == GameState.LOGGED_IN) {
+            boolean isInCrypt = this.isInCrypt();
+            if (!isInCrypt && this.barrowsPrayerDrainTimer != null) {
+                this.stopPrayerDrainTimer();
+            } else if (isInCrypt && this.barrowsPrayerDrainTimer == null) {
+                this.startPrayerDrainTimer();
+            }
+        }
+    }
 
-	@Inject
-	private BarrowsBrotherSlainOverlay brotherOverlay;
+    @Subscribe
+    public void onWidgetLoaded(WidgetLoaded event) {
+        if (event.getGroupId() == 155 && this.config.showChestValue()) {
+            ItemContainer barrowsRewardContainer = this.client.getItemContainer(InventoryID.BARROWS_REWARD);
+            if (barrowsRewardContainer == null) {
+                return;
+            }
+            Item[] items = barrowsRewardContainer.getItems();
+            long chestPrice = 0L;
+            for (Item item : items) {
+                long itemStack = (long)this.itemManager.getItemPrice(item.getId()) * (long)item.getQuantity();
+                chestPrice += itemStack;
+            }
+            ChatMessageBuilder message = new ChatMessageBuilder().append(ChatColorType.HIGHLIGHT).append("Your chest is worth around ").append(QuantityFormatter.formatNumber(chestPrice)).append(" coins.").append(ChatColorType.NORMAL);
+            this.chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.ITEM_EXAMINE).runeLiteFormattedMessage(message.build()).build());
+        } else if (event.getGroupId() == 25) {
+            int answer = this.client.getWidget(WidgetInfo.BARROWS_FIRST_PUZZLE).getModelId() - 3;
+            this.puzzleAnswer = null;
+            for (WidgetInfo puzzleNode : POSSIBLE_SOLUTIONS) {
+                Widget widgetToCheck = this.client.getWidget(puzzleNode);
+                if (widgetToCheck == null || widgetToCheck.getModelId() != answer) continue;
+                this.puzzleAnswer = this.client.getWidget(puzzleNode);
+                break;
+            }
+        }
+    }
 
-	@Inject
-	private Client client;
+    @Subscribe
+    public void onBeforeRender(BeforeRender beforeRender) {
+        Widget potential;
+        Widget barrowsBrothers = this.client.getWidget(WidgetInfo.BARROWS_BROTHERS);
+        if (barrowsBrothers != null) {
+            barrowsBrothers.setHidden(true);
+        }
+        if ((potential = this.client.getWidget(WidgetInfo.BARROWS_POTENTIAL)) != null) {
+            potential.setHidden(true);
+        }
+    }
 
-	@Inject
-	private ItemManager itemManager;
+    @Subscribe
+    public void onWidgetClosed(WidgetClosed widgetClosed) {
+        if (widgetClosed.getGroupId() == 25) {
+            this.puzzleAnswer = null;
+        }
+    }
 
-	@Inject
-	private SpriteManager spriteManager;
+    private void startPrayerDrainTimer() {
+        if (this.config.showPrayerDrainTimer()) {
+            assert (this.barrowsPrayerDrainTimer == null);
+            LoopTimer loopTimer = new LoopTimer(18200L, ChronoUnit.MILLIS, null, this, true);
+            this.spriteManager.getSpriteAsync(902, 0, loopTimer);
+            loopTimer.setPriority(InfoBoxPriority.MED);
+            loopTimer.setTooltip("Prayer Drain");
+            this.infoBoxManager.addInfoBox(loopTimer);
+            this.barrowsPrayerDrainTimer = loopTimer;
+        }
+    }
 
-	@Inject
-	private InfoBoxManager infoBoxManager;
+    private void stopPrayerDrainTimer() {
+        this.infoBoxManager.removeInfoBox(this.barrowsPrayerDrainTimer);
+        this.barrowsPrayerDrainTimer = null;
+    }
 
-	@Inject
-	private ChatMessageManager chatMessageManager;
+    private boolean isInCrypt() {
+        Player localPlayer = this.client.getLocalPlayer();
+        return localPlayer != null && localPlayer.getWorldLocation().getRegionID() == 14231;
+    }
 
-	@Inject
-	private BarrowsConfig config;
+    boolean isBarrowsLoaded() {
+        return ArrayUtils.contains((int[])this.client.getMapRegions(), (int)14131);
+    }
 
-	@Provides
-	BarrowsConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(BarrowsConfig.class);
-	}
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		overlayManager.add(barrowsOverlay);
-		overlayManager.add(brotherOverlay);
-	}
-
-	@Override
-	protected void shutDown()
-	{
-		overlayManager.remove(barrowsOverlay);
-		overlayManager.remove(brotherOverlay);
-		puzzleAnswer = null;
-		stopPrayerDrainTimer();
-
-		// Restore widgets
-		final Widget potential = client.getWidget(WidgetInfo.BARROWS_POTENTIAL);
-		if (potential != null)
-		{
-			potential.setHidden(false);
-		}
-
-		final Widget barrowsBrothers = client.getWidget(WidgetInfo.BARROWS_BROTHERS);
-		if (barrowsBrothers != null)
-		{
-			barrowsBrothers.setHidden(false);
-		}
-	}
-
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		if (event.getGroup().equals("barrows") && !config.showPrayerDrainTimer())
-		{
-			stopPrayerDrainTimer();
-		}
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		if (event.getGameState() == GameState.LOGGED_IN)
-		{
-			boolean isInCrypt = isInCrypt();
-			if (!isInCrypt && barrowsPrayerDrainTimer != null)
-			{
-				stopPrayerDrainTimer();
-			}
-			else if (isInCrypt && barrowsPrayerDrainTimer == null)
-			{
-				startPrayerDrainTimer();
-			}
-		}
-	}
-
-	@Subscribe
-	public void onWidgetLoaded(WidgetLoaded event)
-	{
-		if (event.getGroupId() == WidgetID.BARROWS_REWARD_GROUP_ID && config.showChestValue())
-		{
-			ItemContainer barrowsRewardContainer = client.getItemContainer(InventoryID.BARROWS_REWARD);
-			if (barrowsRewardContainer == null)
-			{
-				return;
-			}
-
-			Item[] items = barrowsRewardContainer.getItems();
-			long chestPrice = 0;
-
-			for (Item item : items)
-			{
-				long itemStack = (long) itemManager.getItemPrice(item.getId()) * (long) item.getQuantity();
-				chestPrice += itemStack;
-			}
-
-			final ChatMessageBuilder message = new ChatMessageBuilder()
-				.append(ChatColorType.HIGHLIGHT)
-				.append("Your chest is worth around ")
-				.append(QuantityFormatter.formatNumber(chestPrice))
-				.append(" coins.")
-				.append(ChatColorType.NORMAL);
-
-			chatMessageManager.queue(QueuedMessage.builder()
-				.type(ChatMessageType.ITEM_EXAMINE)
-				.runeLiteFormattedMessage(message.build())
-				.build());
-		}
-		else if (event.getGroupId() == WidgetID.BARROWS_PUZZLE_GROUP_ID)
-		{
-			final int answer = client.getWidget(WidgetInfo.BARROWS_FIRST_PUZZLE).getModelId() - 3;
-			puzzleAnswer = null;
-
-			for (WidgetInfo puzzleNode : POSSIBLE_SOLUTIONS)
-			{
-				final Widget widgetToCheck = client.getWidget(puzzleNode);
-
-				if (widgetToCheck != null && widgetToCheck.getModelId() == answer)
-				{
-					puzzleAnswer = client.getWidget(puzzleNode);
-					break;
-				}
-			}
-		}
-	}
-
-	@Subscribe
-	public void onBeforeRender(BeforeRender beforeRender)
-	{
-		// The barrows brothers and potential overlays have timers to unhide them each tick. Set them
-		// hidden here instead of in the overlay, because if the overlay renders on the ABOVE_WIDGETS
-		// layer due to being moved outside of the snap corner, it will be running after the overlays
-		// had already been rendered.
-		final Widget barrowsBrothers = client.getWidget(WidgetInfo.BARROWS_BROTHERS);
-		if (barrowsBrothers != null)
-		{
-			barrowsBrothers.setHidden(true);
-		}
-
-		final Widget potential = client.getWidget(WidgetInfo.BARROWS_POTENTIAL);
-		if (potential != null)
-		{
-			potential.setHidden(true);
-		}
-	}
-
-	@Subscribe
-	public void onWidgetClosed(WidgetClosed widgetClosed)
-	{
-		if (widgetClosed.getGroupId() == WidgetID.BARROWS_PUZZLE_GROUP_ID)
-		{
-			puzzleAnswer = null;
-		}
-	}
-
-	private void startPrayerDrainTimer()
-	{
-		if (config.showPrayerDrainTimer())
-		{
-			assert barrowsPrayerDrainTimer == null;
-			final LoopTimer loopTimer = new LoopTimer(
-				PRAYER_DRAIN_INTERVAL_MS,
-				ChronoUnit.MILLIS,
-				null,
-				this,
-				true);
-
-			spriteManager.getSpriteAsync(SpriteID.TAB_PRAYER, 0, loopTimer);
-
-			loopTimer.setPriority(InfoBoxPriority.MED);
-			loopTimer.setTooltip("Prayer Drain");
-
-			infoBoxManager.addInfoBox(loopTimer);
-			barrowsPrayerDrainTimer = loopTimer;
-		}
-	}
-
-	private void stopPrayerDrainTimer()
-	{
-		infoBoxManager.removeInfoBox(barrowsPrayerDrainTimer);
-		barrowsPrayerDrainTimer = null;
-	}
-
-	private boolean isInCrypt()
-	{
-		Player localPlayer = client.getLocalPlayer();
-		return localPlayer != null && localPlayer.getWorldLocation().getRegionID() == CRYPT_REGION_ID;
-	}
-
-	boolean isBarrowsLoaded()
-	{
-		return ArrayUtils.contains(client.getMapRegions(), BARROWS_REGION_ID);
-	}
+    public Widget getPuzzleAnswer() {
+        return this.puzzleAnswer;
+    }
 }
+

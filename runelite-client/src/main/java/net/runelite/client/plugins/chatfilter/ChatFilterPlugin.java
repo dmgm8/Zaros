@@ -1,27 +1,24 @@
 /*
- * Copyright (c) 2018, Magic fTail
- * Copyright (c) 2019, osrs-music-map <osrs-music-map@users.noreply.github.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.annotations.VisibleForTesting
+ *  com.google.common.base.CharMatcher
+ *  com.google.common.base.Splitter
+ *  com.google.common.collect.ImmutableSet
+ *  com.google.inject.Provides
+ *  javax.inject.Inject
+ *  net.runelite.api.ChatMessageType
+ *  net.runelite.api.Client
+ *  net.runelite.api.FriendsChatManager
+ *  net.runelite.api.MessageNode
+ *  net.runelite.api.Player
+ *  net.runelite.api.clan.ClanChannel
+ *  net.runelite.api.events.ChatMessage
+ *  net.runelite.api.events.GameStateChanged
+ *  net.runelite.api.events.OverheadTextChanged
+ *  net.runelite.api.events.ScriptCallbackEvent
+ *  org.apache.commons.lang3.StringUtils
  */
 package net.runelite.client.plugins.chatfilter;
 
@@ -42,14 +39,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import javax.inject.Inject;
 import net.runelite.api.ChatMessageType;
-import static net.runelite.api.ChatMessageType.ENGINE;
-import static net.runelite.api.ChatMessageType.GAMEMESSAGE;
-import static net.runelite.api.ChatMessageType.ITEM_EXAMINE;
-import static net.runelite.api.ChatMessageType.MODCHAT;
-import static net.runelite.api.ChatMessageType.NPC_EXAMINE;
-import static net.runelite.api.ChatMessageType.OBJECT_EXAMINE;
-import static net.runelite.api.ChatMessageType.PUBLICCHAT;
-import static net.runelite.api.ChatMessageType.SPAM;
 import net.runelite.api.Client;
 import net.runelite.api.FriendsChatManager;
 import net.runelite.api.MessageNode;
@@ -64,381 +53,263 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.chatfilter.ChatFilterConfig;
 import net.runelite.client.util.Text;
 import org.apache.commons.lang3.StringUtils;
 
-@PluginDescriptor(
-	name = "Chat Filter",
-	description = "Censor user configurable words or patterns from chat",
-	enabledByDefault = false
-)
-public class ChatFilterPlugin extends Plugin
-{
-	private static final Splitter NEWLINE_SPLITTER = Splitter
-		.on("\n")
-		.omitEmptyStrings()
-		.trimResults();
+@PluginDescriptor(name="Chat Filter", description="Censor user configurable words or patterns from chat", enabledByDefault=false)
+public class ChatFilterPlugin
+extends Plugin {
+    private static final Splitter NEWLINE_SPLITTER = Splitter.on((String)"\n").omitEmptyStrings().trimResults();
+    @VisibleForTesting
+    static final String CENSOR_MESSAGE = "Hey, everyone, I just tried to say something very silly!";
+    private static final Set<ChatMessageType> COLLAPSIBLE_MESSAGETYPES = ImmutableSet.of((Object)ChatMessageType.ENGINE, (Object)ChatMessageType.GAMEMESSAGE, (Object)ChatMessageType.ITEM_EXAMINE, (Object)ChatMessageType.NPC_EXAMINE, (Object)ChatMessageType.OBJECT_EXAMINE, (Object)ChatMessageType.SPAM, (Object[])new ChatMessageType[]{ChatMessageType.PUBLICCHAT, ChatMessageType.MODCHAT});
+    private final CharMatcher jagexPrintableCharMatcher = Text.JAGEX_PRINTABLE_CHAR_MATCHER;
+    private final List<Pattern> filteredPatterns = new ArrayList<Pattern>();
+    private final List<Pattern> filteredNamePatterns = new ArrayList<Pattern>();
+    private final LinkedHashMap<String, Duplicate> duplicateChatCache = new LinkedHashMap<String, Duplicate>(){
+        private static final int MAX_ENTRIES = 100;
 
-	@VisibleForTesting
-	static final String CENSOR_MESSAGE = "Hey, everyone, I just tried to say something very silly!";
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Duplicate> eldest) {
+            return this.size() > 100;
+        }
+    };
+    @Inject
+    private Client client;
+    @Inject
+    private ChatFilterConfig config;
 
-	private static final Set<ChatMessageType> COLLAPSIBLE_MESSAGETYPES = ImmutableSet.of(
-		ENGINE,
-		GAMEMESSAGE,
-		ITEM_EXAMINE,
-		NPC_EXAMINE,
-		OBJECT_EXAMINE,
-		SPAM,
-		PUBLICCHAT,
-		MODCHAT
-	);
+    @Provides
+    ChatFilterConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(ChatFilterConfig.class);
+    }
 
-	private final CharMatcher jagexPrintableCharMatcher = Text.JAGEX_PRINTABLE_CHAR_MATCHER;
-	private final List<Pattern> filteredPatterns = new ArrayList<>();
-	private final List<Pattern> filteredNamePatterns = new ArrayList<>();
+    @Override
+    protected void startUp() throws Exception {
+        this.updateFilteredPatterns();
+        this.client.refreshChat();
+    }
 
-	private static class Duplicate
-	{
-		int messageId;
-		int count;
-	}
+    @Override
+    protected void shutDown() throws Exception {
+        this.filteredPatterns.clear();
+        this.duplicateChatCache.clear();
+        this.client.refreshChat();
+    }
 
-	private final LinkedHashMap<String, Duplicate> duplicateChatCache = new LinkedHashMap<String, Duplicate>()
-	{
-		private static final int MAX_ENTRIES = 100;
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged gameStateChanged) {
+        switch (gameStateChanged.getGameState()) {
+            case HOPPING: 
+            case LOGGING_IN: {
+                this.duplicateChatCache.values().forEach(d -> {
+                    d.messageId = -1;
+                });
+            }
+        }
+    }
 
-		@Override
-		protected boolean removeEldestEntry(Map.Entry<String, Duplicate> eldest)
-		{
-			return size() > MAX_ENTRIES;
-		}
-	};
+    @Subscribe
+    public void onScriptCallbackEvent(ScriptCallbackEvent event) {
+        Duplicate duplicateCacheEntry;
+        boolean shouldCollapse;
+        if (!"chatFilterCheck".equals(event.getEventName())) {
+            return;
+        }
+        int[] intStack = this.client.getIntStack();
+        int intStackSize = this.client.getIntStackSize();
+        String[] stringStack = this.client.getStringStack();
+        int stringStackSize = this.client.getStringStackSize();
+        int messageType = intStack[intStackSize - 2];
+        int messageId = intStack[intStackSize - 1];
+        String message = stringStack[stringStackSize - 1];
+        ChatMessageType chatMessageType = ChatMessageType.of((int)messageType);
+        MessageNode messageNode = (MessageNode)this.client.getMessages().get((long)messageId);
+        String name = messageNode.getName();
+        int duplicateCount = 0;
+        boolean blockMessage = false;
+        switch (chatMessageType) {
+            case PUBLICCHAT: 
+            case MODCHAT: 
+            case AUTOTYPER: 
+            case PRIVATECHAT: 
+            case MODPRIVATECHAT: 
+            case FRIENDSCHAT: 
+            case CLAN_CHAT: 
+            case CLAN_GUEST_CHAT: 
+            case CLAN_GIM_CHAT: {
+                if (!this.shouldFilterPlayerMessage(Text.removeTags(name))) break;
+                blockMessage = (message = this.censorMessage(name, message)) == null;
+                break;
+            }
+            case GAMEMESSAGE: 
+            case ENGINE: 
+            case ITEM_EXAMINE: 
+            case NPC_EXAMINE: 
+            case OBJECT_EXAMINE: 
+            case SPAM: 
+            case CLAN_MESSAGE: 
+            case CLAN_GUEST_MESSAGE: 
+            case CLAN_GIM_MESSAGE: {
+                if (!this.config.filterGameChat()) break;
+                boolean bl = blockMessage = (message = this.censorMessage(null, message)) == null;
+            }
+        }
+        boolean bl = chatMessageType == ChatMessageType.PUBLICCHAT || chatMessageType == ChatMessageType.MODCHAT ? this.config.collapsePlayerChat() : (shouldCollapse = COLLAPSIBLE_MESSAGETYPES.contains((Object)chatMessageType) && this.config.collapseGameChat());
+        if (!blockMessage && shouldCollapse && (duplicateCacheEntry = this.duplicateChatCache.get(name + ":" + message)) != null && duplicateCacheEntry.messageId != -1) {
+            blockMessage = duplicateCacheEntry.messageId != messageId || (chatMessageType == ChatMessageType.PUBLICCHAT || chatMessageType == ChatMessageType.MODCHAT) && this.config.maxRepeatedPublicChats() > 0 && duplicateCacheEntry.count > this.config.maxRepeatedPublicChats();
+            duplicateCount = duplicateCacheEntry.count;
+        }
+        if (blockMessage) {
+            intStack[intStackSize - 3] = 0;
+        } else {
+            if (duplicateCount > 1) {
+                message = message + " (" + duplicateCount + ")";
+            }
+            stringStack[stringStackSize - 1] = message;
+        }
+    }
 
-	@Inject
-	private Client client;
+    @Subscribe
+    public void onOverheadTextChanged(OverheadTextChanged event) {
+        if (!(event.getActor() instanceof Player) || !this.shouldFilterPlayerMessage(event.getActor().getName())) {
+            return;
+        }
+        String message = this.censorMessage(event.getActor().getName(), event.getOverheadText());
+        if (message == null) {
+            message = " ";
+        }
+        event.getActor().setOverheadText(message);
+    }
 
-	@Inject
-	private ChatFilterConfig config;
+    @Subscribe(priority=-2.0f)
+    public void onChatMessage(ChatMessage chatMessage) {
+        if (COLLAPSIBLE_MESSAGETYPES.contains((Object)chatMessage.getType())) {
+            MessageNode messageNode = chatMessage.getMessageNode();
+            String key = messageNode.getName() + ":" + messageNode.getValue();
+            Duplicate duplicate = (Duplicate)this.duplicateChatCache.remove(key);
+            if (duplicate == null) {
+                duplicate = new Duplicate();
+            }
+            ++duplicate.count;
+            duplicate.messageId = messageNode.getId();
+            this.duplicateChatCache.put(key, duplicate);
+        }
+    }
 
-	@Provides
-	ChatFilterConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(ChatFilterConfig.class);
-	}
+    boolean shouldFilterPlayerMessage(String playerName) {
+        boolean isMessageFromSelf = playerName.equals(this.client.getLocalPlayer().getName());
+        return !(isMessageFromSelf || !this.config.filterFriends() && this.client.isFriended(playerName, false) || !this.config.filterFriendsChat() && this.isFriendsChatMember(playerName) || !this.config.filterClanChat() && this.isClanChatMember(playerName));
+    }
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		updateFilteredPatterns();
-		client.refreshChat();
-	}
+    private boolean isFriendsChatMember(String name) {
+        FriendsChatManager friendsChatManager = this.client.getFriendsChatManager();
+        return friendsChatManager != null && friendsChatManager.findByName(name) != null;
+    }
 
-	@Override
-	protected void shutDown() throws Exception
-	{
-		filteredPatterns.clear();
-		duplicateChatCache.clear();
-		client.refreshChat();
-	}
+    private boolean isClanChatMember(String name) {
+        ClanChannel clanChannel = this.client.getClanChannel();
+        if (clanChannel != null && clanChannel.findMember(name) != null) {
+            return true;
+        }
+        clanChannel = this.client.getGuestClanChannel();
+        return clanChannel != null && clanChannel.findMember(name) != null;
+    }
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		switch (gameStateChanged.getGameState())
-		{
-			// Login drops references to all messages and also resets the global message id counter.
-			// Invalidate the message id so it doesn't collide later when rebuilding the chatfilter.
-			case HOPPING:
-			case LOGGING_IN:
-				duplicateChatCache.values().forEach(d -> d.messageId = -1);
-		}
-	}
+    String censorMessage(String username, String message) {
+        String strippedMessage = this.jagexPrintableCharMatcher.retainFrom((CharSequence)message).replace('\u00a0', ' ').replaceAll("<lt>", "<").replaceAll("<gt>", ">");
+        String strippedAccents = this.stripAccents(strippedMessage);
+        assert (strippedMessage.length() == strippedAccents.length());
+        if (username != null && this.shouldFilterByName(username)) {
+            switch (this.config.filterType()) {
+                case CENSOR_WORDS: {
+                    return StringUtils.repeat((char)'*', (int)strippedMessage.length());
+                }
+                case CENSOR_MESSAGE: {
+                    return CENSOR_MESSAGE;
+                }
+                case REMOVE_MESSAGE: {
+                    return null;
+                }
+            }
+        }
+        boolean filtered = false;
+        for (Pattern pattern : this.filteredPatterns) {
+            Matcher m = pattern.matcher(strippedAccents);
+            StringBuilder sb = new StringBuilder();
+            int idx = 0;
+            while (m.find()) {
+                switch (this.config.filterType()) {
+                    case CENSOR_WORDS: {
+                        MatchResult matchResult = m.toMatchResult();
+                        sb.append(strippedMessage, idx, matchResult.start()).append(StringUtils.repeat((char)'*', (int)matchResult.group().length()));
+                        idx = m.end();
+                        filtered = true;
+                        break;
+                    }
+                    case CENSOR_MESSAGE: {
+                        return CENSOR_MESSAGE;
+                    }
+                    case REMOVE_MESSAGE: {
+                        return null;
+                    }
+                }
+            }
+            sb.append(strippedMessage.substring(idx));
+            strippedMessage = sb.toString();
+            assert (strippedMessage.length() == strippedAccents.length());
+        }
+        return filtered ? strippedMessage : message;
+    }
 
-	@Subscribe
-	public void onScriptCallbackEvent(ScriptCallbackEvent event)
-	{
-		if (!"chatFilterCheck".equals(event.getEventName()))
-		{
-			return;
-		}
+    void updateFilteredPatterns() {
+        this.filteredPatterns.clear();
+        this.filteredNamePatterns.clear();
+        Text.fromCSV(this.config.filteredWords()).stream().map(this::stripAccents).map(s -> Pattern.compile(Pattern.quote(s), 2)).forEach(this.filteredPatterns::add);
+        NEWLINE_SPLITTER.splitToList((CharSequence)this.config.filteredRegex()).stream().map(this::stripAccents).map(ChatFilterPlugin::compilePattern).filter(Objects::nonNull).forEach(this.filteredPatterns::add);
+        NEWLINE_SPLITTER.splitToList((CharSequence)this.config.filteredNames()).stream().map(this::stripAccents).map(ChatFilterPlugin::compilePattern).filter(Objects::nonNull).forEach(this.filteredNamePatterns::add);
+    }
 
-		int[] intStack = client.getIntStack();
-		int intStackSize = client.getIntStackSize();
-		String[] stringStack = client.getStringStack();
-		int stringStackSize = client.getStringStackSize();
+    private String stripAccents(String input) {
+        return this.config.stripAccents() ? StringUtils.stripAccents((String)input) : input;
+    }
 
-		final int messageType = intStack[intStackSize - 2];
-		final int messageId = intStack[intStackSize - 1];
-		String message = stringStack[stringStackSize - 1];
+    private static Pattern compilePattern(String pattern) {
+        try {
+            return Pattern.compile(pattern, 2);
+        }
+        catch (PatternSyntaxException ex) {
+            return null;
+        }
+    }
 
-		ChatMessageType chatMessageType = ChatMessageType.of(messageType);
-		final MessageNode messageNode = client.getMessages().get(messageId);
-		final String name = messageNode.getName();
-		int duplicateCount = 0;
-		boolean blockMessage = false;
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (!"chatfilter".equals(event.getGroup())) {
+            return;
+        }
+        this.updateFilteredPatterns();
+        this.client.refreshChat();
+    }
 
-		// Only filter public chat and private messages
-		switch (chatMessageType)
-		{
-			case PUBLICCHAT:
-			case MODCHAT:
-			case AUTOTYPER:
-			case PRIVATECHAT:
-			case MODPRIVATECHAT:
-			case FRIENDSCHAT:
-			case CLAN_CHAT:
-			case CLAN_GUEST_CHAT:
-			case CLAN_GIM_CHAT:
-				if (shouldFilterPlayerMessage(Text.removeTags(name)))
-				{
-					message = censorMessage(name, message);
-					blockMessage = message == null;
-				}
-				break;
-			case GAMEMESSAGE:
-			case ENGINE:
-			case ITEM_EXAMINE:
-			case NPC_EXAMINE:
-			case OBJECT_EXAMINE:
-			case SPAM:
-			case CLAN_MESSAGE:
-			case CLAN_GUEST_MESSAGE:
-			case CLAN_GIM_MESSAGE:
-				if (config.filterGameChat())
-				{
-					message = censorMessage(null, message);
-					blockMessage = message == null;
-				}
-				break;
-		}
+    @VisibleForTesting
+    boolean shouldFilterByName(String playerName) {
+        String sanitizedName = Text.standardize(playerName);
+        for (Pattern pattern : this.filteredNamePatterns) {
+            Matcher m = pattern.matcher(sanitizedName);
+            if (!m.find()) continue;
+            return true;
+        }
+        return false;
+    }
 
-		boolean shouldCollapse = chatMessageType == PUBLICCHAT || chatMessageType == MODCHAT
-			? config.collapsePlayerChat()
-			: COLLAPSIBLE_MESSAGETYPES.contains(chatMessageType) && config.collapseGameChat();
-		if (!blockMessage && shouldCollapse)
-		{
-			Duplicate duplicateCacheEntry = duplicateChatCache.get(name + ":" + message);
-			// If messageId is -1 then this is a replayed message, which we can't easily collapse since we don't know
-			// the most recent message. This is only for public chat since it is the only thing both replayed and also
-			// collapsed. Just allow uncollapsed playback.
-			if (duplicateCacheEntry != null && duplicateCacheEntry.messageId != -1)
-			{
-				blockMessage = duplicateCacheEntry.messageId != messageId ||
-					((chatMessageType == PUBLICCHAT || chatMessageType == MODCHAT) &&
-						config.maxRepeatedPublicChats() > 0 && duplicateCacheEntry.count > config.maxRepeatedPublicChats());
-				duplicateCount = duplicateCacheEntry.count;
-			}
-		}
+    private static class Duplicate {
+        int messageId;
+        int count;
 
-		if (blockMessage)
-		{
-			// Block the message
-			intStack[intStackSize - 3] = 0;
-		}
-		else
-		{
-			// Replace the message
-			if (duplicateCount > 1)
-			{
-				message += " (" + duplicateCount + ")";
-			}
-
-			stringStack[stringStackSize - 1] = message;
-		}
-	}
-
-	@Subscribe
-	public void onOverheadTextChanged(OverheadTextChanged event)
-	{
-		if (!(event.getActor() instanceof Player) || !shouldFilterPlayerMessage(event.getActor().getName()))
-		{
-			return;
-		}
-
-		String message = censorMessage(event.getActor().getName(), event.getOverheadText());
-
-		if (message == null)
-		{
-			message = " ";
-		}
-
-		event.getActor().setOverheadText(message);
-	}
-
-	@Subscribe(priority = -2) // run after ChatMessageManager
-	public void onChatMessage(ChatMessage chatMessage)
-	{
-		if (COLLAPSIBLE_MESSAGETYPES.contains(chatMessage.getType()))
-		{
-			final MessageNode messageNode = chatMessage.getMessageNode();
-			// remove and re-insert into map to move to end of list
-			final String key = messageNode.getName() + ":" + messageNode.getValue();
-			Duplicate duplicate = duplicateChatCache.remove(key);
-			if (duplicate == null)
-			{
-				duplicate = new Duplicate();
-			}
-
-			duplicate.count++;
-			duplicate.messageId = messageNode.getId();
-			duplicateChatCache.put(key, duplicate);
-		}
-	}
-
-	boolean shouldFilterPlayerMessage(String playerName)
-	{
-		boolean isMessageFromSelf = playerName.equals(client.getLocalPlayer().getName());
-		return !isMessageFromSelf &&
-			(config.filterFriends() || !client.isFriended(playerName, false)) &&
-			(config.filterFriendsChat() || !isFriendsChatMember(playerName)) &&
-			(config.filterClanChat() || !isClanChatMember(playerName));
-	}
-
-	private boolean isFriendsChatMember(String name)
-	{
-		FriendsChatManager friendsChatManager = client.getFriendsChatManager();
-		return friendsChatManager != null && friendsChatManager.findByName(name) != null;
-	}
-
-	private boolean isClanChatMember(String name)
-	{
-		ClanChannel clanChannel = client.getClanChannel();
-		if (clanChannel != null && clanChannel.findMember(name) != null)
-		{
-			return true;
-		}
-
-		clanChannel = client.getGuestClanChannel();
-		if (clanChannel != null && clanChannel.findMember(name) != null)
-		{
-			return true;
-		}
-
-		return false;
-	}
-
-	String censorMessage(final String username, final String message)
-	{
-		String strippedMessage = jagexPrintableCharMatcher.retainFrom(message)
-			.replace('\u00A0', ' ')
-			.replaceAll("<lt>", "<")
-			.replaceAll("<gt>", ">");
-		String strippedAccents = stripAccents(strippedMessage);
-		assert strippedMessage.length() == strippedAccents.length();
-
-		if (username != null && shouldFilterByName(username))
-		{
-			switch (config.filterType())
-			{
-				case CENSOR_WORDS:
-					return StringUtils.repeat('*', strippedMessage.length());
-				case CENSOR_MESSAGE:
-					return CENSOR_MESSAGE;
-				case REMOVE_MESSAGE:
-					return null;
-			}
-		}
-
-		boolean filtered = false;
-		for (Pattern pattern : filteredPatterns)
-		{
-			Matcher m = pattern.matcher(strippedAccents);
-
-			StringBuilder sb = new StringBuilder();
-			int idx = 0;
-
-			while (m.find())
-			{
-				switch (config.filterType())
-				{
-					case CENSOR_WORDS:
-						MatchResult matchResult = m.toMatchResult();
-						sb.append(strippedMessage, idx, matchResult.start())
-							.append(StringUtils.repeat('*', matchResult.group().length()));
-						idx = m.end();
-						filtered = true;
-						break;
-					case CENSOR_MESSAGE:
-						return CENSOR_MESSAGE;
-					case REMOVE_MESSAGE:
-						return null;
-				}
-			}
-			sb.append(strippedMessage.substring(idx));
-
-			strippedMessage = sb.toString();
-			assert strippedMessage.length() == strippedAccents.length();
-		}
-
-		return filtered ? strippedMessage : message;
-	}
-
-	void updateFilteredPatterns()
-	{
-		filteredPatterns.clear();
-		filteredNamePatterns.clear();
-
-		Text.fromCSV(config.filteredWords()).stream()
-			.map(this::stripAccents)
-			.map(s -> Pattern.compile(Pattern.quote(s), Pattern.CASE_INSENSITIVE))
-			.forEach(filteredPatterns::add);
-
-		NEWLINE_SPLITTER.splitToList(config.filteredRegex()).stream()
-			.map(this::stripAccents)
-			.map(ChatFilterPlugin::compilePattern)
-			.filter(Objects::nonNull)
-			.forEach(filteredPatterns::add);
-
-		NEWLINE_SPLITTER.splitToList(config.filteredNames()).stream()
-			.map(this::stripAccents)
-			.map(ChatFilterPlugin::compilePattern)
-			.filter(Objects::nonNull)
-			.forEach(filteredNamePatterns::add);
-	}
-
-	private String stripAccents(String input)
-	{
-		return config.stripAccents() ? StringUtils.stripAccents(input) : input;
-	}
-
-	private static Pattern compilePattern(String pattern)
-	{
-		try
-		{
-			return Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
-		}
-		catch (PatternSyntaxException ex)
-		{
-			return null;
-		}
-	}
-
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		if (!"chatfilter".equals(event.getGroup()))
-		{
-			return;
-		}
-
-		updateFilteredPatterns();
-
-		//Refresh chat after config change to reflect current rules
-		client.refreshChat();
-	}
-
-	@VisibleForTesting
-	boolean shouldFilterByName(final String playerName)
-	{
-		String sanitizedName = Text.standardize(playerName);
-		for (Pattern pattern : filteredNamePatterns)
-		{
-			Matcher m = pattern.matcher(sanitizedName);
-			if (m.find())
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+        private Duplicate() {
+        }
+    }
 }
+

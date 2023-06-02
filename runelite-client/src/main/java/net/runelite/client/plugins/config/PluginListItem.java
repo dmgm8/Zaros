@@ -1,26 +1,5 @@
 /*
- * Copyright (c) 2018, Daniel Teo <https://github.com/takuyakanbr>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.config;
 
@@ -37,307 +16,183 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
-import javax.swing.SwingWorker;
 import javax.swing.border.EmptyBorder;
-import lombok.Getter;
-import net.runelite.client.RuneLiteProperties;
 import net.runelite.client.externalplugins.ExternalPluginManifest;
-import net.runelite.client.plugins.OPRSExternalPluginManager;
-import net.runelite.client.ui.ClientUI;
+import net.runelite.client.plugins.config.ConfigPanel;
+import net.runelite.client.plugins.config.PluginConfigurationDescriptor;
+import net.runelite.client.plugins.config.PluginListPanel;
+import net.runelite.client.plugins.config.PluginToggleButton;
+import net.runelite.client.plugins.config.SearchablePlugin;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.SwingUtil;
 
-class PluginListItem extends JPanel implements SearchablePlugin
-{
-	private static final ImageIcon CONFIG_ICON;
-	private static final ImageIcon CONFIG_ICON_HOVER;
-	private static final ImageIcon REFRESH_ICON;
-	private static final ImageIcon REFRESH_ICON_HOVER;
-	private static final ImageIcon ON_STAR;
-	private static final ImageIcon OFF_STAR;
+class PluginListItem
+extends JPanel
+implements SearchablePlugin {
+    private static final ImageIcon CONFIG_ICON;
+    private static final ImageIcon CONFIG_ICON_HOVER;
+    private static final ImageIcon ON_STAR;
+    private static final ImageIcon OFF_STAR;
+    private final PluginListPanel pluginListPanel;
+    private final PluginConfigurationDescriptor pluginConfig;
+    private final List<String> keywords = new ArrayList<String>();
+    private final JToggleButton pinButton;
+    private final PluginToggleButton onOffToggle;
 
-	private final PluginListPanel pluginListPanel;
+    PluginListItem(PluginListPanel pluginListPanel, PluginConfigurationDescriptor pluginConfig) {
+        this.pluginListPanel = pluginListPanel;
+        this.pluginConfig = pluginConfig;
+        Collections.addAll(this.keywords, pluginConfig.getName().toLowerCase().split(" "));
+        Collections.addAll(this.keywords, pluginConfig.getDescription().toLowerCase().split(" "));
+        Collections.addAll(this.keywords, pluginConfig.getTags());
+        ExternalPluginManifest mf = pluginConfig.getExternalPluginManifest();
+        if (mf != null) {
+            this.keywords.add("pluginhub");
+            this.keywords.add(mf.getInternalName());
+        } else {
+            this.keywords.add("plugin");
+        }
+        this.setLayout(new BorderLayout(3, 0));
+        this.setPreferredSize(new Dimension(225, 20));
+        JLabel nameLabel = new JLabel(pluginConfig.getName());
+        nameLabel.setForeground(Color.WHITE);
+        if (!pluginConfig.getDescription().isEmpty()) {
+            nameLabel.setToolTipText("<html>" + pluginConfig.getName() + ":<br>" + pluginConfig.getDescription() + "</html>");
+        }
+        this.pinButton = new JToggleButton(OFF_STAR);
+        this.pinButton.setSelectedIcon(ON_STAR);
+        SwingUtil.removeButtonDecorations(this.pinButton);
+        SwingUtil.addModalTooltip(this.pinButton, "Unpin plugin", "Pin plugin");
+        this.pinButton.setPreferredSize(new Dimension(21, 0));
+        this.add((Component)this.pinButton, "Before");
+        this.pinButton.addActionListener(e -> {
+            pluginListPanel.savePinnedPlugins();
+            pluginListPanel.refresh();
+        });
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(1, 2));
+        this.add((Component)buttonPanel, "After");
+        JMenuItem configMenuItem = null;
+        if (pluginConfig.hasConfigurables()) {
+            JButton configButton = new JButton(CONFIG_ICON);
+            configButton.setRolloverIcon(CONFIG_ICON_HOVER);
+            SwingUtil.removeButtonDecorations(configButton);
+            configButton.setPreferredSize(new Dimension(25, 0));
+            configButton.setVisible(false);
+            buttonPanel.add(configButton);
+            configButton.addActionListener(e -> {
+                configButton.setIcon(CONFIG_ICON);
+                this.openGroupConfigPanel();
+            });
+            configButton.setVisible(true);
+            configButton.setToolTipText("Edit plugin configuration");
+            configMenuItem = new JMenuItem("Configure");
+            configMenuItem.addActionListener(e -> this.openGroupConfigPanel());
+        }
+        JMenuItem uninstallItem = null;
+        if (mf != null) {
+            uninstallItem = new JMenuItem("Uninstall");
+            uninstallItem.addActionListener(ev -> pluginListPanel.getExternalPluginManager().remove(mf.getInternalName()));
+        }
+        PluginListItem.addLabelPopupMenu(nameLabel, configMenuItem, pluginConfig.createSupportMenuItem(), uninstallItem);
+        this.add((Component)nameLabel, "Center");
+        this.onOffToggle = new PluginToggleButton();
+        this.onOffToggle.setConflicts(pluginConfig.getConflicts());
+        buttonPanel.add(this.onOffToggle);
+        if (pluginConfig.getPlugin() != null) {
+            this.onOffToggle.addActionListener(i -> {
+                if (this.onOffToggle.isSelected()) {
+                    pluginListPanel.startPlugin(pluginConfig.getPlugin());
+                } else {
+                    pluginListPanel.stopPlugin(pluginConfig.getPlugin());
+                }
+            });
+        } else {
+            this.onOffToggle.setVisible(false);
+        }
+    }
 
-	@Getter
-	private final PluginConfigurationDescriptor pluginConfig;
+    @Override
+    public String getSearchableName() {
+        return this.pluginConfig.getName();
+    }
 
-	@Getter
-	private final List<String> keywords = new ArrayList<>();
+    @Override
+    public boolean isPinned() {
+        return this.pinButton.isSelected();
+    }
 
-	private final JToggleButton pinButton;
-	private final PluginToggleButton onOffToggle;
+    void setPinned(boolean pinned) {
+        this.pinButton.setSelected(pinned);
+    }
 
-	static
-	{
-		BufferedImage configIcon = ImageUtil.loadImageResource(ConfigPanel.class, "config_edit_icon.png");
-		BufferedImage refreshIcon = ImageUtil.loadImageResource(ConfigPanel.class, "refresh.png");
-		BufferedImage onStar = ImageUtil.loadImageResource(ConfigPanel.class, "star_on.png");
-		CONFIG_ICON = new ImageIcon(configIcon);
-		REFRESH_ICON = new ImageIcon(refreshIcon);
-		ON_STAR = new ImageIcon(ImageUtil.recolorImage(onStar, ColorScheme.BRAND_BLUE));
-		CONFIG_ICON_HOVER = new ImageIcon(ImageUtil.luminanceOffset(configIcon, -100));
-		REFRESH_ICON_HOVER = new ImageIcon(ImageUtil.luminanceOffset(refreshIcon, -100));
+    void setPluginEnabled(boolean enabled) {
+        this.onOffToggle.setSelected(enabled);
+    }
 
-		BufferedImage offStar = ImageUtil.luminanceScale(
-			ImageUtil.grayscaleImage(onStar),
-			0.77f
-		);
-		OFF_STAR = new ImageIcon(offStar);
-	}
+    private void openGroupConfigPanel() {
+        this.pluginListPanel.openConfigurationPanel(this.pluginConfig);
+    }
 
-	PluginListItem(PluginListPanel pluginListPanel, PluginConfigurationDescriptor pluginConfig, OPRSExternalPluginManager oprsExternalPluginManager)
-	{
-		this.pluginListPanel = pluginListPanel;
-		this.pluginConfig = pluginConfig;
+    static void addLabelPopupMenu(final JLabel label, JMenuItem ... menuItems) {
+        final JPopupMenu menu = new JPopupMenu();
+        Color labelForeground = label.getForeground();
+        menu.setBorder(new EmptyBorder(5, 5, 5, 5));
+        for (JMenuItem menuItem : menuItems) {
+            if (menuItem == null) continue;
+            menuItem.addActionListener(e -> label.setForeground(labelForeground));
+            menu.add(menuItem);
+        }
+        label.addMouseListener(new MouseAdapter(){
+            private Color lastForeground;
 
-		Collections.addAll(keywords, pluginConfig.getName().toLowerCase().split(" "));
-		Collections.addAll(keywords, pluginConfig.getDescription().toLowerCase().split(" "));
-		Collections.addAll(keywords, pluginConfig.getTags());
-		ExternalPluginManifest mf = pluginConfig.getExternalPluginManifest();
-		if (mf != null)
-		{
-			keywords.add("pluginhub");
-			keywords.add(mf.getInternalName());
-		}
-		else
-		{
-			keywords.add("plugin"); // we don't want searching plugin to only show hub plugins
-		}
+            @Override
+            public void mouseClicked(MouseEvent mouseEvent) {
+                Component source = (Component)mouseEvent.getSource();
+                Point location = MouseInfo.getPointerInfo().getLocation();
+                SwingUtilities.convertPointFromScreen(location, source);
+                menu.show(source, location.x, location.y);
+            }
 
-		setLayout(new BorderLayout(3, 0));
-		setPreferredSize(new Dimension(PluginPanel.PANEL_WIDTH, 20));
+            @Override
+            public void mouseEntered(MouseEvent mouseEvent) {
+                this.lastForeground = label.getForeground();
+                label.setForeground(ColorScheme.BRAND_ORANGE);
+            }
 
-		JLabel nameLabel = new JLabel(pluginConfig.getName());
-		nameLabel.setForeground(Color.WHITE);
+            @Override
+            public void mouseExited(MouseEvent mouseEvent) {
+                label.setForeground(this.lastForeground);
+            }
+        });
+    }
 
-		if (!pluginConfig.getDescription().isEmpty())
-		{
-			nameLabel.setToolTipText("<html>" + pluginConfig.getName() + ":<br>" + pluginConfig.getDescription() + "</html>");
-		}
+    public PluginConfigurationDescriptor getPluginConfig() {
+        return this.pluginConfig;
+    }
 
-		pinButton = new JToggleButton(OFF_STAR);
-		pinButton.setSelectedIcon(ON_STAR);
-		SwingUtil.removeButtonDecorations(pinButton);
-		SwingUtil.addModalTooltip(pinButton, "Unpin plugin", "Pin plugin");
-		pinButton.setPreferredSize(new Dimension(21, 0));
-		add(pinButton, BorderLayout.LINE_START);
+    @Override
+    public List<String> getKeywords() {
+        return this.keywords;
+    }
 
-		pinButton.addActionListener(e ->
-		{
-			pluginListPanel.savePinnedPlugins();
-			pluginListPanel.refresh();
-		});
-
-		final JPanel buttonPanel = new JPanel();
-		buttonPanel.setLayout(new GridLayout(1, 2));
-		add(buttonPanel, BorderLayout.LINE_END);
-
-		Map<String, Map<String, String>> pluginsInfoMap = oprsExternalPluginManager.getPluginsInfoMap();
-
-		if ((OPRSExternalPluginManager.isDevelopmentMode() || RuneLiteProperties.getLauncherVersion() == null) && pluginConfig.getPlugin() != null && pluginsInfoMap.containsKey(pluginConfig.getPlugin().getClass().getSimpleName()))
-		{
-			JButton hotSwapButton = new JButton(REFRESH_ICON);
-			hotSwapButton.setRolloverIcon(REFRESH_ICON_HOVER);
-			SwingUtil.removeButtonDecorations(hotSwapButton);
-			hotSwapButton.setPreferredSize(new Dimension(25, 0));
-			hotSwapButton.setVisible(false);
-			buttonPanel.add(hotSwapButton);
-
-			hotSwapButton.addActionListener(e ->
-			{
-				Map<String, String> pluginInfo = pluginsInfoMap.get(pluginConfig.getPlugin().getClass().getSimpleName());
-				String pluginId = pluginInfo.get("id");
-
-				hotSwapButton.setIcon(REFRESH_ICON);
-
-				new SwingWorker<>()
-				{
-					@Override
-					protected Boolean doInBackground()
-					{
-						return oprsExternalPluginManager.uninstall(pluginId);
-					}
-
-					@Override
-					protected void done()
-					{
-						// In development mode our plugins will be loaded directly from sources, so we don't need to prompt
-						if (!OPRSExternalPluginManager.isDevelopmentMode())
-						{
-							JOptionPane.showMessageDialog(ClientUI.getFrame(),
-								pluginId + " is unloaded, put the new jar file in the externalmanager folder and click `ok`",
-								"Hotswap " + pluginId,
-								JOptionPane.INFORMATION_MESSAGE);
-						}
-
-						new SwingWorker<>()
-						{
-							@Override
-							protected Boolean doInBackground()
-							{
-								return oprsExternalPluginManager.reloadStart(pluginId);
-							}
-
-							@Override
-							protected void done()
-							{
-								pluginListPanel.rebuildPluginList();
-							}
-						}.execute();
-					}
-				}.execute();
-			});
-
-			hotSwapButton.setVisible(true);
-			hotSwapButton.setToolTipText("Hotswap plugin");
-		}
-
-		JMenuItem configMenuItem = null;
-		if (pluginConfig.hasConfigurables())
-		{
-			JButton configButton = new JButton(CONFIG_ICON);
-			configButton.setRolloverIcon(CONFIG_ICON_HOVER);
-			SwingUtil.removeButtonDecorations(configButton);
-			configButton.setPreferredSize(new Dimension(25, 0));
-			configButton.setVisible(false);
-			buttonPanel.add(configButton);
-
-			configButton.addActionListener(e ->
-			{
-				configButton.setIcon(CONFIG_ICON);
-				openGroupConfigPanel();
-			});
-
-			configButton.setVisible(true);
-			configButton.setToolTipText("Edit plugin configuration");
-
-			configMenuItem = new JMenuItem("Configure");
-			configMenuItem.addActionListener(e -> openGroupConfigPanel());
-		}
-
-		JMenuItem uninstallItem = null;
-		if (mf != null)
-		{
-			uninstallItem = new JMenuItem("Uninstall");
-			uninstallItem.addActionListener(ev -> pluginListPanel.getExternalPluginManager().remove(mf.getInternalName()));
-		}
-
-		addLabelPopupMenu(nameLabel, configMenuItem, pluginConfig.createSupportMenuItem(), uninstallItem);
-		add(nameLabel, BorderLayout.CENTER);
-
-		onOffToggle = new PluginToggleButton();
-		onOffToggle.setConflicts(pluginConfig.getConflicts());
-		buttonPanel.add(onOffToggle);
-		if (pluginConfig.getPlugin() != null)
-		{
-			onOffToggle.addActionListener(i ->
-			{
-				if (onOffToggle.isSelected())
-				{
-					pluginListPanel.startPlugin(pluginConfig.getPlugin());
-				}
-				else
-				{
-					pluginListPanel.stopPlugin(pluginConfig.getPlugin());
-				}
-			});
-		}
-		else
-		{
-			onOffToggle.setVisible(false);
-		}
-	}
-
-	@Override
-	public String getSearchableName()
-	{
-		return pluginConfig.getName();
-	}
-
-	@Override
-	public boolean isPinned()
-	{
-		return pinButton.isSelected();
-	}
-
-	void setPinned(boolean pinned)
-	{
-		pinButton.setSelected(pinned);
-	}
-
-	void setPluginEnabled(boolean enabled)
-	{
-		onOffToggle.setSelected(enabled);
-	}
-
-	private void openGroupConfigPanel()
-	{
-		pluginListPanel.openConfigurationPanel(pluginConfig);
-	}
-
-	/**
-	 * Adds a mouseover effect to change the text of the passed label to {@link ColorScheme#BRAND_ORANGE} color, and
-	 * adds the passed menu items to a popup menu shown when the label is clicked.
-	 *
-	 * @param label     The label to attach the mouseover and click effects to
-	 * @param menuItems The menu items to be shown when the label is clicked
-	 */
-	static void addLabelPopupMenu(JLabel label, JMenuItem... menuItems)
-	{
-		final JPopupMenu menu = new JPopupMenu();
-		final Color labelForeground = label.getForeground();
-		menu.setBorder(new EmptyBorder(5, 5, 5, 5));
-
-		for (final JMenuItem menuItem : menuItems)
-		{
-			if (menuItem == null)
-			{
-				continue;
-			}
-
-			// Some machines register mouseEntered through a popup menu, and do not register mouseExited when a popup
-			// menu item is clicked, so reset the label's color when we click one of these options.
-			menuItem.addActionListener(e -> label.setForeground(labelForeground));
-			menu.add(menuItem);
-		}
-
-		label.addMouseListener(new MouseAdapter()
-		{
-			private Color lastForeground;
-
-			@Override
-			public void mouseClicked(MouseEvent mouseEvent)
-			{
-				Component source = (Component) mouseEvent.getSource();
-				Point location = MouseInfo.getPointerInfo().getLocation();
-				SwingUtilities.convertPointFromScreen(location, source);
-				menu.show(source, location.x, location.y);
-			}
-
-			@Override
-			public void mouseEntered(MouseEvent mouseEvent)
-			{
-				lastForeground = label.getForeground();
-				label.setForeground(ColorScheme.BRAND_ORANGE);
-			}
-
-			@Override
-			public void mouseExited(MouseEvent mouseEvent)
-			{
-				label.setForeground(lastForeground);
-			}
-		});
-	}
+    static {
+        BufferedImage configIcon = ImageUtil.loadImageResource(ConfigPanel.class, "config_edit_icon.png");
+        BufferedImage onStar = ImageUtil.loadImageResource(ConfigPanel.class, "star_on.png");
+        CONFIG_ICON = new ImageIcon(configIcon);
+        ON_STAR = new ImageIcon(onStar);
+        CONFIG_ICON_HOVER = new ImageIcon(ImageUtil.luminanceOffset(configIcon, -100));
+        BufferedImage offStar = ImageUtil.luminanceScale(ImageUtil.grayscaleImage(onStar), 0.77f);
+        OFF_STAR = new ImageIcon(offStar);
+    }
 }
+

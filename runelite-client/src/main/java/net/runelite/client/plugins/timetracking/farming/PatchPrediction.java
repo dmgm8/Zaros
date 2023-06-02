@@ -1,37 +1,89 @@
 /*
- * Copyright (c) 2018 Abex
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *     list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- *  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.timetracking.farming;
 
-import lombok.Value;
+import net.runelite.client.plugins.timetracking.farming.CropState;
+import net.runelite.client.plugins.timetracking.farming.Produce;
 
-@Value
-class PatchPrediction
-{
-	private final Produce produce;
-	private final CropState cropState;
-	private final long doneEstimate;
-	private final int stage;
-	private final int stages;
+final class PatchPrediction {
+    private final Produce produce;
+    private final CropState cropState;
+    private final long doneEstimate;
+    private final int stage;
+    private final int stages;
+
+    public PatchPrediction(Produce produce, CropState cropState, long doneEstimate, int stage, int stages) {
+        this.produce = produce;
+        this.cropState = cropState;
+        this.doneEstimate = doneEstimate;
+        this.stage = stage;
+        this.stages = stages;
+    }
+
+    public Produce getProduce() {
+        return this.produce;
+    }
+
+    public CropState getCropState() {
+        return this.cropState;
+    }
+
+    public long getDoneEstimate() {
+        return this.doneEstimate;
+    }
+
+    public int getStage() {
+        return this.stage;
+    }
+
+    public int getStages() {
+        return this.stages;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof PatchPrediction)) {
+            return false;
+        }
+        PatchPrediction other = (PatchPrediction)o;
+        if (this.getDoneEstimate() != other.getDoneEstimate()) {
+            return false;
+        }
+        if (this.getStage() != other.getStage()) {
+            return false;
+        }
+        if (this.getStages() != other.getStages()) {
+            return false;
+        }
+        Produce this$produce = this.getProduce();
+        Produce other$produce = other.getProduce();
+        if (this$produce == null ? other$produce != null : !((Object)((Object)this$produce)).equals((Object)other$produce)) {
+            return false;
+        }
+        CropState this$cropState = this.getCropState();
+        CropState other$cropState = other.getCropState();
+        return !(this$cropState == null ? other$cropState != null : !((Object)((Object)this$cropState)).equals((Object)other$cropState));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        long $doneEstimate = this.getDoneEstimate();
+        result = result * 59 + (int)($doneEstimate >>> 32 ^ $doneEstimate);
+        result = result * 59 + this.getStage();
+        result = result * 59 + this.getStages();
+        Produce $produce = this.getProduce();
+        result = result * 59 + ($produce == null ? 43 : ((Object)((Object)$produce)).hashCode());
+        CropState $cropState = this.getCropState();
+        result = result * 59 + ($cropState == null ? 43 : ((Object)((Object)$cropState)).hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "PatchPrediction(produce=" + (Object)((Object)this.getProduce()) + ", cropState=" + (Object)((Object)this.getCropState()) + ", doneEstimate=" + this.getDoneEstimate() + ", stage=" + this.getStage() + ", stages=" + this.getStages() + ")";
+    }
 }
+

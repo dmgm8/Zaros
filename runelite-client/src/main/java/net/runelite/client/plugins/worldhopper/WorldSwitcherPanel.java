@@ -1,32 +1,17 @@
 /*
- * Copyright (c) 2018, Psikoi <https://github.com/Psikoi>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  com.google.common.collect.Ordering
+ *  net.runelite.http.api.worlds.World
+ *  net.runelite.http.api.worlds.WorldType
  */
 package net.runelite.client.plugins.worldhopper;
 
 import com.google.common.collect.Ordering;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
@@ -38,373 +23,292 @@ import java.util.Set;
 import java.util.function.Function;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
-import lombok.AccessLevel;
-import lombok.Setter;
+import net.runelite.client.plugins.worldhopper.RegionFilterMode;
+import net.runelite.client.plugins.worldhopper.SubscriptionFilterMode;
+import net.runelite.client.plugins.worldhopper.WorldHopperPlugin;
+import net.runelite.client.plugins.worldhopper.WorldTableHeader;
+import net.runelite.client.plugins.worldhopper.WorldTableRow;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.DynamicGridLayout;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.http.api.worlds.World;
 import net.runelite.http.api.worlds.WorldType;
 
-class WorldSwitcherPanel extends PluginPanel
-{
-	private static final Color ODD_ROW = new Color(44, 44, 44);
+class WorldSwitcherPanel
+extends PluginPanel {
+    private static final Color ODD_ROW = new Color(44, 44, 44);
+    private static final int WORLD_COLUMN_WIDTH = 60;
+    private static final int PLAYERS_COLUMN_WIDTH = 40;
+    private static final int PING_COLUMN_WIDTH = 47;
+    private final JPanel listContainer = new JPanel();
+    private WorldTableHeader worldHeader;
+    private WorldTableHeader playersHeader;
+    private WorldTableHeader activityHeader;
+    private WorldTableHeader pingHeader;
+    private WorldOrder orderIndex = WorldOrder.WORLD;
+    private boolean ascendingOrder = true;
+    private final ArrayList<WorldTableRow> rows = new ArrayList();
+    private final WorldHopperPlugin plugin;
+    private SubscriptionFilterMode subscriptionFilterMode;
+    private Set<RegionFilterMode> regionFilterMode;
 
-	private static final int WORLD_COLUMN_WIDTH = 60;
-	private static final int PLAYERS_COLUMN_WIDTH = 40;
-	private static final int PING_COLUMN_WIDTH = 47;
+    WorldSwitcherPanel(WorldHopperPlugin plugin) {
+        this.plugin = plugin;
+        this.setBorder(null);
+        this.setLayout(new DynamicGridLayout(0, 1));
+        JPanel headerContainer = this.buildHeader();
+        this.listContainer.setLayout(new GridLayout(0, 1));
+        this.add(headerContainer);
+        this.add(this.listContainer);
+    }
 
-	private final JPanel listContainer = new JPanel();
+    void switchCurrentHighlight(int newWorld, int lastWorld) {
+        for (WorldTableRow row : this.rows) {
+            if (row.getWorld().getId() == newWorld) {
+                row.recolour(true);
+                continue;
+            }
+            if (row.getWorld().getId() != lastWorld) continue;
+            row.recolour(false);
+        }
+    }
 
-	private WorldTableHeader worldHeader;
-	private WorldTableHeader playersHeader;
-	private WorldTableHeader activityHeader;
-	private WorldTableHeader pingHeader;
+    void updateListData(Map<Integer, Integer> worldData) {
+        for (WorldTableRow worldTableRow : this.rows) {
+            World world = worldTableRow.getWorld();
+            Integer playerCount = worldData.get(world.getId());
+            if (playerCount == null) continue;
+            worldTableRow.updatePlayerCount(playerCount);
+        }
+        if (this.orderIndex == WorldOrder.PLAYERS) {
+            this.updateList();
+        }
+    }
 
-	private WorldOrder orderIndex = WorldOrder.WORLD;
-	private boolean ascendingOrder = true;
+    void updatePing(int world, int ping) {
+        for (WorldTableRow worldTableRow : this.rows) {
+            if (worldTableRow.getWorld().getId() != world) continue;
+            worldTableRow.setPing(ping);
+            if (this.orderIndex != WorldOrder.PING) break;
+            this.updateList();
+            break;
+        }
+    }
 
-	private final ArrayList<WorldTableRow> rows = new ArrayList<>();
-	private final WorldHopperPlugin plugin;
-	@Setter(AccessLevel.PACKAGE)
-	private SubscriptionFilterMode subscriptionFilterMode;
-	@Setter(AccessLevel.PACKAGE)
-	private Set<RegionFilterMode> regionFilterMode;
+    void hidePing() {
+        for (WorldTableRow worldTableRow : this.rows) {
+            worldTableRow.hidePing();
+        }
+    }
 
-	WorldSwitcherPanel(WorldHopperPlugin plugin)
-	{
-		this.plugin = plugin;
+    void showPing() {
+        for (WorldTableRow worldTableRow : this.rows) {
+            worldTableRow.showPing();
+        }
+    }
 
-		setBorder(null);
-		setLayout(new DynamicGridLayout(0, 1));
+    void updateList() {
+        this.rows.sort((r1, r2) -> {
+            switch (this.orderIndex) {
+                case PING: {
+                    return this.getCompareValue((WorldTableRow)r1, (WorldTableRow)r2, row -> {
+                        int ping = row.getPing();
+                        return ping > 0 ? Integer.valueOf(ping) : null;
+                    });
+                }
+                case WORLD: {
+                    return this.getCompareValue((WorldTableRow)r1, (WorldTableRow)r2, row -> Integer.valueOf(row.getWorld().getId()));
+                }
+                case PLAYERS: {
+                    return this.getCompareValue((WorldTableRow)r1, (WorldTableRow)r2, WorldTableRow::getUpdatedPlayerCount);
+                }
+                case ACTIVITY: {
+                    return this.getCompareValue((WorldTableRow)r1, (WorldTableRow)r2, row -> {
+                        String activity = row.getWorld().getActivity();
+                        return !activity.equals("-") ? activity : null;
+                    });
+                }
+            }
+            return 0;
+        });
+        this.rows.sort((r1, r2) -> {
+            boolean b1 = this.plugin.isFavorite(r1.getWorld());
+            boolean b2 = this.plugin.isFavorite(r2.getWorld());
+            return Boolean.compare(b2, b1);
+        });
+        this.listContainer.removeAll();
+        for (int i = 0; i < this.rows.size(); ++i) {
+            WorldTableRow row = this.rows.get(i);
+            row.setBackground(i % 2 == 0 ? ODD_ROW : ColorScheme.DARK_GRAY_COLOR);
+            this.listContainer.add(row);
+        }
+        this.listContainer.revalidate();
+        this.listContainer.repaint();
+    }
 
-		JPanel headerContainer = buildHeader();
+    private int getCompareValue(WorldTableRow row1, WorldTableRow row2, Function<WorldTableRow, Comparable> compareByFn) {
+        Ordering ordering = Ordering.natural();
+        if (!this.ascendingOrder) {
+            ordering = ordering.reverse();
+        }
+        ordering = ordering.nullsLast();
+        return ordering.compare((Object)compareByFn.apply(row1), (Object)compareByFn.apply(row2));
+    }
 
-		listContainer.setLayout(new GridLayout(0, 1));
+    void updateFavoriteMenu(int world, boolean favorite) {
+        for (WorldTableRow row : this.rows) {
+            if (row.getWorld().getId() != world) continue;
+            row.setFavoriteMenu(favorite);
+        }
+    }
 
-		add(headerContainer);
-		add(listContainer);
-	}
+    /*
+     * Enabled aggressive block sorting
+     */
+    void populate(List<World> worlds) {
+        this.rows.clear();
+        int i = 0;
+        while (true) {
+            block7: {
+                if (i >= worlds.size()) {
+                    this.updateList();
+                    return;
+                }
+                World world = worlds.get(i);
+                switch (this.subscriptionFilterMode) {
+                    case FREE: {
+                        if (!world.getTypes().contains((Object)WorldType.MEMBERS)) break;
+                        break block7;
+                    }
+                    case MEMBERS: {
+                        if (!world.getTypes().contains((Object)WorldType.MEMBERS)) break block7;
+                    }
+                }
+                if (this.regionFilterMode.isEmpty() || this.regionFilterMode.contains((Object)RegionFilterMode.of(world.getRegion()))) {
+                    this.rows.add(this.buildRow(world, i % 2 == 0, world.getId() == this.plugin.getCurrentWorld() && this.plugin.getLastWorld() != 0, this.plugin.isFavorite(world)));
+                }
+            }
+            ++i;
+        }
+    }
 
-	void switchCurrentHighlight(int newWorld, int lastWorld)
-	{
-		for (WorldTableRow row : rows)
-		{
-			if (row.getWorld().getId() == newWorld)
-			{
-				row.recolour(true);
-			}
-			else if (row.getWorld().getId() == lastWorld)
-			{
-				row.recolour(false);
-			}
-		}
-	}
+    private void orderBy(WorldOrder order) {
+        this.pingHeader.highlight(false, this.ascendingOrder);
+        this.worldHeader.highlight(false, this.ascendingOrder);
+        this.playersHeader.highlight(false, this.ascendingOrder);
+        this.activityHeader.highlight(false, this.ascendingOrder);
+        switch (order) {
+            case PING: {
+                this.pingHeader.highlight(true, this.ascendingOrder);
+                break;
+            }
+            case WORLD: {
+                this.worldHeader.highlight(true, this.ascendingOrder);
+                break;
+            }
+            case PLAYERS: {
+                this.playersHeader.highlight(true, this.ascendingOrder);
+                break;
+            }
+            case ACTIVITY: {
+                this.activityHeader.highlight(true, this.ascendingOrder);
+            }
+        }
+        this.orderIndex = order;
+        this.updateList();
+    }
 
-	void updateListData(Map<Integer, Integer> worldData)
-	{
-		for (WorldTableRow worldTableRow : rows)
-		{
-			World world = worldTableRow.getWorld();
-			Integer playerCount = worldData.get(world.getId());
-			if (playerCount != null)
-			{
-				worldTableRow.updatePlayerCount(playerCount);
-			}
-		}
+    private JPanel buildHeader() {
+        JPanel header = new JPanel(new BorderLayout());
+        JPanel leftSide = new JPanel(new BorderLayout());
+        JPanel rightSide = new JPanel(new BorderLayout());
+        this.pingHeader = new WorldTableHeader("Ping", this.orderIndex == WorldOrder.PING, this.ascendingOrder, this.plugin::refresh);
+        this.pingHeader.setPreferredSize(new Dimension(47, 0));
+        this.pingHeader.addMouseListener(new MouseAdapter(){
 
-		// If the list is being ordered by player count, then it has to be re-painted
-		// to properly display the new data
-		if (orderIndex == WorldOrder.PLAYERS)
-		{
-			updateList();
-		}
-	}
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                if (SwingUtilities.isRightMouseButton(mouseEvent)) {
+                    return;
+                }
+                WorldSwitcherPanel.this.ascendingOrder = WorldSwitcherPanel.this.orderIndex != WorldOrder.PING || !WorldSwitcherPanel.this.ascendingOrder;
+                WorldSwitcherPanel.this.orderBy(WorldOrder.PING);
+            }
+        });
+        this.worldHeader = new WorldTableHeader("World", this.orderIndex == WorldOrder.WORLD, this.ascendingOrder, this.plugin::refresh);
+        this.worldHeader.setPreferredSize(new Dimension(60, 0));
+        this.worldHeader.addMouseListener(new MouseAdapter(){
 
-	void updatePing(int world, int ping)
-	{
-		for (WorldTableRow worldTableRow : rows)
-		{
-			if (worldTableRow.getWorld().getId() == world)
-			{
-				worldTableRow.setPing(ping);
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                if (SwingUtilities.isRightMouseButton(mouseEvent)) {
+                    return;
+                }
+                WorldSwitcherPanel.this.ascendingOrder = WorldSwitcherPanel.this.orderIndex != WorldOrder.WORLD || !WorldSwitcherPanel.this.ascendingOrder;
+                WorldSwitcherPanel.this.orderBy(WorldOrder.WORLD);
+            }
+        });
+        this.playersHeader = new WorldTableHeader("#", this.orderIndex == WorldOrder.PLAYERS, this.ascendingOrder, this.plugin::refresh);
+        this.playersHeader.setPreferredSize(new Dimension(40, 0));
+        this.playersHeader.addMouseListener(new MouseAdapter(){
 
-				// If the panel is sorted by ping, re-sort it
-				if (orderIndex == WorldOrder.PING)
-				{
-					updateList();
-				}
-				break;
-			}
-		}
-	}
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                if (SwingUtilities.isRightMouseButton(mouseEvent)) {
+                    return;
+                }
+                WorldSwitcherPanel.this.ascendingOrder = WorldSwitcherPanel.this.orderIndex != WorldOrder.PLAYERS || !WorldSwitcherPanel.this.ascendingOrder;
+                WorldSwitcherPanel.this.orderBy(WorldOrder.PLAYERS);
+            }
+        });
+        this.activityHeader = new WorldTableHeader("Activity", this.orderIndex == WorldOrder.ACTIVITY, this.ascendingOrder, this.plugin::refresh);
+        this.activityHeader.addMouseListener(new MouseAdapter(){
 
-	void hidePing()
-	{
-		for (WorldTableRow worldTableRow : rows)
-		{
-			worldTableRow.hidePing();
-		}
-	}
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                if (SwingUtilities.isRightMouseButton(mouseEvent)) {
+                    return;
+                }
+                WorldSwitcherPanel.this.ascendingOrder = WorldSwitcherPanel.this.orderIndex != WorldOrder.ACTIVITY || !WorldSwitcherPanel.this.ascendingOrder;
+                WorldSwitcherPanel.this.orderBy(WorldOrder.ACTIVITY);
+            }
+        });
+        leftSide.add((Component)this.worldHeader, "West");
+        leftSide.add((Component)this.playersHeader, "Center");
+        rightSide.add((Component)this.activityHeader, "Center");
+        rightSide.add((Component)this.pingHeader, "East");
+        header.add((Component)leftSide, "West");
+        header.add((Component)rightSide, "Center");
+        return header;
+    }
 
-	void showPing()
-	{
-		for (WorldTableRow worldTableRow : rows)
-		{
-			worldTableRow.showPing();
-		}
-	}
+    private WorldTableRow buildRow(World world, boolean stripe, boolean current, boolean favorite) {
+        WorldTableRow row = new WorldTableRow(world, current, favorite, this.plugin.getStoredPing(world), this.plugin::hopTo, (world12, add) -> {
+            if (add.booleanValue()) {
+                this.plugin.addToFavorites((World)world12);
+            } else {
+                this.plugin.removeFromFavorites((World)world12);
+            }
+            this.updateList();
+        });
+        row.setBackground(stripe ? ODD_ROW : ColorScheme.DARK_GRAY_COLOR);
+        return row;
+    }
 
-	void updateList()
-	{
-		rows.sort((r1, r2) ->
-		{
-			switch (orderIndex)
-			{
-				case PING:
-					// Leave worlds with unknown ping at the bottom
-					return getCompareValue(r1, r2, row ->
-					{
-						int ping = row.getPing();
-						return ping > 0 ? ping : null;
-					});
-				case WORLD:
-					return getCompareValue(r1, r2, row -> row.getWorld().getId());
-				case PLAYERS:
-					return getCompareValue(r1, r2, WorldTableRow::getUpdatedPlayerCount);
-				case ACTIVITY:
-					// Leave empty activity worlds on the bottom of the list
-					return getCompareValue(r1, r2, row ->
-					{
-						String activity = row.getWorld().getActivity();
-						return !activity.equals("-") ? activity : null;
-					});
-				default:
-					return 0;
-			}
-		});
+    void setSubscriptionFilterMode(SubscriptionFilterMode subscriptionFilterMode) {
+        this.subscriptionFilterMode = subscriptionFilterMode;
+    }
 
-		rows.sort((r1, r2) ->
-		{
-			boolean b1 = plugin.isFavorite(r1.getWorld());
-			boolean b2 = plugin.isFavorite(r2.getWorld());
-			return Boolean.compare(b2, b1);
-		});
+    void setRegionFilterMode(Set<RegionFilterMode> regionFilterMode) {
+        this.regionFilterMode = regionFilterMode;
+    }
 
-		listContainer.removeAll();
+    private static enum WorldOrder {
+        WORLD,
+        PLAYERS,
+        ACTIVITY,
+        PING;
 
-		for (int i = 0; i < rows.size(); i++)
-		{
-			WorldTableRow row = rows.get(i);
-			row.setBackground(i % 2 == 0 ? ODD_ROW : ColorScheme.DARK_GRAY_COLOR);
-			listContainer.add(row);
-		}
-
-		listContainer.revalidate();
-		listContainer.repaint();
-	}
-
-	private int getCompareValue(WorldTableRow row1, WorldTableRow row2, Function<WorldTableRow, Comparable> compareByFn)
-	{
-		Ordering<Comparable> ordering = Ordering.natural();
-		if (!ascendingOrder)
-		{
-			ordering = ordering.reverse();
-		}
-		ordering = ordering.nullsLast();
-		return ordering.compare(compareByFn.apply(row1), compareByFn.apply(row2));
-	}
-
-	void updateFavoriteMenu(int world, boolean favorite)
-	{
-		for (WorldTableRow row : rows)
-		{
-			if (row.getWorld().getId() == world)
-			{
-				row.setFavoriteMenu(favorite);
-			}
-		}
-	}
-
-	void populate(List<World> worlds)
-	{
-		rows.clear();
-
-		for (int i = 0; i < worlds.size(); i++)
-		{
-			World world = worlds.get(i);
-
-			switch (subscriptionFilterMode)
-			{
-				case FREE:
-					if (world.getTypes().contains(WorldType.MEMBERS))
-					{
-						continue;
-					}
-					break;
-				case MEMBERS:
-					if (!world.getTypes().contains(WorldType.MEMBERS))
-					{
-						continue;
-					}
-					break;
-			}
-
-			if (!regionFilterMode.isEmpty() && !regionFilterMode.contains(RegionFilterMode.of(world.getRegion())))
-			{
-				continue;
-			}
-
-			rows.add(buildRow(world, i % 2 == 0, world.getId() == plugin.getCurrentWorld() && plugin.getLastWorld() != 0, plugin.isFavorite(world)));
-		}
-
-		updateList();
-	}
-
-	private void orderBy(WorldOrder order)
-	{
-		pingHeader.highlight(false, ascendingOrder);
-		worldHeader.highlight(false, ascendingOrder);
-		playersHeader.highlight(false, ascendingOrder);
-		activityHeader.highlight(false, ascendingOrder);
-
-		switch (order)
-		{
-			case PING:
-				pingHeader.highlight(true, ascendingOrder);
-				break;
-			case WORLD:
-				worldHeader.highlight(true, ascendingOrder);
-				break;
-			case PLAYERS:
-				playersHeader.highlight(true, ascendingOrder);
-				break;
-			case ACTIVITY:
-				activityHeader.highlight(true, ascendingOrder);
-				break;
-		}
-
-		orderIndex = order;
-		updateList();
-	}
-
-	/**
-	 * Builds the entire table header.
-	 */
-	private JPanel buildHeader()
-	{
-		JPanel header = new JPanel(new BorderLayout());
-		JPanel leftSide = new JPanel(new BorderLayout());
-		JPanel rightSide = new JPanel(new BorderLayout());
-
-		pingHeader = new WorldTableHeader("Ping", orderIndex == WorldOrder.PING, ascendingOrder, plugin::refresh);
-		pingHeader.setPreferredSize(new Dimension(PING_COLUMN_WIDTH, 0));
-		pingHeader.addMouseListener(new MouseAdapter()
-		{
-			@Override
-			public void mousePressed(MouseEvent mouseEvent)
-			{
-				if (SwingUtilities.isRightMouseButton(mouseEvent))
-				{
-					return;
-				}
-				ascendingOrder = orderIndex != WorldOrder.PING || !ascendingOrder;
-				orderBy(WorldOrder.PING);
-			}
-		});
-
-		worldHeader = new WorldTableHeader("World", orderIndex == WorldOrder.WORLD, ascendingOrder, plugin::refresh);
-		worldHeader.setPreferredSize(new Dimension(WORLD_COLUMN_WIDTH, 0));
-		worldHeader.addMouseListener(new MouseAdapter()
-		{
-			@Override
-			public void mousePressed(MouseEvent mouseEvent)
-			{
-				if (SwingUtilities.isRightMouseButton(mouseEvent))
-				{
-					return;
-				}
-				ascendingOrder = orderIndex != WorldOrder.WORLD || !ascendingOrder;
-				orderBy(WorldOrder.WORLD);
-			}
-		});
-
-		playersHeader = new WorldTableHeader("#", orderIndex == WorldOrder.PLAYERS, ascendingOrder, plugin::refresh);
-		playersHeader.setPreferredSize(new Dimension(PLAYERS_COLUMN_WIDTH, 0));
-		playersHeader.addMouseListener(new MouseAdapter()
-		{
-			@Override
-			public void mousePressed(MouseEvent mouseEvent)
-			{
-				if (SwingUtilities.isRightMouseButton(mouseEvent))
-				{
-					return;
-				}
-				ascendingOrder = orderIndex != WorldOrder.PLAYERS || !ascendingOrder;
-				orderBy(WorldOrder.PLAYERS);
-			}
-		});
-
-		activityHeader = new WorldTableHeader("Activity", orderIndex == WorldOrder.ACTIVITY, ascendingOrder, plugin::refresh);
-		activityHeader.addMouseListener(new MouseAdapter()
-		{
-			@Override
-			public void mousePressed(MouseEvent mouseEvent)
-			{
-				if (SwingUtilities.isRightMouseButton(mouseEvent))
-				{
-					return;
-				}
-				ascendingOrder = orderIndex != WorldOrder.ACTIVITY || !ascendingOrder;
-				orderBy(WorldOrder.ACTIVITY);
-			}
-		});
-
-		leftSide.add(worldHeader, BorderLayout.WEST);
-		leftSide.add(playersHeader, BorderLayout.CENTER);
-
-		rightSide.add(activityHeader, BorderLayout.CENTER);
-		rightSide.add(pingHeader, BorderLayout.EAST);
-
-		header.add(leftSide, BorderLayout.WEST);
-		header.add(rightSide, BorderLayout.CENTER);
-
-		return header;
-	}
-
-	/**
-	 * Builds a table row, that displays the world's information.
-	 */
-	private WorldTableRow buildRow(World world, boolean stripe, boolean current, boolean favorite)
-	{
-		WorldTableRow row = new WorldTableRow(world, current, favorite, plugin.getStoredPing(world),
-				plugin::hopTo,
-				(world12, add) ->
-				{
-					if (add)
-					{
-						plugin.addToFavorites(world12);
-					}
-					else
-					{
-						plugin.removeFromFavorites(world12);
-					}
-
-					updateList();
-				}
-		);
-		row.setBackground(stripe ? ODD_ROW : ColorScheme.DARK_GRAY_COLOR);
-		return row;
-	}
-
-	/**
-	 * Enumerates the multiple ordering options for the world list.
-	 */
-	private enum WorldOrder
-	{
-		WORLD,
-		PLAYERS,
-		ACTIVITY,
-		PING
-	}
+    }
 }
+

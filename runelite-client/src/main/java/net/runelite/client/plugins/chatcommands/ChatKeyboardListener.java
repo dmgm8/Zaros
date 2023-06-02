@@ -1,26 +1,11 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  javax.inject.Singleton
+ *  net.runelite.api.Client
+ *  net.runelite.api.vars.InputType
  */
 package net.runelite.client.plugins.chatcommands;
 
@@ -28,84 +13,59 @@ import java.awt.event.KeyEvent;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
-import net.runelite.api.ScriptID;
-import net.runelite.api.VarClientInt;
-import net.runelite.api.VarClientStr;
 import net.runelite.api.vars.InputType;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.input.KeyListener;
+import net.runelite.client.plugins.chatcommands.ChatCommandsConfig;
 
 @Singleton
-public class ChatKeyboardListener implements KeyListener
-{
-	@Inject
-	private ChatCommandsConfig chatCommandsConfig;
+public class ChatKeyboardListener
+implements KeyListener {
+    @Inject
+    private ChatCommandsConfig chatCommandsConfig;
+    @Inject
+    private Client client;
+    @Inject
+    private ClientThread clientThread;
 
-	@Inject
-	private Client client;
+    @Override
+    public void keyTyped(KeyEvent e) {
+    }
 
-	@Inject
-	private ClientThread clientThread;
+    @Override
+    public void keyPressed(KeyEvent e) {
+        if (this.chatCommandsConfig.clearSingleWord().matches(e)) {
+            String input;
+            int inputTye = this.client.getVarcIntValue(5);
+            String string = input = inputTye == InputType.NONE.getType() ? this.client.getVarcStrValue(335) : this.client.getVarcStrValue(359);
+            if (input != null) {
+                e.consume();
+                while (input.endsWith(" ")) {
+                    input = input.substring(0, input.length() - 1);
+                }
+                int idx = input.lastIndexOf(32) + 1;
+                String replacement = input.substring(0, idx);
+                this.clientThread.invoke(() -> this.applyText(inputTye, replacement));
+            }
+        } else if (this.chatCommandsConfig.clearChatBox().matches(e)) {
+            e.consume();
+            int inputTye = this.client.getVarcIntValue(5);
+            this.clientThread.invoke(() -> this.applyText(inputTye, ""));
+        }
+    }
 
-	@Override
-	public void keyTyped(KeyEvent e)
-	{
+    private void applyText(int inputType, String replacement) {
+        if (inputType == InputType.NONE.getType()) {
+            this.client.setVarcStrValue(335, replacement);
+            this.client.runScript(new Object[]{223});
+        } else if (inputType == InputType.PRIVATE_MESSAGE.getType()) {
+            this.client.setVarcStrValue(359, replacement);
+            this.client.runScript(new Object[]{222, ""});
+        }
+    }
 
-	}
-
-	@Override
-	public void keyPressed(KeyEvent e)
-	{
-		if (chatCommandsConfig.clearSingleWord().matches(e))
-		{
-			int inputTye = client.getVar(VarClientInt.INPUT_TYPE);
-			String input = inputTye == InputType.NONE.getType()
-				? client.getVar(VarClientStr.CHATBOX_TYPED_TEXT)
-				: client.getVar(VarClientStr.INPUT_TEXT);
-
-			if (input != null)
-			{
-				// prevent the keypress from also modifying the chatbox as we alter the text
-				e.consume();
-
-				// remove trailing space
-				while (input.endsWith(" "))
-				{
-					input = input.substring(0, input.length() - 1);
-				}
-
-				// find next word
-				int idx = input.lastIndexOf(' ') + 1;
-				final String replacement = input.substring(0, idx);
-
-				clientThread.invoke(() -> applyText(inputTye, replacement));
-			}
-		}
-		else if (chatCommandsConfig.clearChatBox().matches(e))
-		{
-			e.consume();
-			int inputTye = client.getVar(VarClientInt.INPUT_TYPE);
-			clientThread.invoke(() -> applyText(inputTye, ""));
-		}
-	}
-
-	private void applyText(int inputType, String replacement)
-	{
-		if (inputType == InputType.NONE.getType())
-		{
-			client.setVar(VarClientStr.CHATBOX_TYPED_TEXT, replacement);
-			client.runScript(ScriptID.CHAT_PROMPT_INIT);
-		}
-		else if (inputType == InputType.PRIVATE_MESSAGE.getType())
-		{
-			client.setVar(VarClientStr.INPUT_TEXT, replacement);
-			client.runScript(ScriptID.CHAT_TEXT_INPUT_REBUILD, "");
-		}
-	}
-
-	@Override
-	public void keyReleased(KeyEvent e)
-	{
-
-	}
+    @Override
+    public void keyReleased(KeyEvent e) {
+    }
 }
+

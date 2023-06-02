@@ -1,56 +1,109 @@
 /*
- * Copyright (c) 2018, Psikoi <https://github.com/psikoi>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  lombok.NonNull
+ *  net.runelite.http.api.loottracker.LootRecordType
  */
 package net.runelite.client.plugins.loottracker;
 
+import java.util.Arrays;
 import lombok.NonNull;
-import lombok.Value;
+import net.runelite.client.plugins.loottracker.LootTrackerItem;
 import net.runelite.http.api.loottracker.LootRecordType;
 
-@Value
-class LootTrackerRecord
-{
-	@NonNull
-	private final String title;
-	private final String subTitle;
-	private final LootRecordType type;
-	private final LootTrackerItem[] items;
-	private final int kills;
+final class LootTrackerRecord {
+    @NonNull
+    private final String title;
+    private final String subTitle;
+    private final LootRecordType type;
+    private final LootTrackerItem[] items;
+    private final int kills;
 
-	/**
-	 * Checks if this record matches specified id
-	 *
-	 * @param id other record id
-	 * @return true if match is made
-	 */
-	boolean matches(final String id, LootRecordType type)
-	{
-		if (id == null)
-		{
-			return true;
-		}
+    boolean matches(String id, LootRecordType type) {
+        if (id == null) {
+            return true;
+        }
+        return this.title.equals(id) && this.type == type;
+    }
 
-		return title.equals(id) && this.type == type;
-	}
+    public LootTrackerRecord(@NonNull String title, String subTitle, LootRecordType type, LootTrackerItem[] items, int kills) {
+        if (title == null) {
+            throw new NullPointerException("title is marked non-null but is null");
+        }
+        this.title = title;
+        this.subTitle = subTitle;
+        this.type = type;
+        this.items = items;
+        this.kills = kills;
+    }
+
+    @NonNull
+    public String getTitle() {
+        return this.title;
+    }
+
+    public String getSubTitle() {
+        return this.subTitle;
+    }
+
+    public LootRecordType getType() {
+        return this.type;
+    }
+
+    public LootTrackerItem[] getItems() {
+        return this.items;
+    }
+
+    public int getKills() {
+        return this.kills;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof LootTrackerRecord)) {
+            return false;
+        }
+        LootTrackerRecord other = (LootTrackerRecord)o;
+        if (this.getKills() != other.getKills()) {
+            return false;
+        }
+        String this$title = this.getTitle();
+        String other$title = other.getTitle();
+        if (this$title == null ? other$title != null : !this$title.equals(other$title)) {
+            return false;
+        }
+        String this$subTitle = this.getSubTitle();
+        String other$subTitle = other.getSubTitle();
+        if (this$subTitle == null ? other$subTitle != null : !this$subTitle.equals(other$subTitle)) {
+            return false;
+        }
+        LootRecordType this$type = this.getType();
+        LootRecordType other$type = other.getType();
+        if (this$type == null ? other$type != null : !this$type.equals((Object)other$type)) {
+            return false;
+        }
+        return Arrays.deepEquals(this.getItems(), other.getItems());
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getKills();
+        String $title = this.getTitle();
+        result = result * 59 + ($title == null ? 43 : $title.hashCode());
+        String $subTitle = this.getSubTitle();
+        result = result * 59 + ($subTitle == null ? 43 : $subTitle.hashCode());
+        LootRecordType $type = this.getType();
+        result = result * 59 + ($type == null ? 43 : $type.hashCode());
+        result = result * 59 + Arrays.deepHashCode(this.getItems());
+        return result;
+    }
+
+    public String toString() {
+        return "LootTrackerRecord(title=" + this.getTitle() + ", subTitle=" + this.getSubTitle() + ", type=" + (Object)this.getType() + ", items=" + Arrays.deepToString(this.getItems()) + ", kills=" + this.getKills() + ")";
+    }
 }
+

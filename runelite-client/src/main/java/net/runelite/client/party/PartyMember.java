@@ -1,37 +1,94 @@
 /*
- * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.party;
 
 import java.awt.image.BufferedImage;
-import lombok.Data;
 
-@Data
-public class PartyMember
-{
-	private final long memberId;
-	private String displayName = "<unknown>";
-	private boolean loggedIn;
-	private BufferedImage avatar;
+public class PartyMember {
+    private final long memberId;
+    private String displayName = "<unknown>";
+    private boolean loggedIn;
+    private BufferedImage avatar;
+
+    public PartyMember(long memberId) {
+        this.memberId = memberId;
+    }
+
+    public long getMemberId() {
+        return this.memberId;
+    }
+
+    public String getDisplayName() {
+        return this.displayName;
+    }
+
+    public boolean isLoggedIn() {
+        return this.loggedIn;
+    }
+
+    public BufferedImage getAvatar() {
+        return this.avatar;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public void setLoggedIn(boolean loggedIn) {
+        this.loggedIn = loggedIn;
+    }
+
+    public void setAvatar(BufferedImage avatar) {
+        this.avatar = avatar;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof PartyMember)) {
+            return false;
+        }
+        PartyMember other = (PartyMember)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getMemberId() != other.getMemberId()) {
+            return false;
+        }
+        if (this.isLoggedIn() != other.isLoggedIn()) {
+            return false;
+        }
+        String this$displayName = this.getDisplayName();
+        String other$displayName = other.getDisplayName();
+        if (this$displayName == null ? other$displayName != null : !this$displayName.equals(other$displayName)) {
+            return false;
+        }
+        BufferedImage this$avatar = this.getAvatar();
+        BufferedImage other$avatar = other.getAvatar();
+        return !(this$avatar == null ? other$avatar != null : !this$avatar.equals(other$avatar));
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof PartyMember;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        long $memberId = this.getMemberId();
+        result = result * 59 + (int)($memberId >>> 32 ^ $memberId);
+        result = result * 59 + (this.isLoggedIn() ? 79 : 97);
+        String $displayName = this.getDisplayName();
+        result = result * 59 + ($displayName == null ? 43 : $displayName.hashCode());
+        BufferedImage $avatar = this.getAvatar();
+        result = result * 59 + ($avatar == null ? 43 : $avatar.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "PartyMember(memberId=" + this.getMemberId() + ", displayName=" + this.getDisplayName() + ", loggedIn=" + this.isLoggedIn() + ", avatar=" + this.getAvatar() + ")";
+    }
 }
+

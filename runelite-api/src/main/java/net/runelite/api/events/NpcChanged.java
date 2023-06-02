@@ -1,46 +1,58 @@
 /*
- * Copyright (c) 2018, Woox <https://github.com/wooxsolo>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.api.events;
 
-import lombok.Value;
 import net.runelite.api.NPC;
 import net.runelite.api.NPCComposition;
 
-/**
- * Fires after the composition of an {@link NPC} changes.
- */
-@Value
-public class NpcChanged
-{
-	/**
-	 * The NPC of which the composition changed.
-	 */
-	private final NPC npc;
+public final class NpcChanged {
+    private final NPC npc;
+    private final NPCComposition old;
 
-	/**
-	 * The old composition of the NPC
-	 */
-	private final NPCComposition old;
+    public NpcChanged(NPC npc, NPCComposition old) {
+        this.npc = npc;
+        this.old = old;
+    }
+
+    public NPC getNpc() {
+        return this.npc;
+    }
+
+    public NPCComposition getOld() {
+        return this.old;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof NpcChanged)) {
+            return false;
+        }
+        NpcChanged other = (NpcChanged)o;
+        NPC this$npc = this.getNpc();
+        NPC other$npc = other.getNpc();
+        if (this$npc == null ? other$npc != null : !this$npc.equals(other$npc)) {
+            return false;
+        }
+        NPCComposition this$old = this.getOld();
+        NPCComposition other$old = other.getOld();
+        return !(this$old == null ? other$old != null : !this$old.equals(other$old));
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        NPC $npc = this.getNpc();
+        result = result * 59 + ($npc == null ? 43 : $npc.hashCode());
+        NPCComposition $old = this.getOld();
+        result = result * 59 + ($old == null ? 43 : $old.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        return "NpcChanged(npc=" + this.getNpc() + ", old=" + this.getOld() + ")";
+    }
 }
+

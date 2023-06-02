@@ -1,68 +1,61 @@
 /*
- * Copyright (c) 2018, Unmoon <https://github.com/Unmoon>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  net.runelite.api.GameObject
+ *  net.runelite.api.coords.WorldPoint
  */
 package net.runelite.client.plugins.tithefarm;
 
 import java.time.Duration;
 import java.time.Instant;
-import lombok.Getter;
-import lombok.Setter;
 import net.runelite.api.GameObject;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.plugins.tithefarm.TitheFarmPlantState;
+import net.runelite.client.plugins.tithefarm.TitheFarmPlantType;
 
-class TitheFarmPlant
-{
-	private static final Duration PLANT_TIME = Duration.ofMinutes(1);
+class TitheFarmPlant {
+    private static final Duration PLANT_TIME = Duration.ofMinutes(1L);
+    private Instant planted = Instant.now();
+    private final TitheFarmPlantState state;
+    private final TitheFarmPlantType type;
+    private final GameObject gameObject;
+    private final WorldPoint worldLocation;
 
-	@Getter
-	@Setter
-	private Instant planted;
+    TitheFarmPlant(TitheFarmPlantState state, TitheFarmPlantType type, GameObject gameObject) {
+        this.state = state;
+        this.type = type;
+        this.gameObject = gameObject;
+        this.worldLocation = gameObject.getWorldLocation();
+    }
 
-	@Getter
-	private final TitheFarmPlantState state;
+    public double getPlantTimeRelative() {
+        Duration duration = Duration.between(this.planted, Instant.now());
+        return duration.compareTo(PLANT_TIME) < 0 ? (double)duration.toMillis() / (double)PLANT_TIME.toMillis() : 1.0;
+    }
 
-	@Getter
-	private final TitheFarmPlantType type;
+    public Instant getPlanted() {
+        return this.planted;
+    }
 
-	@Getter
-	private final GameObject gameObject;
+    public void setPlanted(Instant planted) {
+        this.planted = planted;
+    }
 
-	@Getter
-	private final WorldPoint worldLocation;
+    public TitheFarmPlantState getState() {
+        return this.state;
+    }
 
-	TitheFarmPlant(TitheFarmPlantState state, TitheFarmPlantType type, GameObject gameObject)
-	{
-		this.planted = Instant.now();
-		this.state = state;
-		this.type = type;
-		this.gameObject = gameObject;
-		this.worldLocation = gameObject.getWorldLocation();
-	}
+    public TitheFarmPlantType getType() {
+        return this.type;
+    }
 
-	public double getPlantTimeRelative()
-	{
-		Duration duration = Duration.between(planted, Instant.now());
-		return duration.compareTo(PLANT_TIME) < 0 ? (double) duration.toMillis() / PLANT_TIME.toMillis() : 1;
-	}
+    public GameObject getGameObject() {
+        return this.gameObject;
+    }
+
+    public WorldPoint getWorldLocation() {
+        return this.worldLocation;
+    }
 }
+

@@ -1,37 +1,100 @@
 /*
- * Copyright (c) 2018, Tomas Slusny <slusnucky@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
  */
 package net.runelite.client.plugins.xptracker;
 
-import lombok.Data;
+import java.util.Arrays;
 
-@Data
-class XpAction
-{
-	private int actions = 0;
-	private int actionsSinceReset = 0;
-	private boolean actionsHistoryInitialized = false;
-	private int[] actionExps = new int[10];
-	private int actionExpIndex = 0;
+class XpAction {
+    private int actions = 0;
+    private int actionsSinceReset = 0;
+    private boolean actionsHistoryInitialized = false;
+    private int[] actionExps = new int[10];
+    private int actionExpIndex = 0;
+
+    public int getActions() {
+        return this.actions;
+    }
+
+    public int getActionsSinceReset() {
+        return this.actionsSinceReset;
+    }
+
+    public boolean isActionsHistoryInitialized() {
+        return this.actionsHistoryInitialized;
+    }
+
+    public int[] getActionExps() {
+        return this.actionExps;
+    }
+
+    public int getActionExpIndex() {
+        return this.actionExpIndex;
+    }
+
+    public void setActions(int actions) {
+        this.actions = actions;
+    }
+
+    public void setActionsSinceReset(int actionsSinceReset) {
+        this.actionsSinceReset = actionsSinceReset;
+    }
+
+    public void setActionsHistoryInitialized(boolean actionsHistoryInitialized) {
+        this.actionsHistoryInitialized = actionsHistoryInitialized;
+    }
+
+    public void setActionExps(int[] actionExps) {
+        this.actionExps = actionExps;
+    }
+
+    public void setActionExpIndex(int actionExpIndex) {
+        this.actionExpIndex = actionExpIndex;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof XpAction)) {
+            return false;
+        }
+        XpAction other = (XpAction)o;
+        if (!other.canEqual(this)) {
+            return false;
+        }
+        if (this.getActions() != other.getActions()) {
+            return false;
+        }
+        if (this.getActionsSinceReset() != other.getActionsSinceReset()) {
+            return false;
+        }
+        if (this.isActionsHistoryInitialized() != other.isActionsHistoryInitialized()) {
+            return false;
+        }
+        if (this.getActionExpIndex() != other.getActionExpIndex()) {
+            return false;
+        }
+        return Arrays.equals(this.getActionExps(), other.getActionExps());
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof XpAction;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        result = result * 59 + this.getActions();
+        result = result * 59 + this.getActionsSinceReset();
+        result = result * 59 + (this.isActionsHistoryInitialized() ? 79 : 97);
+        result = result * 59 + this.getActionExpIndex();
+        result = result * 59 + Arrays.hashCode(this.getActionExps());
+        return result;
+    }
+
+    public String toString() {
+        return "XpAction(actions=" + this.getActions() + ", actionsSinceReset=" + this.getActionsSinceReset() + ", actionsHistoryInitialized=" + this.isActionsHistoryInitialized() + ", actionExps=" + Arrays.toString(this.getActionExps()) + ", actionExpIndex=" + this.getActionExpIndex() + ")";
+    }
 }
+

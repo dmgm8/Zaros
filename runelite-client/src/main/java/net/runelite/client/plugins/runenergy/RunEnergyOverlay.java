@@ -1,26 +1,13 @@
 /*
- * Copyright (c) 2018, Sean Dewar <https://github.com/seandewar>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Decompiled with CFR 0.150.
+ * 
+ * Could not load the following classes:
+ *  javax.inject.Inject
+ *  net.runelite.api.Client
+ *  net.runelite.api.Point
+ *  net.runelite.api.widgets.Widget
+ *  net.runelite.api.widgets.WidgetInfo
+ *  org.apache.commons.lang3.StringUtils
  */
 package net.runelite.client.plugins.runenergy;
 
@@ -32,6 +19,8 @@ import net.runelite.api.Client;
 import net.runelite.api.Point;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.client.plugins.runenergy.RunEnergyConfig;
+import net.runelite.client.plugins.runenergy.RunEnergyPlugin;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -39,69 +28,54 @@ import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 import org.apache.commons.lang3.StringUtils;
 
-class RunEnergyOverlay extends Overlay
-{
-	private final RunEnergyPlugin plugin;
-	private final Client client;
-	private final RunEnergyConfig config;
-	private final TooltipManager tooltipManager;
+class RunEnergyOverlay
+extends Overlay {
+    private final RunEnergyPlugin plugin;
+    private final Client client;
+    private final RunEnergyConfig config;
+    private final TooltipManager tooltipManager;
 
-	@Inject
-	private RunEnergyOverlay(final RunEnergyPlugin plugin, final Client client, final RunEnergyConfig config, final TooltipManager tooltipManager)
-	{
-		this.plugin = plugin;
-		this.client = client;
-		this.config = config;
-		this.tooltipManager = tooltipManager;
-		setPosition(OverlayPosition.DYNAMIC);
-		setLayer(OverlayLayer.ABOVE_WIDGETS);
-	}
+    @Inject
+    private RunEnergyOverlay(RunEnergyPlugin plugin, Client client, RunEnergyConfig config, TooltipManager tooltipManager) {
+        this.plugin = plugin;
+        this.client = client;
+        this.config = config;
+        this.tooltipManager = tooltipManager;
+        this.setPosition(OverlayPosition.DYNAMIC);
+        this.setLayer(OverlayLayer.ABOVE_WIDGETS);
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics)
-	{
-		final Widget runOrb = client.getWidget(WidgetInfo.MINIMAP_TOGGLE_RUN_ORB);
-
-		if (runOrb == null || runOrb.isHidden())
-		{
-			return null;
-		}
-
-		final Rectangle bounds = runOrb.getBounds();
-
-		if (bounds.getX() <= 0)
-		{
-			return null;
-		}
-
-		final Point mousePosition = client.getMouseCanvasPosition();
-
-		if (bounds.contains(mousePosition.getX(), mousePosition.getY()))
-		{
-			StringBuilder sb = new StringBuilder();
-			sb.append("Weight: ").append(client.getWeight()).append(" kg</br>");
-
-			if (config.replaceOrbText())
-			{
-				sb.append("Run Energy: ").append(client.getEnergy()).append('%');
-			}
-			else
-			{
-				sb.append("Run Time Remaining: ").append(plugin.getEstimatedRunTimeRemaining(false));
-			}
-
-			int secondsUntil100 = plugin.getEstimatedRecoverTimeRemaining();
-			if (secondsUntil100 > 0)
-			{
-				final int minutes = (int) Math.floor(secondsUntil100 / 60.0);
-				final int seconds = (int) Math.floor(secondsUntil100 - (minutes * 60.0));
-
-				sb.append("</br>").append("100% Energy In: ").append(minutes).append(':').append(StringUtils.leftPad(Integer.toString(seconds), 2, "0"));
-			}
-
-			tooltipManager.add(new Tooltip(sb.toString()));
-		}
-
-		return null;
-	}
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        Widget runOrb = this.client.getWidget(WidgetInfo.MINIMAP_TOGGLE_RUN_ORB);
+        if (runOrb == null || runOrb.isHidden()) {
+            return null;
+        }
+        Rectangle bounds = runOrb.getBounds();
+        if (bounds.getX() <= 0.0) {
+            return null;
+        }
+        Point mousePosition = this.client.getMouseCanvasPosition();
+        if (bounds.contains(mousePosition.getX(), mousePosition.getY())) {
+            int secondsUntil100;
+            StringBuilder sb = new StringBuilder();
+            sb.append("Weight: ").append(this.client.getWeight()).append(" kg</br>");
+            if (this.config.replaceOrbText()) {
+                sb.append("Run Energy: ").append(this.client.getEnergy()).append('%');
+            } else {
+                sb.append("Run Time Remaining: ").append(this.plugin.getEstimatedRunTimeRemaining(false));
+            }
+            if (this.client.getVarbitValue(25) == 0 && this.plugin.isRingOfEnduranceEquipped() && this.plugin.getRingOfEnduranceCharges() == null) {
+                sb.append("</br>Check your Ring of endurance to get the time remaining.");
+            }
+            if ((secondsUntil100 = this.plugin.getEstimatedRecoverTimeRemaining()) > 0) {
+                int minutes = (int)Math.floor((double)secondsUntil100 / 60.0);
+                int seconds = (int)Math.floor((double)secondsUntil100 - (double)minutes * 60.0);
+                sb.append("</br>").append("100% Energy In: ").append(minutes).append(':').append(StringUtils.leftPad((String)Integer.toString(seconds), (int)2, (String)"0"));
+            }
+            this.tooltipManager.add(new Tooltip(sb.toString()));
+        }
+        return null;
+    }
 }
+
