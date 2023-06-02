@@ -49,10 +49,10 @@ public class ClientSessionManager {
         this.executorService.execute(() -> {
             try {
                 this.sessionId = this.sessionClient.open();
-                log.debug("Opened session {}", (Object)this.sessionId);
+                log.debug("Opened session {}", this.sessionId);
             }
             catch (IOException ex) {
-                log.warn("error opening session", (Throwable)ex);
+                log.warn("error opening session", ex);
             }
         });
         this.scheduledFuture = this.executorService.scheduleWithFixedDelay(RunnableExceptionLogger.wrap(this::ping), 1L, 10L, TimeUnit.MINUTES);
@@ -69,7 +69,7 @@ public class ClientSessionManager {
                 }
             }
             catch (IOException ex) {
-                log.warn(null, (Throwable)ex);
+                log.warn(null, ex);
             }
             this.sessionId = null;
         }));
@@ -79,12 +79,12 @@ public class ClientSessionManager {
         try {
             if (this.sessionId == null) {
                 this.sessionId = this.sessionClient.open();
-                log.debug("Opened session {}", (Object)this.sessionId);
+                log.debug("Opened session {}", this.sessionId);
                 return;
             }
         }
         catch (IOException ex) {
-            log.warn("unable to open session", (Throwable)ex);
+            log.warn("unable to open session", ex);
             return;
         }
         boolean loggedIn = false;
@@ -96,7 +96,7 @@ public class ClientSessionManager {
             this.sessionClient.ping(this.sessionId, loggedIn);
         }
         catch (IOException ex) {
-            log.warn("Resetting session", (Throwable)ex);
+            log.warn("Resetting session", ex);
             this.sessionId = null;
         }
     }

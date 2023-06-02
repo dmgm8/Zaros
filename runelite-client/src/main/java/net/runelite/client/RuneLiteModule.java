@@ -76,44 +76,44 @@ extends AbstractModule {
         Properties properties = RuneLiteProperties.getProperties();
         for (String key : properties.stringPropertyNames()) {
             String value = properties.getProperty(key);
-            this.bindConstant().annotatedWith((Annotation)Names.named((String)key)).to(value);
+            this.bindConstant().annotatedWith(Names.named(key)).to(value);
         }
         RuntimeConfig runtimeConfig = this.configSupplier.get();
         if (runtimeConfig != null && runtimeConfig.getProps() != null) {
             for (Map.Entry<String, ?> entry : runtimeConfig.getProps().entrySet()) {
                 ConstantBindingBuilder binder;
                 if (entry.getValue() instanceof String) {
-                    binder = this.bindConstant().annotatedWith((Annotation)Names.named((String)entry.getKey()));
+                    binder = this.bindConstant().annotatedWith(Names.named(entry.getKey()));
                     binder.to((String)entry.getValue());
                     continue;
                 }
                 if (!(entry.getValue() instanceof Double)) continue;
-                binder = this.bindConstant().annotatedWith((Annotation)Names.named((String)entry.getKey()));
-                if (DoubleMath.isMathematicalInteger((double)((Double)entry.getValue()))) {
+                binder = this.bindConstant().annotatedWith(Names.named(entry.getKey()));
+                if (DoubleMath.isMathematicalInteger((Double)entry.getValue())) {
                     binder.to((int)((Double)entry.getValue()).doubleValue());
                     continue;
                 }
-                binder.to(((Double)entry.getValue()).doubleValue());
+                binder.to((Double) entry.getValue());
             }
         }
-        this.bindConstant().annotatedWith((Annotation)Names.named((String)"developerMode")).to(this.developerMode);
-        this.bindConstant().annotatedWith((Annotation)Names.named((String)"safeMode")).to(this.safeMode);
-        this.bindConstant().annotatedWith((Annotation)Names.named((String)"disableTelemetry")).to(this.disableTelemetry);
-        this.bindConstant().annotatedWith((Annotation)Names.named((String)"vanilla")).to(this.vanilla);
-        this.bind(File.class).annotatedWith((Annotation)Names.named((String)"sessionfile")).toInstance((Object)this.sessionfile);
-        this.bind(File.class).annotatedWith((Annotation)Names.named((String)"config")).toInstance((Object)this.config);
-        this.bind(ScheduledExecutorService.class).toInstance((Object)new ExecutorServiceExceptionLogger(Executors.newSingleThreadScheduledExecutor()));
-        this.bind(OkHttpClient.class).toInstance((Object)this.okHttpClient);
+        this.bindConstant().annotatedWith(Names.named("developerMode")).to(this.developerMode);
+        this.bindConstant().annotatedWith(Names.named("safeMode")).to(this.safeMode);
+        this.bindConstant().annotatedWith(Names.named("disableTelemetry")).to(this.disableTelemetry);
+        this.bindConstant().annotatedWith(Names.named("vanilla")).to(this.vanilla);
+        this.bind(File.class).annotatedWith(Names.named("sessionfile")).toInstance(this.sessionfile);
+        this.bind(File.class).annotatedWith(Names.named("config")).toInstance(this.config);
+        this.bind(ScheduledExecutorService.class).toInstance(new ExecutorServiceExceptionLogger(Executors.newSingleThreadScheduledExecutor()));
+        this.bind(OkHttpClient.class).toInstance(this.okHttpClient);
         this.bind(MenuManager.class);
         this.bind(ChatMessageManager.class);
         this.bind(ItemManager.class);
         this.bind(Scheduler.class);
         this.bind(PluginManager.class);
         this.bind(SessionManager.class);
-        this.bind(Gson.class).toInstance((Object)RuneLiteAPI.GSON);
+        this.bind(Gson.class).toInstance(RuneLiteAPI.GSON);
         this.bind(Callbacks.class).to(Hooks.class);
-        this.bind(EventBus.class).toInstance((Object)new EventBus());
-        this.bind(EventBus.class).annotatedWith((Annotation)Names.named((String)"Deferred EventBus")).to(DeferredEventBus.class);
+        this.bind(EventBus.class).toInstance(new EventBus());
+        this.bind(EventBus.class).annotatedWith(Names.named("Deferred EventBus")).to(DeferredEventBus.class);
     }
 
     @Provides
@@ -150,28 +150,28 @@ extends AbstractModule {
     @Named(value="runelite.api.base")
     HttpUrl provideApiBase(@Named(value="runelite.api.base") String s) {
         String prop = System.getProperty("runelite.http-service.url");
-        return HttpUrl.get((String)(Strings.isNullOrEmpty((String)prop) ? s : prop));
+        return HttpUrl.get(Strings.isNullOrEmpty(prop) ? s : prop);
     }
 
     @Provides
     @Named(value="runelite.session")
     HttpUrl provideSession(@Named(value="runelite.session") String s) {
         String prop = System.getProperty("runelite.session.url");
-        return HttpUrl.get((String)(Strings.isNullOrEmpty((String)prop) ? s : prop));
+        return HttpUrl.get(Strings.isNullOrEmpty(prop) ? s : prop);
     }
 
     @Provides
     @Named(value="runelite.static.base")
     HttpUrl provideStaticBase(@Named(value="runelite.static.base") String s) {
         String prop = System.getProperty("runelite.static.url");
-        return HttpUrl.get((String)(Strings.isNullOrEmpty((String)prop) ? s : prop));
+        return HttpUrl.get(Strings.isNullOrEmpty(prop) ? s : prop);
     }
 
     @Provides
     @Named(value="runelite.ws")
     HttpUrl provideWs(@Named(value="runelite.ws") String s) {
         String prop = System.getProperty("runelite.ws.url");
-        return HttpUrl.get((String)(Strings.isNullOrEmpty((String)prop) ? s : prop));
+        return HttpUrl.get(Strings.isNullOrEmpty(prop) ? s : prop);
     }
 
     @Provides

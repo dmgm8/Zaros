@@ -44,11 +44,11 @@ public class TelemetryClient {
 
     void submitTelemetry() {
         HttpUrl url = this.apiBase.newBuilder().addPathSegment("telemetry").build();
-        Request request = new Request.Builder().url(url).post(RequestBody.create((MediaType)RuneLiteAPI.JSON, (String)this.gson.toJson((Object)TelemetryClient.buildTelemetry()))).build();
+        Request request = new Request.Builder().url(url).post(RequestBody.create(RuneLiteAPI.JSON, this.gson.toJson(TelemetryClient.buildTelemetry()))).build();
         this.okHttpClient.newCall(request).enqueue(new Callback(){
 
             public void onFailure(Call call, IOException e) {
-                log.debug("Error submitting telemetry", (Throwable)e);
+                log.debug("Error submitting telemetry", e);
             }
 
             public void onResponse(Call call, Response response) {
@@ -60,11 +60,11 @@ public class TelemetryClient {
 
     public void submitError(String type, String error) {
         HttpUrl url = this.apiBase.newBuilder().addPathSegment("telemetry").addPathSegment("error").addQueryParameter("type", type).addQueryParameter("error", error).build();
-        Request request = new Request.Builder().url(url).post(RequestBody.create(null, (byte[])new byte[0])).build();
+        Request request = new Request.Builder().url(url).post(RequestBody.create(null, new byte[0])).build();
         this.okHttpClient.newCall(request).enqueue(new Callback(){
 
             public void onFailure(Call call, IOException e) {
-                log.debug("Error submitting error", (Throwable)e);
+                log.debug("Error submitting error", e);
             }
 
             public void onResponse(Call call, Response response) {

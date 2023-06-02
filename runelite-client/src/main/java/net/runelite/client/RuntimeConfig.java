@@ -7,10 +7,8 @@
 package net.runelite.client;
 
 import com.google.common.base.Strings;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+
+import java.util.*;
 import javax.swing.SwingUtilities;
 import net.runelite.client.RuneLiteProperties;
 import net.runelite.client.ui.FatalErrorDialog;
@@ -29,17 +27,17 @@ public class RuntimeConfig {
     private Map<String, List<String>> hiscoreMapping;
 
     public boolean showOutageMessage() {
-        if (Strings.isNullOrEmpty((String)this.getOutageMessage())) {
+        if (Strings.isNullOrEmpty(this.getOutageMessage())) {
             return false;
         }
         SwingUtilities.invokeLater(() -> {
             FatalErrorDialog fed = new FatalErrorDialog(this.getOutageMessage());
-            if (this.getOutageLinks() != null) {
-                for (Map.Entry<String, String> e : this.getOutageLinks().entrySet()) {
-                    fed.addButton(e.getKey(), () -> LinkBrowser.browse((String)e.getValue()));
-                }
-            } else {
+            if (this.getOutageLinks() == null) {
                 fed.addButton("OSRS Twitter", () -> LinkBrowser.browse(RuneLiteProperties.getOSRSTwitterLink()));
+            } else {
+                for (Map.Entry<String, String> e : this.getOutageLinks().entrySet()) {
+                    fed.addButton(e.getKey(), () -> LinkBrowser.browse(e.getValue()));
+                }
             }
             fed.open();
         });
@@ -149,7 +147,7 @@ public class RuntimeConfig {
         }
         String this$outageMessage = this.getOutageMessage();
         String other$outageMessage = other.getOutageMessage();
-        if (this$outageMessage == null ? other$outageMessage != null : !this$outageMessage.equals(other$outageMessage)) {
+        if (!Objects.equals(this$outageMessage, other$outageMessage)) {
             return false;
         }
         Map<String, String> this$outageLinks = this.getOutageLinks();
